@@ -1,7 +1,7 @@
 /*global define*/
 define([
         '../Core/destroyObject',
-        '../Core/Rectangle',
+        '../Core/BoundingRectangle',
         '../Core/ComponentDatatype',
         '../Core/PrimitiveType',
         '../Core/defaultValue',
@@ -11,7 +11,7 @@ define([
         '../Shaders/ViewportQuadFS'
     ], function(
         destroyObject,
-        Rectangle,
+        BoundingRectangle,
         ComponentDatatype,
         PrimitiveType,
         defaultValue,
@@ -75,11 +75,11 @@ define([
      *
      * @memberof ViewportQuad
      *
-     * @param {Rectangle} value DOC_TBA
+     * @param {BoundingRectangle} value DOC_TBA
      */
     ViewportQuad.prototype.setRectangle = function(value) {
         if (value && !this._rectangle.equals(value)) {
-            this._rectangle = new Rectangle(value.x, value.y, value.width, value.height);
+            this._rectangle = new BoundingRectangle(value.x, value.y, value.width, value.height);
             this._dirtyRectangle = true;
         }
     };

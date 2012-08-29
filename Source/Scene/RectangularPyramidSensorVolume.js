@@ -62,7 +62,7 @@ define([
          * coordinates, the sensor's principal direction is along the positive z-axis.  Half angles measured from the
          * principal direction and in the direction of the x-axis and y-axis define the extent of the rectangular
          * cross section.  This matrix is available to GLSL vertex and fragment shaders via
-         * {@link agi_model} and derived uniforms.
+         * {@link czm_model} and derived uniforms.
          * <br /><br />
          * <div align='center'>
          * <img src='images/RectangularPyramidSensorVolume.setModelMatrix.png' /><br />
@@ -71,7 +71,7 @@ define([
          *
          * @type Matrix4
          *
-         * @see agi_model
+         * @see czm_model
          *
          * @example
          * // The sensor's vertex is located on the surface at -75.59777 degrees longitude and 40.03883 degrees latitude.
@@ -114,6 +114,19 @@ define([
          */
         this.yHalfAngle = (typeof t.yHalfAngle === 'undefined') ? CesiumMath.PI_OVER_TWO : t.yHalfAngle;
         this._yHalfAngle = undefined;
+
+        /**
+         * <p>
+         * Determines if the sensor is affected by lighting, i.e., if the sensor is bright on the
+         * day side of the globe, and dark on the night side.  When <code>true</code>, the sensor
+         * is affected by lighting; when <code>false</code>, the sensor is uniformly shaded regardless
+         * of the sun position.
+         * </p>
+         * <p>
+         * The default is <code>true</code>.
+         * </p>
+         */
+        this.affectedByLighting = this._affectedByLighting = (typeof t.affectedByLighting !== 'undefined') ? t.affectedByLighting : true;
 
         /**
          * DOC_TBA
@@ -160,6 +173,7 @@ define([
         s.material = this.material;
         s.intersectionColor = this.intersectionColor;
         s.erosion = this.erosion;
+        s.affectedByLighting = this.affectedByLighting;
 
         if ((this._xHalfAngle !== this.xHalfAngle) || (this._yHalfAngle !== this.yHalfAngle)) {
 
@@ -187,7 +201,7 @@ define([
             }]);
         }
 
-        s.update(context, sceneState);
+        return s.update(context, sceneState);
     };
 
     /**
