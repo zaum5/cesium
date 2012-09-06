@@ -16,7 +16,6 @@ define([
         './CompositePrimitive',
         './AnimationCollection',
         './SceneMode',
-        './FrameState',
         './ViewportQuad',
         './FrameState',
         '../Shaders/PostFX/PassThrough',
@@ -48,8 +47,8 @@ define([
         CompositePrimitive,
         AnimationCollection,
         SceneMode,
-        FrameState,
         ViewportQuad,
+        FrameState,
         PassThrough,
         LuminanceFS,
         BlackAndWhite,
@@ -126,10 +125,10 @@ define([
             new ViewportQuad(new BoundingRectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), undefined, Brightness),
             new ViewportQuad(new BoundingRectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), undefined, Contrast),
             new ViewportQuad(new BoundingRectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), undefined, Toon),
-            new ViewportQuad(new Rectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), undefined, Fog),
-            new ViewportQuad(new Rectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), undefined, DepthOfField),
-            new ViewportQuad(new Rectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), undefined, AmbientOcclusion),
-            new ViewportQuad(new Rectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), undefined, CombinedEffects)
+            new ViewportQuad(new BoundingRectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), undefined, Fog),
+            new ViewportQuad(new BoundingRectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), undefined, DepthOfField),
+            new ViewportQuad(new BoundingRectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), undefined, AmbientOcclusion),
+            new ViewportQuad(new BoundingRectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), undefined, CombinedEffects)
         ];
     };
 

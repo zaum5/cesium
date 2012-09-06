@@ -7,7 +7,7 @@ const float n = 10.0; // camera z near
 const float f = 200000.0; // camera z far
 
 // TODO: do not assume full-screen
-vec2 u_step = vec2(1.0 / float(agi_viewport.z), 1.0 / float(agi_viewport.w));
+vec2 u_step = vec2(1.0 / czm_viewport.z, 1.0 / czm_viewport.w);
 
 // From http://www.geeks3d.com/20091216/geexlab-how-to-visualize-the-depth-buffer-in-glsl/
 float LinearizeDepth(vec2 uv)
