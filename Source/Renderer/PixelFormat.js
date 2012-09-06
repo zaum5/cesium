@@ -9,7 +9,7 @@ define(['../Core/Enumeration'], function(Enumeration) {
      */
     var PixelFormat = {
         /**
-         * DOC_TBA
+         * A pixel format containing a depth value.
          *
          * @constant
          * @type {Enumeration}
@@ -17,7 +17,7 @@ define(['../Core/Enumeration'], function(Enumeration) {
         DEPTH_COMPONENT : new Enumeration(0x1902, 'DEPTH_COMPONENT'),
 
         /**
-         * DOC_TBA
+         * A pixel format containing a depth and stencil value, most often used with {@see PixelDatatype.UNSIGNED_INT_24_8_WEBGL}.
          *
          * @constant
          * @type {Enumeration}
@@ -65,11 +65,11 @@ define(['../Core/Enumeration'], function(Enumeration) {
         LUMINANCE_ALPHA : new Enumeration(0x190A, 'LUMINANCE_ALPHA'),
 
         /**
-         * DOC_TBA
+         * Returns true if the pixel format is a valid enumeration value.
          *
-         * @param pixelFormat
+         * @param {PixelFormat} pixelFormat The pixel format to test.
          *
-         * @returns {Boolean}
+         * @returns {Boolean} Returns true if the pixel format is a valid enumeration value; otherwise, false.
          */
         validate : function(pixelFormat) {
             return ((pixelFormat === PixelFormat.DEPTH_COMPONENT) ||
@@ -79,6 +79,33 @@ define(['../Core/Enumeration'], function(Enumeration) {
                     (pixelFormat === PixelFormat.RGBA) ||
                     (pixelFormat === PixelFormat.LUMINANCE) ||
                     (pixelFormat === PixelFormat.LUMINANCE_ALPHA));
+        },
+
+        /**
+         * Returns true if the pixel format is a color format.
+         *
+         * @param {PixelFormat} pixelFormat The pixel format to test.
+         *
+         * @returns {Boolean} Returns true if the pixel format is a color format; otherwise false.
+         */
+        isColorFormat : function(pixelFormat) {
+            return ((pixelFormat === PixelFormat.ALPHA) ||
+                    (pixelFormat === PixelFormat.RGB) ||
+                    (pixelFormat === PixelFormat.RGBA) ||
+                    (pixelFormat === PixelFormat.LUMINANCE) ||
+                    (pixelFormat === PixelFormat.LUMINANCE_ALPHA));
+        },
+
+        /**
+         * Returns true if the pixel format is a depth format.
+         *
+         * @param {PixelFormat} pixelFormat The pixel format to test.
+         *
+         * @returns {Boolean} Returns true if the pixel format is a depth format; otherwise false.
+         */
+        isDepthFormat : function(pixelFormat) {
+            return ((pixelFormat === PixelFormat.DEPTH_COMPONENT) ||
+                    (pixelFormat === PixelFormat.DEPTH_STENCIL));
         }
     };
 

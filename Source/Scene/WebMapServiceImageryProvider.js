@@ -8,10 +8,9 @@ define([
         '../Core/Cartesian2',
         '../Core/Extent',
         '../Core/Math',
-        './DiscardMissingTileImagePolicy',
         './ImageryProvider',
+        './ImageryState',
         './Projections',
-        './TileState',
         './WebMercatorTilingScheme',
         './GeographicTilingScheme',
         '../ThirdParty/when'
@@ -24,17 +23,16 @@ define([
         Cartesian2,
         Extent,
         CesiumMath,
-        DiscardMissingTileImagePolicy,
         ImageryProvider,
+        ImageryState,
         Projections,
-        TileState,
         WebMercatorTilingScheme,
         GeographicTilingScheme,
         when) {
     "use strict";
 
     /**
-     * Provides tiled imagery hosted by a WMS server.
+     * Provides tiled imagery hosted by a Web Map Service (WMS) server.
      *
      * @alias WebMapServiceImageryProvider
      * @constructor
@@ -70,72 +68,14 @@ define([
             throw new DeveloperError('description.layerName is required.');
         }
 
-        /**
-         * The URL of the WMS server.
-         * @type {String}
-         */
-        this.url = description.url;
-
-        /**
-         * The name of the layer to access on the WMS server.
-         * @type {String}
-         */
-        this.layerName = description.layerName;
-
+        this._url = description.url;
+        this._layerName = description.layerName;
         this._proxy = description.proxy;
 
-        /**
-         * The cartographic extent of this provider's imagery,
-         * with north, south, east and west properties in radians.
-         *
-         * @type {Extent}
-         */
-        this.extent = undefined;
-
-        /**
-         * The width of every image loaded.
-         *
-         * @type {Number}
-         */
-        this.tileWidth = undefined;
-
-        /**
-         * The height of every image loaded.
-         *
-         * @type {Number}
-         */
-        this.tileHeight = undefined;
-
-        /**
-         * The maximum level-of-detail that can be requested.
-         *
-         * @type {Number}
-         */
-        this.maxLevel = undefined;
-
-        /**
-         * The map projection of the image.
-         *
-         * @type {Enumeration}
-         * @see Projections
-         */
-        this.projection = undefined;
-
-        /**
-         * The tiling scheme used by this provider.
-         *
-         * @type {TilingScheme}
-         * @see WebMercatorTilingScheme
-         * @see GeographicTilingScheme
-         */
-        this.tilingScheme = undefined;
-
-        /**
-         * True if the provider is ready for use; otherwise, false.
-         *
-         * @type {Boolean}
-         */
-        this.ready = false;
+        this._tileWidth = 256;
+        this._tileHeight = 256;
+        this._maximumLevel = 18;
+        this._tilingScheme = new GeographicTilingScheme();
 
         // Create the copyright message.
         if (typeof description.copyrightText !== 'undefined') {
@@ -145,44 +85,79 @@ define([
             });
         }
 
-//        this.projection = Projections.MERCATOR;
-//        this.tilingScheme = new WebMercatorTilingScheme();
-//        this.extent = new Extent(-CesiumMath.PI,
-//                CesiumMath.toRadians(-85.05112878),
-//                CesiumMath.PI,
-//                CesiumMath.toRadians(85.05112878));
-
-        this.projection = Projections.WGS84;
-        this.tilingScheme = new GeographicTilingScheme();
-        this.extent = new Extent(-CesiumMath.PI,
-                -CesiumMath.PI_OVER_TWO,
-                CesiumMath.PI,
-                CesiumMath.PI_OVER_TWO);
-
-        this.maxLevel = 18;
-
-        this.ready = true;
+        this._ready = true;
     };
 
     /**
-     * Creates a {@link DiscardMissingTileImagePolicy} that compares tiles
-     * against the tile at coordinate (0, 0), at the maximum level of detail, which is
-     * assumed to be missing.  Only a subset of the pixels are compared to improve performance.
-     * These pixels were chosen based on the current visual appearance of the tile on the ESRI servers at
-     * <a href="http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/0/0">http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/19/0/0</a>.
-     *
-     * Before using this discard policy, check to make sure that the ArcGIS service actually has
-     * missing tiles.  In particular, overlay maps may just provide fully transparent tiles, in
-     * which case no discard policy is necessary.
+     * Gets the URL of the WMS server.
+     * @returns {String} The URL.
      */
-    WebMapServiceImageryProvider.prototype.createDiscardMissingTilePolicy = function() {
-        var that = this;
-        var missingTileUrl = when(this._isReady, function() {
-            return that.buildImageUrl(0, 0, that.maxLevel);
-        });
-        var pixelsToCheck = [new Cartesian2(0, 0), new Cartesian2(200, 20), new Cartesian2(20, 200), new Cartesian2(80, 110), new Cartesian2(160, 130)];
+    WebMapServiceImageryProvider.prototype.getUrl = function() {
+        return this._url;
+    };
 
-        return new DiscardMissingTileImagePolicy(missingTileUrl, pixelsToCheck);
+    /**
+     * Gets the name of the WMS layer.
+     * @returns {String} The layer name.
+     */
+    WebMapServiceImageryProvider.prototype.getLayerName = function() {
+        return this._layerName;
+    };
+
+    /**
+     * Gets the width of each tile, in pixels.
+     *
+     * @returns {Number} The width.
+     */
+    WebMapServiceImageryProvider.prototype.getTileWidth = function() {
+        return this._tileWidth;
+    };
+
+    /**
+     * Gets the height of each tile, in pixels.
+     *
+     * @returns {Number} The height.
+     */
+    WebMapServiceImageryProvider.prototype.getTileHeight = function() {
+        return this._tileHeight;
+    };
+
+    /**
+     * Gets the maximum level-of-detail that can be requested.
+     *
+     * @returns {Number} The maximum level.
+     */
+    WebMapServiceImageryProvider.prototype.getMaximumLevel = function() {
+        return this._maximumLevel;
+    };
+
+    /**
+     * Gets the tiling scheme used by this provider.
+     *
+     * @returns {TilingScheme} The tiling scheme.
+     * @see WebMercatorTilingScheme
+     * @see GeographicTilingScheme
+     */
+    WebMapServiceImageryProvider.prototype.getTilingScheme = function() {
+        return this._tilingScheme;
+    };
+
+    /**
+     * Gets the extent, in radians, of the imagery provided by this instance.
+     *
+     * @returns {Extent} The extent.
+     */
+    WebMapServiceImageryProvider.prototype.getExtent = function() {
+        return this._tilingScheme.extent;
+    };
+
+    /**
+     * Gets a value indicating whether or not the provider is ready for use.
+     *
+     * @returns {Boolean} True if the provider is ready to use; otherwise, false.
+     */
+    WebMapServiceImageryProvider.prototype.isReady = function() {
+        return this._ready;
     };
 
     /**
@@ -195,11 +170,11 @@ define([
      * @return {String|Promise} Either a string containing the URL, or a Promise for a string
      *                          if the URL needs to be built asynchronously.
      */
-    WebMapServiceImageryProvider.prototype.buildImageUrl = function(x, y, level) {
-        var nativeExtent = this.tilingScheme.tileXYToNativeExtent(x, y, level);
+    WebMapServiceImageryProvider.prototype._buildImageUrl = function(x, y, level) {
+        var nativeExtent = this._tilingScheme.tileXYToNativeExtent(x, y, level);
         var bbox = nativeExtent.west + '%2C' + nativeExtent.south + '%2C' + nativeExtent.east + '%2C' + nativeExtent.north;
         var srs = 'EPSG:4326';
-        var url = this.url + '?service=WMS&version=1.1.0&request=GetMap&layers=' + this.layerName + '&bbox='  + bbox + '&width=256&height=256&srs=' + srs + '&format=image%2Fjpeg';
+        var url = this._url + '?service=WMS&version=1.1.0&request=GetMap&layers=' + this.layerName + '&bbox='  + bbox + '&width=256&height=256&srs=' + srs + '&format=image%2Fjpeg&styles=';
 
         if (typeof this._proxy !== 'undefined') {
             url = this._proxy.getURL(url);
@@ -216,37 +191,10 @@ define([
      * @return A promise for the image that will resolve when the image is available.
      *         If the image is not suitable for display, the promise can resolve to undefined.
      */
-    WebMapServiceImageryProvider.prototype.requestImage = function(url) {
-        return loadImage(url);
+    WebMapServiceImageryProvider.prototype.requestImage = function(hostnames, hostnameIndex, x, y, level) {
+        var imageUrl = this._buildImageUrl(hostnameIndex, x, y, level);
+        return loadImage(imageUrl);
     };
-
-    /**
-     * Transform the tile imagery from the format requested from the remote server
-     * into a format suitable for resource creation.  Once complete, the tile imagery
-     * state should be set to TRANSFORMED.  Alternatively, tile imagery state can be set to
-     * RECEIVED to indicate that the transformation should be attempted again next update, if the tile
-     * is still needed.
-     *
-     * @param {Context} context The context to use to create resources.
-     * @param {TileImagery} tileImagery The tile imagery to transform.
-     */
-    WebMapServiceImageryProvider.prototype.transformImagery = function(context, tileImagery) {
-        tileImagery.transformedImage = tileImagery.image;
-        tileImagery.image = undefined;
-        tileImagery.state = TileState.TRANSFORMED;
-    };
-
-    /**
-     * Create WebGL resources for the tile imagery using whatever data the transformImagery step produced.
-     * Once complete, the tile imagery state should be set to READY.  Alternatively, tile imagery state can be set to
-     * TRANSFORMED to indicate that resource creation should be attempted again next update, if the tile
-     * is still needed.
-     *
-     * @param {Context} context The context to use to create resources.
-     * @param {TileImagery} tileImagery The tile imagery to create resources for.
-     * @param {TexturePool} texturePool A texture pool to use to create textures.
-     */
-    WebMapServiceImageryProvider.prototype.createResources = ImageryProvider.prototype.createResources;
 
     /**
      * DOC_TBA

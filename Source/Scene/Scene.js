@@ -5,7 +5,10 @@ define([
         '../Core/EquidistantCylindricalProjection',
         '../Core/Ellipsoid',
         '../Core/DeveloperError',
-        '../Core/Rectangle',
+        '../Core/BoundingRectangle',
+        '../Core/Occluder',
+        '../Core/BoundingSphere',
+        '../Core/Cartesian3',
         '../Renderer/Context',
         '../Renderer/PixelFormat',
         '../Renderer/PixelDatatype',
@@ -15,6 +18,7 @@ define([
         './SceneMode',
         './SceneState',
         './ViewportQuad',
+        './FrameState',
         '../Shaders/PostFX/PassThrough',
         '../Shaders/PostFX/LuminanceFS',
         '../Shaders/PostFX/BlackAndWhite',
@@ -33,7 +37,10 @@ define([
         EquidistantCylindricalProjection,
         Ellipsoid,
         DeveloperError,
-        Rectangle,
+        BoundingRectangle,
+        Occluder,
+        BoundingSphere,
+        Cartesian3,
         Context,
         PixelFormat,
         PixelDatatype,
@@ -41,7 +48,7 @@ define([
         CompositePrimitive,
         AnimationCollection,
         SceneMode,
-        SceneState,
+        FrameState,
         ViewportQuad,
         PassThrough,
         LuminanceFS,
@@ -66,7 +73,7 @@ define([
     var Scene = function(canvas) {
         var context = new Context(canvas);
 
-        this._sceneState = new SceneState();
+        this._frameState = new FrameState();
         this._canvas = canvas;
         this._context = context;
         this._primitives = new CompositePrimitive();
@@ -184,6 +191,15 @@ define([
     };
 
     /**
+     * Gets state information about the current scene.
+     *
+     * @memberof Scene
+     */
+    Scene.prototype.getFrameState = function() {
+        return this._frameState;
+    };
+
+    /**
      * DOC_TBA
      * @memberof Scene
      */
@@ -223,6 +239,31 @@ define([
         return this._animate;
     };
 
+    function clearPasses(passes) {
+        passes.pick = false;
+    }
+
+    function updateFrameState(scene) {
+        var camera = scene._camera;
+
+        var frameState = scene._frameState;
+        frameState.mode = scene.mode;
+        frameState.scene2D = scene.scene2D;
+        frameState.camera = camera;
+        frameState.occluder = undefined;
+
+        // TODO: The occluder is the top-level central body. When we add
+        //       support for multiple central bodies, this should be the closest one.
+        var cb = scene._primitives.getCentralBody();
+        if (scene.mode === SceneMode.SCENE3D && typeof cb !== 'undefined') {
+            var ellipsoid = cb.getEllipsoid();
+            var occluder = new Occluder(new BoundingSphere(Cartesian3.ZERO, ellipsoid.getMinimumRadius()), camera.getPositionWC());
+            frameState.occluder = occluder;
+        }
+
+        clearPasses(frameState.passes);
+    }
+
     Scene.prototype._update = function() {
         var us = this.getUniformState();
         var camera = this._camera;
@@ -245,12 +286,8 @@ define([
             this._animate();
         }
 
-        var sceneState = this._sceneState;
-        sceneState.mode = this.mode;
-        sceneState.scene2D = this.scene2D;
-        sceneState.camera = camera;
-
-        this._primitives.update(this._context, sceneState);
+        updateFrameState(this);
+        this._primitives.update(this._context, this._frameState);
     };
 
     /**
@@ -280,7 +317,8 @@ define([
         }
         this._context._HACK_framebuffer = this._framebuffer;
 
-        this._context.clear(this._clearState);
+//        this._context.clear(this._clearState);
+
         this._primitives.render(this._context);
 
         this._context._HACK_framebuffer = undefined;
@@ -303,12 +341,15 @@ define([
     Scene.prototype.pick = function(windowPosition) {
         var context = this._context;
         var primitives = this._primitives;
+        var frameState = this._frameState;
 
         this._pickFramebuffer = this._pickFramebuffer || context.createPickFramebuffer();
         var fb = this._pickFramebuffer.begin();
 
-        // TODO: Should we also do a regular update?
-        primitives.updateForPick(context);
+        updateFrameState(this);
+        frameState.passes.pick = true;
+
+        primitives.update(context, frameState);
         primitives.renderForPick(context, fb);
 
         return this._pickFramebuffer.end({

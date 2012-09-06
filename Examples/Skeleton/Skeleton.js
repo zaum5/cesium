@@ -14,25 +14,33 @@ require({
 
     //Cesium.TerrainProvider.wireframe = true;
 
-//    var terrainProvider = new Cesium.EllipsoidTerrainProvider(new Cesium.WebMercatorTilingScheme({
-//        ellipsoid : ellipsoid,
-//        numberOfLevelZeroTilesX : 2,
-//        numberOfLevelZeroTilesY : 2
-//    }));
+    var terrainProvider;
 
-    var terrainProvider = new Cesium.ArcGisImageServerTerrainProvider({
-        url : 'http://elevation.arcgisonline.com/ArcGIS/rest/services/WorldElevation/DTMEllipsoidal/ImageServer',
-        token : 'BfCS51DPkMNKKx5Az8rdv2mf9VP15X7-qNxAe_8Axu4Tn6CklmcOrybekG3JgFsMWOw4yArk053iPMS9FL_84A..',
-        proxy : new Cesium.DefaultProxy('/terrain/')
+//    terrainProvider = new Cesium.EllipsoidTerrainProvider(new Cesium.GeographicTilingScheme());
+
+//    terrainProvider = new Cesium.ArcGisImageServerTerrainProvider({
+//        url : 'http://elevation.arcgisonline.com/ArcGIS/rest/services/WorldElevation/DTMEllipsoidal/ImageServer',
+//        token : 'v5zBff8tWCy6KdeCLU4z7C6ZNgsZEs-Q-IE_ZXzz7jjW8LjFPCuzWAqJZGeED4SdfZUhNzWsN1PMLl_wNfazSQ..',
+//        proxy : new Cesium.DefaultProxy('/terrain/')
+//    });
+
+    terrainProvider = new Cesium.TileMapServiceTerrainProvider({
+        url : 'http://cesium.agi.com/terrain'
     });
 
-//    var terrainProvider = new Cesium.WebMapServiceTerrainProvider({
+//    terrainProvider = new Cesium.WebMapServiceTerrainProvider({
 //        url : 'http://localhost:8081/geoserver/terrain/wms',
 //        layerName : 'terrain:SRTM',
 //        proxy : new Cesium.DefaultProxy('/terrain/')
 //    });
 
-    var imageryLayerCollection = new Cesium.ImageryLayerCollection();
+    var cb = new Cesium.CentralBody(ellipsoid, terrainProvider);
+    var imageryLayerCollection = cb.getImageLayers();
+
+//    var single = new Cesium.SingleTileImageryProvider({
+//        url : '../../Images/NE2_50M_SR_W_4096.jpg'
+//    });
+//    var singleLayer = imageryLayerCollection.addImageryProvider(single);
 
 //    var wmsImagery = new Cesium.WebMapServiceImageryProvider({
 //        url : 'http://localhost:8081/geoserver/wms',
@@ -40,29 +48,26 @@ require({
 //    });
 //    var wmsLayer = imageryLayerCollection.addImageryProvider(wmsImagery);
 
-    var esriImageryProvider = new Cesium.ArcGisMapServerImageryProvider({
-        url : 'http://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer',
-        proxy : new Cesium.DefaultProxy('/proxy/')
-    });
-    esriImageryProvider.discardPolicy = esriImageryProvider.createDiscardMissingTilePolicy();
-    var esriLayer = imageryLayerCollection.addImageryProvider(esriImageryProvider);
-
+//    var esriImageryProvider = new Cesium.ArcGisMapServerImageryProvider({
+//        url : 'http://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer',
+//        proxy : new Cesium.DefaultProxy('/proxy/')
+//    });
+//    var esriLayer = imageryLayerCollection.addImageryProvider(esriImageryProvider);
+//
 //    var esriStreetsImageryProvider = new Cesium.ArcGisMapServerImageryProvider({
 //        url : 'http://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer',
 //        proxy : new Cesium.DefaultProxy('/proxy/')
 //    });
 //    var esriStreetsLayer = imageryLayerCollection.addImageryProvider(esriStreetsImageryProvider);
 
-
-//    var bingAerialImageryProvider = new Cesium.BingMapsImageryProvider({
-//        server : 'dev.virtualearth.net',
-//        mapStyle : Cesium.BingMapsStyle.AERIAL,
-//        // Some versions of Safari support WebGL, but don't correctly implement
-//        // cross-origin image loading, so we need to load Bing imagery using a proxy.
-//        proxy : Cesium.FeatureDetection.supportsCrossOriginImagery() ? undefined : new Cesium.DefaultProxy('/proxy/')
-//    });
-//    bingAerialImageryProvider.discardPolicy = bingAerialImageryProvider.createDiscardMissingTilePolicy();
-//    var bingAerialLayer = imageryLayerCollection.addImageryProvider(bingAerialImageryProvider);
+    var bingAerialImageryProvider = new Cesium.BingMapsImageryProvider({
+        server : 'dev.virtualearth.net',
+        mapStyle : Cesium.BingMapsStyle.AERIAL,
+        // Some versions of Safari support WebGL, but don't correctly implement
+        // cross-origin image loading, so we need to load Bing imagery using a proxy.
+        proxy : Cesium.FeatureDetection.supportsCrossOriginImagery() ? undefined : new Cesium.DefaultProxy('/proxy/')
+    });
+    var bingAerialLayer = imageryLayerCollection.addImageryProvider(bingAerialImageryProvider);
 
 //    var bingRoadImageryProvider = new Cesium.BingMapsImageryProvider({
 //        server : 'dev.virtualearth.net',
@@ -71,19 +76,18 @@ require({
 //        // cross-origin image loading, so we need to load Bing imagery using a proxy.
 //        proxy : Cesium.FeatureDetection.supportsCrossOriginImagery() ? undefined : new Cesium.DefaultProxy('/proxy/')
 //    });
-//    bingRoadImageryProvider.discardPolicy = bingRoadImageryProvider.createDiscardMissingTilePolicy();
 //    var bingRoadLayer = imageryLayerCollection.addImageryProvider(bingRoadImageryProvider);
 
 //    var solidColorLayer = imageryLayerCollection.addImageryProvider(new Cesium.SolidColorImageryProvider());
 
-//    var testLayer = imageryLayerCollection.addImageryProvider(
-//            new Cesium.SingleTileImageryProvider('../../Images/TestLayer.png',
-//                                                 new Cesium.Extent(Cesium.Math.toRadians(-120),
-//                                                                   Cesium.Math.toRadians(37),
-//                                                                   Cesium.Math.toRadians(-119),
-//                                                                   Cesium.Math.toRadians(38))));
-
-    var cb = new Cesium.CentralBody(ellipsoid, terrainProvider, imageryLayerCollection);
+    var testLayer = imageryLayerCollection.addImageryProvider(
+            new Cesium.SingleTileImageryProvider({
+                url : '../../Images/TestLayer.png',
+                extent : new Cesium.Extent(Cesium.Math.toRadians(-120),
+                        Cesium.Math.toRadians(37),
+                        Cesium.Math.toRadians(-119),
+                        Cesium.Math.toRadians(38))
+            }));
 
     cb.nightImageSource = '../../Images/land_ocean_ice_lights_2048.jpg';
     cb.specularMapSource = '../../Images/earthspec1k.jpg';

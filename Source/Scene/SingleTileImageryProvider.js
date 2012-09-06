@@ -1,113 +1,161 @@
 /*global define*/
 define([
+        '../Core/defaultValue',
         '../Core/loadImage',
         '../Core/DeveloperError',
         '../Core/Extent',
         './Projections',
         './GeographicTilingScheme',
-        './TileState',
         './ImageryProvider',
-        '../ThirdParty/when'
+        './ImageryState'
     ], function(
+        defaultValue,
         loadImage,
         DeveloperError,
         Extent,
         Projections,
         GeographicTilingScheme,
-        TileState,
         ImageryProvider,
-        when) {
+        ImageryState) {
     "use strict";
 
     /**
-     * Provides a single, top-level tile.
+     * Provides a single, top-level imagery tile.
      *
      * @alias SingleTileImageryProvider
      * @constructor
      *
-     * @param {String} url The url for the tile.
-     * @param {Extent} extent The extent covered by the image.
-     * @param {Object} [proxy] A proxy to use for requests. This object is expected to have a getURL function which returns the proxied URL, if needed.
+     * @param {String} description.url The url for the tile.
+     * @param {Extent} [description.extent=Extent.MAX_VALUE] The extent covered by the image.
+     * @param {Object} [description.proxy] A proxy to use for requests. This object is expected to have a getURL function which returns the proxied URL, if needed.
      *
      * @exception {DeveloperError} url is required.
-     * @exception {DeveloperError} extent is required.
      *
      * @see ArcGisMapServerImageryProvider
      * @see BingMapsImageryProvider
      * @see OpenStreetMapTileProvider
      * @see CompositeTileProvider
      */
-    var SingleTileImageryProvider = function(url, extent, proxy) {
-        if (typeof url === 'undefined') {
+    var SingleTileImageryProvider = function(description) {
+        description = defaultValue(description, {});
+
+        if (typeof description.url === 'undefined') {
             throw new DeveloperError('url is required.');
         }
-        if (typeof extent === 'undefined') {
-            throw new DeveloperError('extent is required.');
-        }
 
-        this._url = url;
-        this._proxy = proxy;
-
-        /**
-         * The cartographic extent of this provider's imagery,
-         * with north, south, east and west properties in radians.
-         *
-         * @constant
-         * @type {Extent}
-         */
-        this.extent = extent;
-
-        /**
-         * The maximum level-of-detail that can be requested.
-         *
-         * @constant
-         * @type {Number}
-         */
-        this.maxLevel = 0;
-
-        /**
-         * The map projection of the image.
-         *
-         * @type {Enumeration}
-         * @see Projections
-         */
-        this.projection = Projections.WGS84;
-
-        /**
-         * The tiling scheme used by this provider.
-         *
-         * @type {TilingScheme}
-         * @see WebMercatorTilingScheme
-         * @see GeographicTilingScheme
-         */
-        this.tilingScheme = new GeographicTilingScheme({
+        this._url = description.url;
+        this._proxy = description.proxy;
+        this._maximumLevel = 0;
+        this._tilingScheme = new GeographicTilingScheme({
+            extent : defaultValue(description.extent, Extent.MAX_VALUE),
             numberOfLevelZeroTilesX : 1,
             numberOfLevelZeroTilesY : 1
         });
-        this.tilingScheme.extent = extent;
 
         this._image = undefined;
         this._texture = undefined;
 
-        /**
-         * True if the provider is ready for use; otherwise, false.
-         *
-         * @type {Boolean}
-         */
-        this.ready = false;
+        this._ready = false;
 
         var that = this;
-        this._image = loadImage(this.buildImageUrl()).then(function(image) {
+        this._image = loadImage(this._buildImageUrl()).then(function(image) {
             that._image = image;
 
-            var tilingScheme = that.tilingScheme;
+            var tilingScheme = that._tilingScheme;
             var ellipsoid = tilingScheme.ellipsoid;
-            var extent = that.extent;
+            var extent = tilingScheme.extent;
 
             tilingScheme.levelZeroMaximumGeometricError = ellipsoid.getRadii().x * (extent.east - extent.west) / image.width;
 
-            that.ready = true;
+            that._ready = true;
         });
+    };
+
+    /**
+     * Gets the URL of the ArcGIS MapServer.
+     * @returns {String} The URL.
+     */
+    SingleTileImageryProvider.prototype.getUrl = function() {
+        return this._url;
+    };
+
+    /**
+     * Gets the width of each tile, in pixels.
+     *
+     * @returns {Number} The width.
+     */
+    SingleTileImageryProvider.prototype.getTileWidth = function() {
+        return this._tileWidth;
+    };
+
+    /**
+     * Gets the height of each tile, in pixels.
+     *
+     * @returns {Number} The height.
+     */
+    SingleTileImageryProvider.prototype.getTileHeight = function() {
+        return this._tileHeight;
+    };
+
+    /**
+     * Gets the maximum level-of-detail that can be requested.
+     *
+     * @returns {Number} The maximum level.
+     */
+    SingleTileImageryProvider.prototype.getMaximumLevel = function() {
+        return this._maximumLevel;
+    };
+
+    /**
+     * Gets the tiling scheme used by this provider.
+     *
+     * @returns {TilingScheme} The tiling scheme.
+     * @see WebMercatorTilingScheme
+     * @see GeographicTilingScheme
+     */
+    SingleTileImageryProvider.prototype.getTilingScheme = function() {
+        return this._tilingScheme;
+    };
+
+    /**
+     * Gets the extent, in radians, of the imagery provided by this instance.
+     *
+     * @returns {Extent} The extent.
+     */
+    SingleTileImageryProvider.prototype.getExtent = function() {
+        return this._tilingScheme.extent;
+    };
+
+    /**
+     * Gets the tile discard policy.  If not undefined, the discard policy is responsible
+     * for filtering out "missing" tiles via its shouldDiscardImage function.
+     * By default, no tiles will be filtered.
+     * @returns {TileDiscardPolicy} The discard policy.
+     */
+    SingleTileImageryProvider.prototype.getTileDiscardPolicy = function() {
+        return this._tileDiscardPolicy;
+    };
+
+    /**
+     * Gets a value indicating whether or not the provider is ready for use.
+     *
+     * @returns {Boolean} True if the provider is ready to use; otherwise, false.
+     */
+    SingleTileImageryProvider.prototype.isReady = function() {
+        return this._ready;
+    };
+
+    /**
+     * Gets an array containing the host names from which a particular tile image can
+     * be requested.
+     *
+     * @param {Number} x The tile X coordinate.
+     * @param {Number} y The tile Y coordinate.
+     * @param {Number} level The tile level.
+     * @returns {Array} The host name(s) from which the tile can be requested.
+     */
+    SingleTileImageryProvider.prototype.getAvailableHostnames = function(x, y, level) {
+        return undefined;
     };
 
     /**
@@ -120,7 +168,7 @@ define([
      * @return {String|Promise} Either a string containing the URL, or a Promise for a string
      *                          if the URL needs to be built asynchronously.
      */
-    SingleTileImageryProvider.prototype.buildImageUrl = function(x, y, level) {
+    SingleTileImageryProvider.prototype._buildImageUrl = function(x, y, level) {
         var url = this._url;
 
         if (typeof this._proxy !== 'undefined') {
@@ -138,37 +186,9 @@ define([
      * @return A promise for the image that will resolve when the image is available.
      *         If the image is not suitable for display, the promise can resolve to undefined.
      */
-    SingleTileImageryProvider.prototype.requestImage = function(url) {
+    SingleTileImageryProvider.prototype.requestImage = function(hostnames, hostnameIndex, x, y, level) {
         return this._image;
     };
-
-    /**
-     * Transform the tile imagery from the format requested from the remote server
-     * into a format suitable for resource creation.  Once complete, the tile imagery
-     * state should be set to TRANSFORMED.  Alternatively, tile imagery state can be set to
-     * RECEIVED to indicate that the transformation should be attempted again next update, if the tile
-     * is still needed.
-     *
-     * @param {Context} context The context to use to create resources.
-     * @param {TileImagery} tileImagery The tile imagery to transform.
-     */
-    SingleTileImageryProvider.prototype.transformImagery = function(context, tileImagery) {
-        tileImagery.transformedImage = tileImagery.image;
-        tileImagery.image = undefined;
-        tileImagery.state = TileState.TRANSFORMED;
-    };
-
-    /**
-     * Create WebGL resources for the tile imagery using whatever data the transformImagery step produced.
-     * Once complete, the tile imagery state should be set to READY.  Alternatively, tile imagery state can be set to
-     * TRANSFORMED to indicate that resource creation should be attempted again next update, if the tile
-     * is still needed.
-     *
-     * @param {Context} context The context to use to create resources.
-     * @param {TileImagery} tileImagery The tile imagery to create resources for.
-     * @param {TexturePool} texturePool A texture pool to use to create textures.
-     */
-    SingleTileImageryProvider.prototype.createResources = ImageryProvider.prototype.createResources;
 
     return SingleTileImageryProvider;
 });

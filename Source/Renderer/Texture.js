@@ -3,6 +3,7 @@ define([
         '../Core/DeveloperError',
         '../Core/destroyObject',
         '../Core/Cartesian2',
+        '../Core/Math',
         './PixelFormat',
         './MipmapHint',
         './TextureMagnificationFilter',
@@ -12,6 +13,7 @@ define([
         DeveloperError,
         destroyObject,
         Cartesian2,
+        CesiumMath,
         PixelFormat,
         MipmapHint,
         TextureMagnificationFilter,
@@ -72,7 +74,7 @@ define([
         var width = source.width;
         var height = source.height;
 
-        if ((this._pixelFormat === PixelFormat.DEPTH_COMPONENT) || (this._pixelFormat === PixelFormat.DEPTH_STENCIL)) {
+        if (PixelFormat.isDepthFormat(this._pixelFormat)) {
             throw new DeveloperError('Cannot call copyFrom when the texture pixel format is DEPTH_COMPONENT or DEPTH_STENCIL.');
         }
 
@@ -140,7 +142,7 @@ define([
         width = width || this._width;
         height = height || this._height;
 
-        if ((this._pixelFormat === PixelFormat.DEPTH_COMPONENT) || (this._pixelFormat === PixelFormat.DEPTH_STENCIL)) {
+        if (PixelFormat.isDepthFormat(this._pixelFormat)) {
             throw new DeveloperError('Cannot call copyFromFramebuffer when the texture pixel format is DEPTH_COMPONENT or DEPTH_STENCIL.');
         }
 
@@ -191,13 +193,13 @@ define([
      * @exception {DeveloperError} This texture was destroyed, i.e., destroy() was called.
      */
     Texture.prototype.generateMipmap = function(hint) {
-        if ((this._pixelFormat === PixelFormat.DEPTH_COMPONENT) || (this._pixelFormat === PixelFormat.DEPTH_STENCIL)) {
+        if (PixelFormat.isDepthFormat(this._pixelFormat)) {
             throw new DeveloperError('Cannot call generateMipmap when the texture pixel format is DEPTH_COMPONENT or DEPTH_STENCIL.');
         }
 
-        if ((this._width > 1) && (this._width % 2 !== 0)) {
+        if ((this._width > 1) && !CesiumMath.isPowerOfTwo(this._width)) {
             throw new DeveloperError('width must be a power of two to call generateMipmap().');
-        } else if ((this._height > 1) && (this._height % 2 !== 0)) {
+        } else if ((this._height > 1) && !CesiumMath.isPowerOfTwo(this._height)) {
             throw new DeveloperError('height must be a power of two to call generateMipmap().');
         }
 
@@ -338,7 +340,7 @@ define([
      *
      * @return {Boolean} True if this object was destroyed; otherwise, false.
      *
-     * @see Texture.destroy
+     * @see Texture#destroy
      */
     Texture.prototype.isDestroyed = function() {
         return false;
@@ -358,7 +360,7 @@ define([
      *
      * @exception {DeveloperError} This texture was destroyed, i.e., destroy() was called.
      *
-     * @see Texture.isDestroyed
+     * @see Texture#isDestroyed
      * @see <a href='http://www.khronos.org/opengles/sdk/2.0/docs/man/glDeleteTextures.xml'>glDeleteTextures</a>
      *
      * @example

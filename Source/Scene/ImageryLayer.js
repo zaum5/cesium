@@ -3,34 +3,62 @@ define([
         '../Core/combine',
         '../Core/defaultValue',
         '../Core/destroyObject',
+        '../Core/ComponentDatatype',
         '../Core/DeveloperError',
         '../Core/Math',
+        '../Core/BoundingRectangle',
         '../Core/Cartesian2',
+        '../Core/Cartesian4',
+        '../Core/Color',
         '../Core/Extent',
         '../Core/PlaneTessellator',
-        './ImageryCache',
+        '../Core/PrimitiveType',
+        '../Renderer/BufferUsage',
+        '../Renderer/MipmapHint',
+        '../Renderer/TextureMinificationFilter',
+        '../Renderer/TextureMagnificationFilter',
+        '../Renderer/TextureWrap',
+        './GeographicTilingScheme',
+        './Imagery',
+        './ImageryState',
         './Tile',
         './TileImagery',
-        './TileState',
         './TexturePool',
         './Projections',
-        '../ThirdParty/when'
+        './ViewportQuad',
+        '../ThirdParty/when',
+        '../Shaders/ReprojectWebMercatorVS',
+        '../Shaders/ReprojectWebMercatorFS'
     ], function(
         combine,
         defaultValue,
         destroyObject,
+        ComponentDatatype,
         DeveloperError,
         CesiumMath,
+        BoundingRectangle,
         Cartesian2,
+        Cartesian4,
+        Color,
         Extent,
         PlaneTessellator,
-        ImageryCache,
+        PrimitiveType,
+        BufferUsage,
+        MipmapHint,
+        TextureMinificationFilter,
+        TextureMagnificationFilter,
+        TextureWrap,
+        GeographicTilingScheme,
+        Imagery,
+        ImageryState,
         Tile,
         TileImagery,
-        TileState,
         TexturePool,
         Projections,
-        when) {
+        ViewportQuad,
+        when,
+        ReprojectWebMercatorVS,
+        ReprojectWebMercatorFS) {
     "use strict";
 
     /**
@@ -49,8 +77,7 @@ define([
 
         description = defaultValue(description, {});
 
-        this.extent = defaultValue(description.extent, imageryProvider.extent);
-        this.extent = defaultValue(this.extent, Extent.MAX_VALUE);
+        this.extent = defaultValue(description.extent, Extent.MAX_VALUE);
 
         /**
          * DOC_TBA
@@ -59,7 +86,7 @@ define([
          */
         this.maxScreenSpaceError = defaultValue(description.maxScreenSpaceError, 1.0);
 
-        this._imageryCache = new ImageryCache();
+        this._imageryCache = {};
         this._texturePool = new TexturePool();
 
         /**
@@ -95,6 +122,10 @@ define([
         this.failedTileRetryTime = 5.0;
 
         this._levelZeroMaximumTexelSpacing = undefined;
+
+        this._spReproject = undefined;
+        this._vaReproject = undefined;
+        this._fbReproject = undefined;
     }
 
     /**
@@ -108,11 +139,11 @@ define([
         var levelZeroMaximumTexelSpacing = this._levelZeroMaximumTexelSpacing;
         //if (typeof levelZeroMaximumTexelSpacing === 'undefined') {
             var imageryProvider = this.imageryProvider;
-            var tilingScheme = imageryProvider.tilingScheme;
+            var tilingScheme = imageryProvider.getTilingScheme();
             var ellipsoid = tilingScheme.ellipsoid;
             var latitudeFactor = Math.cos(latitudeClosestToEquator);
             //var latitudeFactor = 1.0;
-            levelZeroMaximumTexelSpacing = ellipsoid.getMaximumRadius() * 2 * Math.PI * latitudeFactor / (imageryProvider.tileWidth * tilingScheme.numberOfLevelZeroTilesX);
+            levelZeroMaximumTexelSpacing = ellipsoid.getMaximumRadius() * 2 * Math.PI * latitudeFactor / (imageryProvider.getTileWidth() * tilingScheme.numberOfLevelZeroTilesX);
             this._levelZeroMaximumTexelSpacing = levelZeroMaximumTexelSpacing;
         //}
 
@@ -130,14 +161,15 @@ define([
     };
 
     ImageryLayer.prototype.createTileImagerySkeletons = function(tile, terrainProvider) {
+        var imageryCache = this._imageryCache;
         var imageryProvider = this.imageryProvider;
-        var imageryTilingScheme = imageryProvider.tilingScheme;
+        var imageryTilingScheme = imageryProvider.getTilingScheme();
 
         // Compute the extent of the imagery from this imageryProvider that overlaps
         // the geometry tile.  The ImageryProvider and ImageryLayer both have the
         // opportunity to constrain the extent.  The imagery TilingScheme's extent
         // always fully contains the ImageryProvider's extent.
-        var extent = tile.extent.intersectWith(imageryProvider.extent);
+        var extent = tile.extent.intersectWith(imageryProvider.getExtent());
         extent = extent.intersectWith(this.extent);
 
         if (extent.east <= extent.west ||
@@ -159,7 +191,7 @@ define([
         var errorRatio = 1.0;
         var targetGeometricError = errorRatio * terrainProvider.getLevelMaximumGeometricError(tile.level);
         var imageryLevel = this._getLevelWithMaximumTexelSpacing(targetGeometricError, latitudeClosestToEquator);
-        imageryLevel = Math.max(0, Math.min(imageryProvider.maxLevel, imageryLevel));
+        imageryLevel = Math.max(0, Math.min(imageryProvider.getMaximumLevel(), imageryLevel));
 
         var northwestTileCoordinates = imageryTilingScheme.positionToTileXY(extent.getNorthwest(), imageryLevel);
         var southeastTileCoordinates = imageryTilingScheme.positionToTileXY(extent.getSoutheast(), imageryLevel);
@@ -188,22 +220,82 @@ define([
             --southeastTileCoordinates.x;
         }
 
+        var imageryMaxX = imageryTilingScheme.numberOfLevelZeroTilesX << imageryLevel;
+        var imageryMaxY = imageryTilingScheme.numberOfLevelZeroTilesY << imageryLevel;
+
         // Create TileImagery instances for each imagery tile overlapping this terrain tile.
         // We need to do all texture coordinate computations in the imagery tile's tiling scheme.
-        var terrainExtent = imageryTilingScheme.extentToNativeExtent(tile.extent);
+        var terrainExtent = tile.extent;
         var terrainWidth = terrainExtent.east - terrainExtent.west;
         var terrainHeight = terrainExtent.north - terrainExtent.south;
 
-        for ( var i = northwestTileCoordinates.x; i <= southeastTileCoordinates.x; i++) {
-            for ( var j = northwestTileCoordinates.y; j <= southeastTileCoordinates.y; j++) {
-                var imageryExtent = imageryTilingScheme.tileXYToNativeExtent(i, j, imageryLevel);
-                var textureTranslation = new Cartesian2(
-                        (imageryExtent.west - terrainExtent.west) / terrainWidth,
-                        (imageryExtent.south - terrainExtent.south) / terrainHeight);
-                var textureScale = new Cartesian2(
-                        (imageryExtent.east - imageryExtent.west) / terrainWidth,
-                        (imageryExtent.north - imageryExtent.south) / terrainHeight);
-                tile.imagery.push(new TileImagery(this, i, j, imageryLevel, textureTranslation, textureScale));
+        var imageryExtent = imageryTilingScheme.tileXYToExtent(northwestTileCoordinates.x, northwestTileCoordinates.y, imageryLevel);
+
+        var minU;
+        var maxU = 0.0;
+
+        var minV = 1.0;
+        var maxV;
+
+        // If this is the northern-most or western-most tile in the imagery tiling scheme,
+        // it may not start at the northern or western edge of the terrain tile.
+        // Calculate where it does start.
+        if (northwestTileCoordinates.x === 0) {
+            maxU = Math.min(1.0, (imageryExtent.west - tile.extent.west) / (tile.extent.east - tile.extent.west));
+        }
+
+        if (northwestTileCoordinates.y === 0) {
+            minV = Math.max(0.0, (imageryExtent.north - tile.extent.south) / (tile.extent.north - tile.extent.south));
+        }
+
+        for (var i = northwestTileCoordinates.x; i <= southeastTileCoordinates.x; i++) {
+            minU = maxU;
+
+            imageryExtent = imageryTilingScheme.tileXYToExtent(i, northwestTileCoordinates.y, imageryLevel);
+            maxU = Math.min(1.0, (imageryExtent.east - tile.extent.west) / (tile.extent.east - tile.extent.west));
+
+            // If this is the eastern-most imagery tile mapped to this terrain tile,
+            // and there are more imagery tiles to the east of this one, the maxU
+            // should be 1.0 to make sure rounding errors don't make the last
+            // image fall shy of the edge of the terrain tile.
+            if (i === southeastTileCoordinates.x && i < imageryMaxX - 1) {
+                maxU = 1.0;
+            }
+
+            for (var j = northwestTileCoordinates.y; j <= southeastTileCoordinates.y; j++) {
+
+                var cacheKey = getImageryCacheKey(i, j, imageryLevel);
+                var imagery = imageryCache[cacheKey];
+
+                if (typeof imagery === 'undefined') {
+                    imagery = new Imagery(this, i, j, imageryLevel);
+                    imageryCache[cacheKey] = imagery;
+                }
+
+                imagery.addReference();
+
+                maxV = minV;
+
+                imageryExtent = imageryTilingScheme.tileXYToExtent(i, j, imageryLevel);
+                minV = Math.max(0.0, (imageryExtent.south - tile.extent.south) / (tile.extent.north - tile.extent.south));
+
+                // If this is the southern-most imagery tile mapped to this terrain tile,
+                // and there are more imagery tiles to the south of this one, the minV
+                // should be 0.0 to make sure rounding errors don't make the last
+                // image fall shy of the edge of the terrain tile.
+                if (j === southeastTileCoordinates.y && j < imageryMaxY - 1) {
+                    minV = 0.0;
+                }
+
+                var scaleX = terrainWidth / (imageryExtent.east - imageryExtent.west);
+                var scaleY = terrainHeight / (imageryExtent.north - imageryExtent.south);
+                var textureTranslationAndScale = new Cartesian4(
+                        scaleX * (terrainExtent.west - imageryExtent.west) / terrainWidth,
+                        scaleY * (terrainExtent.south - imageryExtent.south) / terrainHeight,
+                        scaleX,
+                        scaleY);
+                var texCoordsExtent = new Cartesian4(minU, minV, maxU, maxV);
+                tile.imagery.push(new TileImagery(imagery, textureTranslationAndScale, texCoordsExtent));
             }
         }
 
@@ -212,87 +304,248 @@ define([
 
     var activeTileImageRequests = {};
 
-    ImageryLayer.prototype.requestImagery = function(tileImagery) {
+    ImageryLayer.prototype.requestImagery = function(imagery) {
         var imageryProvider = this.imageryProvider;
-        var imageryCache = this._imageryCache;
+
+        // Cap image requests per hostname, because the browser itself is capped,
+        // and we have no way to cancel an image load once it starts, but we need
+        // to be able to reorder pending image requests.
+        var maximumRequestsPerHostname = 6;
+
+        var hostnames = imageryProvider.getAvailableHostnames(imagery.x, imagery.y, imagery.level);
+        var hostnameIndex;
         var hostname;
 
-        when(imageryProvider.buildImageUrl(tileImagery.x, tileImagery.y, tileImagery.level), function(imageUrl) {
-            var cacheItem = imageryCache.get(imageUrl);
-            if (typeof cacheItem !== 'undefined') {
-                if (typeof cacheItem.texture === 'undefined') {
-                    tileImagery.state = TileState.UNLOADED;
-                } else {
-                    tileImagery.texture = cacheItem.texture;
-                    tileImagery.state = TileState.READY;
-                }
-                return false;
-            }
+        if (typeof hostnames !== 'undefined' && hostnames.length > 0) {
+            var bestActiveRequestsForHostname = maximumRequestsPerHostname + 1;
 
-            hostname = getHostname(imageUrl);
-            if (hostname !== '') {
+            // Find the hostname with the fewest active requests.
+            for (var i = 0, len = hostnames.length; bestActiveRequestsForHostname > 0 && i < len; ++i) {
+                hostname = hostnames[i];
+
                 var activeRequestsForHostname = defaultValue(activeTileImageRequests[hostname], 0);
-
-                //cap image requests per hostname, because the browser itself is capped,
-                //and we have no way to cancel an image load once it starts, but we need
-                //to be able to reorder pending image requests
-                if (activeRequestsForHostname > 6) {
-                    // postpone loading tile
-                    tileImagery.state = TileState.UNLOADED;
-                    return false;
+                if (activeRequestsForHostname < bestActiveRequestsForHostname) {
+                    hostnameIndex = i;
+                    bestActiveRequestsForHostname = activeRequestsForHostname;
                 }
-
-                activeTileImageRequests[hostname] = activeRequestsForHostname + 1;
             }
 
-            imageryCache.beginAdd(imageUrl);
-
-            tileImagery.imageUrl = imageUrl;
-            return imageryProvider.requestImage(imageUrl);
-        }).then(function(image) {
-            if (typeof image === 'boolean') {
+            if (bestActiveRequestsForHostname >= maximumRequestsPerHostname) {
+                // All hostnames have too many requests, so postpone loading tile.
+                imagery.state = ImageryState.UNLOADED;
                 return;
             }
 
-            activeTileImageRequests[hostname]--;
+            hostname = hostnames[hostnameIndex];
+            activeTileImageRequests[hostname] = bestActiveRequestsForHostname + 1;
+        }
 
-            tileImagery.image = image;
+        when (imageryProvider.requestImage(hostnames, hostnameIndex, imagery.x, imagery.y, imagery.level), function(image) {
+            if (typeof hostname !== 'undefined') {
+                activeTileImageRequests[hostname]--;
+            }
+
+            imagery.image = image;
 
             if (typeof image === 'undefined') {
-                tileImagery.state = TileState.INVALID;
-                imageryCache.abortAdd(tileImagery.imageUrl);
+                imagery.state = ImageryState.INVALID;
                 return;
             }
 
-            tileImagery.state = TileState.RECEIVED;
+            imagery.state = ImageryState.RECEIVED;
         }, function(e) {
             /*global console*/
             console.error('failed to load imagery: ' + e);
-            tileImagery.state = TileState.FAILED;
-            imageryCache.abortAdd(tileImagery.imageUrl);
+            imagery.state = ImageryState.FAILED;
         });
     };
 
-    ImageryLayer.prototype.transformImagery = function(context, tileImagery) {
-        this.imageryProvider.transformImagery(context, tileImagery);
+    ImageryLayer.prototype.createTexture = function(context, imagery) {
+        var texture = this._texturePool.createTexture2D(context, {
+            source : imagery.image
+        });
+
+        imagery.texture = texture;
+        imagery.image = undefined;
+        imagery.state = ImageryState.TEXTURE_LOADED;
     };
 
-    ImageryLayer.prototype.createResources = function(context, tileImagery) {
-        this.imageryProvider.createResources(context, tileImagery, this._texturePool);
+    ImageryLayer.prototype.reprojectTexture = function(context, imagery) {
+        var texture = imagery.texture;
+        var extent = imagery.extent;
 
-        if (tileImagery.state === TileState.READY) {
-            tileImagery.texture = this._imageryCache.finishAdd(tileImagery.imageUrl, tileImagery.texture);
-            tileImagery.imageUrl = undefined;
+        // Reproject this texture if it is not already in a geographic projection and
+        // the pixels are more than 1e-5 radians apart.  The pixel spacing cutoff
+        // avoids precision problems in the reprojection transformation while making
+        // no noticeable difference in the georeferencing of the image.
+        if (!(this.imageryProvider.getTilingScheme() instanceof GeographicTilingScheme) &&
+            (extent.east - extent.west) / texture.getWidth() > 1e-5) {
+                var reprojectedTexture = reprojectToGeographic(this, context, texture, imagery.extent);
+                texture.destroy();
+                imagery.texture = texture = reprojectedTexture;
         }
+
+        texture.generateMipmap(MipmapHint.NICEST);
+        texture.setSampler({
+            wrapS : TextureWrap.CLAMP,
+            wrapT : TextureWrap.CLAMP,
+            minificationFilter : TextureMinificationFilter.LINEAR_MIPMAP_LINEAR,
+            magnificationFilter : TextureMagnificationFilter.LINEAR,
+            maximumAnisotropy : context.getMaximumTextureFilterAnisotropy()
+        });
+
+        imagery.state = ImageryState.READY;
     };
 
-    var anchor;
-    function getHostname(url) {
-        if (typeof anchor === 'undefined') {
-            anchor = document.createElement('a');
+    var uniformMap = {
+        u_textureDimensions : function() {
+            return this.textureDimensions;
+        },
+        u_texture : function() {
+            return this.texture;
+        },
+        u_northLatitude : function() {
+            return this.northLatitude;
+        },
+        u_southLatitude : function() {
+            return this.southLatitude;
+        },
+        u_southMercatorYLow : function() {
+            return this.southMercatorYLow;
+        },
+        u_southMercatorYHigh : function() {
+            return this.southMercatorYHigh;
+        },
+        u_oneOverMercatorHeight : function() {
+            return this.oneOverMercatorHeight;
+        },
+
+        textureDimensions : new Cartesian2(0.0, 0.0),
+        texture : undefined,
+        northLatitude : 0,
+        southLatitude : 0,
+        southMercatorYHigh : 0,
+        southMercatorYLow : 0,
+        oneOverMercatorHeight : 0
+    };
+
+    var float32ArrayScratch = new Float32Array(1);
+    var originalViewport = new BoundingRectangle();
+
+    function reprojectToGeographic(imageryLayer, context, texture, extent) {
+        if (typeof imageryLayer._fbReproject === 'undefined') {
+            imageryLayer._fbReproject = context.createFramebuffer();
+            imageryLayer._fbReproject.destroyAttachments = false;
+
+            var reprojectMesh = {
+                attributes : {
+                    position : {
+                        componentDatatype : ComponentDatatype.FLOAT,
+                        componentsPerAttribute : 2,
+                        values : [0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0]
+                    }
+                }
+            };
+
+            var reprojectAttribInds = {
+                position : 0
+            };
+
+            imageryLayer._vaReproject = context.createVertexArrayFromMesh({
+                mesh : reprojectMesh,
+                attributeIndices : reprojectAttribInds,
+                bufferUsage : BufferUsage.STATIC_DRAW
+            });
+
+            imageryLayer._spReproject = context.getShaderCache().getShaderProgram(
+                ReprojectWebMercatorVS,
+                ReprojectWebMercatorFS,
+                reprojectAttribInds);
+
+            imageryLayer._rsColor = context.createRenderState({
+                cull : {
+                    enabled : false
+                }
+            });
         }
-        anchor.href = url;
-        return anchor.hostname;
+
+        texture.setSampler({
+            wrapS : TextureWrap.CLAMP,
+            wrapT : TextureWrap.CLAMP,
+            minificationFilter : TextureMinificationFilter.LINEAR,
+            magnificationFilter : TextureMagnificationFilter.LINEAR
+        });
+
+        var width = texture.getWidth();
+        var height = texture.getHeight();
+
+        uniformMap.textureDimensions.x = width;
+        uniformMap.textureDimensions.y = height;
+        uniformMap.texture = texture;
+
+        uniformMap.northLatitude = extent.north;
+        uniformMap.southLatitude = extent.south;
+
+        var sinLatitude = Math.sin(extent.south);
+        var southMercatorY = 0.5 * Math.log((1 + sinLatitude) / (1 - sinLatitude));
+        float32ArrayScratch[0] = southMercatorY;
+        uniformMap.southMercatorYHigh = float32ArrayScratch[0];
+        uniformMap.southMercatorYLow = southMercatorY - float32ArrayScratch[0];
+
+        sinLatitude = Math.sin(extent.north);
+        var northMercatorY = 0.5 * Math.log((1 + sinLatitude) / (1 - sinLatitude));
+        uniformMap.oneOverMercatorHeight = 1.0 / (northMercatorY - southMercatorY);
+
+        var outputTexture = imageryLayer._texturePool.createTexture2D(context, {
+            width : width,
+            height : height,
+            pixelFormat : texture.getPixelFormat(),
+            pixelDatatype : texture.getPixelDatatype(),
+            preMultiplyAlpha : texture.getPreMultiplyAlpha()
+        });
+
+        // Allocate memory for the mipmaps.  Failure to do this before rendering
+        // to the texture via the FBO, and calling generateMipmap later,
+        // will result in the texture appearing blank.  I can't pretend to
+        // understand exactly why this is.
+        outputTexture.generateMipmap(MipmapHint.NICEST);
+
+        imageryLayer._fbReproject.setColorTexture(outputTexture);
+
+        context.clear(context.createClearState({
+            framebuffer : imageryLayer._fbReproject,
+            color : new Color(0.0, 0.0, 0.0, 0.0)
+        }));
+
+        BoundingRectangle.clone(context.getViewport(), originalViewport);
+        context.setViewport({
+            x      : 0,
+            y      : 0,
+            width  : width,
+            height : height
+        });
+
+        context.draw({
+            framebuffer : imageryLayer._fbReproject,
+            shaderProgram : imageryLayer._spReproject,
+            renderState : imageryLayer._rsColor,
+            primitiveType : PrimitiveType.TRIANGLE_FAN,
+            vertexArray : imageryLayer._vaReproject,
+            uniformMap : uniformMap
+        });
+
+        context.setViewport(originalViewport);
+
+        return outputTexture;
+    }
+
+    ImageryLayer.prototype.removeImageryFromCache = function(imagery) {
+        var cacheKey = getImageryCacheKey(imagery.x, imagery.y, imagery.level);
+        delete this._imageryCache[cacheKey];
+    };
+
+    function getImageryCacheKey(x, y, level) {
+        return JSON.stringify([x, y, level]);
     }
 
     /**
