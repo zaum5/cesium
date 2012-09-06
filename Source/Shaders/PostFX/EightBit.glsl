@@ -7,7 +7,7 @@ const int KERNEL_WIDTH = 16;
 void main(void)
 {
 // TODO: do not assume full-screen
-    vec2 u_step = vec2(1.0 / float(agi_viewport.z), 1.0 / float(agi_viewport.w));
+    vec2 u_step = vec2(1.0 / czm_viewport.z, 1.0 / czm_viewport.w);
 
     vec2 integralPos = v_textureCoordinates - mod(v_textureCoordinates, 8.0 * u_step);
     vec3 averageValue = vec3(0.0);

@@ -2,7 +2,7 @@ uniform sampler2D u_texture;
 
 varying vec2 v_textureCoordinates;
 
-// TODO: Make agi_ function.
+// TODO: Make czm_ function.
 // From http://stackoverflow.com/questions/4200224/random-noise-functions-for-glsl
 float rand(vec2 co)
 {
@@ -11,7 +11,7 @@ float rand(vec2 co)
 
 void main(void)
 {
-    float noiseValue = rand(v_textureCoordinates + sin(agi_time)) * 0.1;
+    float noiseValue = rand(v_textureCoordinates + sin(czm_time)) * 0.1;
     vec3 rgb = texture2D(u_texture, v_textureCoordinates).rgb;
     vec3 green = vec3(0.0, 1.0, 0.0);
 

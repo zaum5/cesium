@@ -1510,7 +1510,7 @@ var timeHack = 0.0;
                 /**
                  * DOC_TBA
                  */
-                agi_time : {
+                czm_time : {
                     getSize : function() {
                         return 1;
                     },

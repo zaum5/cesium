@@ -16,7 +16,7 @@ define([
         './CompositePrimitive',
         './AnimationCollection',
         './SceneMode',
-        './SceneState',
+        './FrameState',
         './ViewportQuad',
         './FrameState',
         '../Shaders/PostFX/PassThrough',
@@ -118,18 +118,18 @@ define([
 
         this._postFXIndex = 0;
         this._postFXs = [
-            new ViewportQuad(new Rectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), PassThrough),
-            new ViewportQuad(new Rectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), LuminanceFS),
-            new ViewportQuad(new Rectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), BlackAndWhite),
-            new ViewportQuad(new Rectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), EightBit),
-            new ViewportQuad(new Rectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), NightVision),
-            new ViewportQuad(new Rectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), Brightness),
-            new ViewportQuad(new Rectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), Contrast),
-            new ViewportQuad(new Rectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), Toon),
-            new ViewportQuad(new Rectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), Fog),
-            new ViewportQuad(new Rectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), DepthOfField),
-            new ViewportQuad(new Rectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), AmbientOcclusion),
-            new ViewportQuad(new Rectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), CombinedEffects)
+            new ViewportQuad(new BoundingRectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), undefined, PassThrough),
+            new ViewportQuad(new BoundingRectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), undefined, LuminanceFS),
+            new ViewportQuad(new BoundingRectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), undefined, BlackAndWhite),
+            new ViewportQuad(new BoundingRectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), undefined, EightBit),
+            new ViewportQuad(new BoundingRectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), undefined, NightVision),
+            new ViewportQuad(new BoundingRectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), undefined, Brightness),
+            new ViewportQuad(new BoundingRectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), undefined, Contrast),
+            new ViewportQuad(new BoundingRectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), undefined, Toon),
+            new ViewportQuad(new Rectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), undefined, Fog),
+            new ViewportQuad(new Rectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), undefined, DepthOfField),
+            new ViewportQuad(new Rectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), undefined, AmbientOcclusion),
+            new ViewportQuad(new Rectangle(0.0, 0.0, canvas.clientWidth, canvas.clientHeight), undefined, CombinedEffects)
         ];
     };
 

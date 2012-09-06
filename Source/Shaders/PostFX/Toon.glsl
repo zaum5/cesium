@@ -8,7 +8,7 @@ const float offset = 1.0;
 void main(void)
 {
 // TODO: do not assume full-screen
-    vec2 u_step = vec2(1.0 / float(agi_viewport.z), 1.0 / float(agi_viewport.w));
+    vec2 u_step = vec2(1.0 / czm_viewport.z, 1.0 / czm_viewport.w);
 
     const vec3 W = vec3(0.2125, 0.7154, 0.0721);
 
