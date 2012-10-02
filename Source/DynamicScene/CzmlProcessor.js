@@ -49,6 +49,7 @@ define([
         this.visualizers = [];
         this._scene = scene;
         this._updaters = [];
+        this._documentAdded = [];
     };
 
     var Updater = function(cdoc, updater){
@@ -189,6 +190,16 @@ define([
                 }
             }
         }
+    };
+
+    CzmlProcessor.prototype._documentAddedCallback = function(compositeDynamicObjectCollection) {
+        for ( var i = 0; i < this._documentAdded.length; ++i) {
+            this._documentAdded[i](compositeDynamicObjectCollection);
+        }
+    };
+
+    CzmlProcessor.prototype.addDocumentAddedListener = function(callback) {
+        this._documentAdded.push(callback);
     };
 
     /**
