@@ -180,6 +180,7 @@ define([
                     var collections = compositeDynamicObjectCollection.getCollections();
                     collections.splice(collections.length, 0, doc);
                     compositeDynamicObjectCollection.setCollections(collections);
+                    this._documentAddedCallback(compositeDynamicObjectCollection);
                 }
                 else{
                     var cDoc = new CompositeDynamicObjectCollection([doc]);
@@ -187,6 +188,7 @@ define([
                     cDoc.parent = compositeDynamicObjectCollection;
                     this.compositeCollections.push(cDoc);
                     this.visualizers.push(VisualizerCollection.createCzmlStandardCollection(this._scene, cDoc));
+                    this._documentAddedCallback(cDoc);
                 }
             }
         }
