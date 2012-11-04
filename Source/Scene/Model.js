@@ -1,18 +1,37 @@
 /*global define*/
 define([
+        '../Core/DeveloperError',
+        '../Core/RuntimeError',
         '../Core/Matrix4',
+        '../Core/loadText',
         '../Renderer/CommandLists',
         '../Renderer/DrawCommand',
         './SceneMode',
         '../ThirdParty/webgl_tf_loader'
     ], function(
+        DeveloperError,
+        RuntimeError,
         Matrix4,
+        loadText,
         CommandLists,
         DrawCommand,
         SceneMode,
         // MODELS_TODO: Make webgl_tf_loader.js work with AMD
         WebGLTFLoader) {
     "use strict";
+
+    // MODELS_TODO: This needs tests
+
+    function destroyResources(resources) {
+        var shaders = resources.shaders;
+
+        for (var shader in shaders) {
+            if (shaders.hasOwnProperty(shader)) {
+                shader.release();
+            }
+        }
+        resources.shaders = {};
+    }
 
     var ModelLoader = Object.create(WebGLTFLoader, {
         handleBuffer: {
@@ -24,7 +43,19 @@ define([
 
         handleShader: {
             value: function(entryID, description, userInfo) {
-                console.log(entryID);
+                loadText(description.path).then(function(text) {
+                    var shaders = userInfo._resourcesToCreate.shaders;
+
+                    if (typeof shaders[entryID] !== 'undefined') {
+                        throw new RuntimeError('Duplicate shader entryID:  ' + entryID);
+                    }
+
+                    shaders[entryID] = text;
+                }, function() {
+                    // MODEL_TODO: Instead of throwing Runtime errors, should we just warn and render with what we have?
+                    throw new RuntimeError('Could not load shader ' + description.path);
+                });
+
                 return true;
             }
         },
@@ -86,14 +117,6 @@ define([
      * @constructor
      */
     var Model = function(url) {
-        debugger;
-
-        if (typeof url !== 'undefined') {
-            var modelLoader = Object.create(ModelLoader);
-            modelLoader.initWithPath(url);
-            modelLoader.load(this);
-        }
-
         /**
          * The 4x4 transformation matrix that transforms the model from model to world coordinates.
          * When this is the identity matrix, the model is drawn in world coordinates, i.e., Earth's WGS84 coordinates.
@@ -130,6 +153,38 @@ define([
         // new DrawCommand();
         this._colorCommands = [];
         this._commandLists = new CommandLists();
+
+        this._resourcesToCreate = {
+            shaders : {
+
+            }
+        };
+        this._resources = {
+            shaders : {
+            }
+        };
+
+        if (typeof url !== 'undefined') {
+            this.load(url);
+        }
+    };
+
+    /**
+     * DOC_TBA
+     *
+     * @exception {DeveloperError} url is required.
+     */
+    Model.prototype.load = function(url) {
+        if (typeof url === 'undefined') {
+            throw new DeveloperError('url is required');
+        }
+
+        this._resourcesToCreate.shaders = {};
+        destroyResources(this._resources);
+
+        var modelLoader = Object.create(ModelLoader);
+        modelLoader.initWithPath(url);
+        modelLoader.load(this);
     };
 
     /**
@@ -189,6 +244,7 @@ define([
      * e = e && e.destroy();
      */
     Model.prototype.destroy = function() {
+        destroyResources(this._resources);
         return destroyObject(this);
     };
 
