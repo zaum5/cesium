@@ -18,8 +18,6 @@ define([
      * @constructor
      */
     var Model = function() {
-        debugger;
-
         /**
          * The 4x4 transformation matrix that transforms the model from model to world coordinates.
          * When this is the identity matrix, the model is drawn in world coordinates, i.e., Earth's WGS84 coordinates.
@@ -64,8 +62,6 @@ define([
      * @exception {DeveloperError} this.material must be defined.
      */
     Model.prototype.update = function(context, frameState, commandList) {
-        debugger;
-
         if (!this.show ||
             (frameState.mode !== SceneMode.SCENE3D)) {
             return;
