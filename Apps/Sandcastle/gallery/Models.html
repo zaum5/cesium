@@ -74,8 +74,8 @@ require([
     function createPrimitives(widget) {
         var scene = widget.scene;
         var primitives = scene.getPrimitives();
-
-        var m = new Cesium.Model();
+        
+        var m = new Cesium.Model('../../../Assets/Model/duck/duck.json');
         Sandcastle.declare(m); // For Sandcastle highlighting.
         primitives.add(m);
     }

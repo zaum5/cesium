@@ -3,13 +3,81 @@ define([
         '../Core/Matrix4',
         '../Renderer/CommandLists',
         '../Renderer/DrawCommand',
-        './SceneMode'
+        './SceneMode',
+        '../ThirdParty/webgl_tf_loader'
     ], function(
         Matrix4,
         CommandLists,
         DrawCommand,
-        SceneMode) {
+        SceneMode,
+        // MODELS_TODO: Make webgl_tf_loader.js work with AMD
+        WebGLTFLoader) {
     "use strict";
+
+    var ModelLoader = Object.create(WebGLTFLoader, {
+        handleBuffer: {
+            value: function(entryID, description, userInfo) {
+                console.log(entryID);
+                return true;
+            }
+        },
+
+        handleShader: {
+            value: function(entryID, description, userInfo) {
+                console.log(entryID);
+                return true;
+            }
+        },
+
+        handleTechnique: {
+            value: function(entryID, description, userInfo) {
+                console.log(entryID);
+                return true;
+            }
+        },
+
+        handleMaterial: {
+            value: function(entryID, description, userInfo) {
+                console.log(entryID);
+                return true;
+            }
+        },
+
+        handleLight: {
+            value: function(entryID, description, userInfo) {
+                // MODELS_TODO: Support light
+                return true;
+            }
+        },
+
+        handleMesh: {
+            value: function(entryID, description, userInfo) {
+                console.log(entryID);
+                return true;
+            }
+        },
+
+        handleCamera: {
+            value: function(entryID, description, userInfo) {
+                // MODELS_TODO: Support camera
+                return true;
+            }
+        },
+
+        handleScene: {
+            value: function(entryID, description, userInfo) {
+                console.log(entryID);
+                return true;
+            }
+        },
+
+        handleNode: {
+            value: function(entryID, description, userInfo) {
+                console.log(entryID);
+                return true;
+            }
+        }
+    });
 
     /**
      * DOC_TBA
@@ -17,7 +85,15 @@ define([
      * @alias Model
      * @constructor
      */
-    var Model = function() {
+    var Model = function(url) {
+        debugger;
+
+        if (typeof url !== 'undefined') {
+            var modelLoader = Object.create(ModelLoader);
+            modelLoader.initWithPath(url);
+            modelLoader.load(this);
+        }
+
         /**
          * The 4x4 transformation matrix that transforms the model from model to world coordinates.
          * When this is the identity matrix, the model is drawn in world coordinates, i.e., Earth's WGS84 coordinates.
