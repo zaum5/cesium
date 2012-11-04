@@ -4,6 +4,7 @@ define([
         '../Core/RuntimeError',
         '../Core/Matrix4',
         '../Core/loadText',
+        '../Core/loadArrayBuffer',
         '../Renderer/CommandLists',
         '../Renderer/DrawCommand',
         './SceneMode',
@@ -13,6 +14,7 @@ define([
         RuntimeError,
         Matrix4,
         loadText,
+        loadArrayBuffer,
         CommandLists,
         DrawCommand,
         SceneMode,
@@ -35,7 +37,19 @@ define([
     var ModelLoader = Object.create(webgl_tf_loader, {
         handleBuffer: {
             value: function(entryID, description, userInfo) {
-                console.log(entryID);
+                loadArrayBuffer(description.path).then(function(arrayBuffer) {
+                    var buffers = userInfo._resourcesToCreate.buffers;
+
+                    if (typeof buffers[entryID] !== 'undefined') {
+                        throw new RuntimeError('Duplicate buffer entryID:  ' + entryID);
+                    }
+
+                    buffers[entryID] = arrayBuffer;
+                }, function() {
+                    // MODEL_TODO: Instead of throwing Runtime errors, should we just warn and render with what we have?
+                    throw new RuntimeError('Could not load buffer entryID, ' + entryID + ' from path ' + description.path);
+                });
+
                 return true;
             }
         },
@@ -52,7 +66,7 @@ define([
                     shaders[entryID] = text;
                 }, function() {
                     // MODEL_TODO: Instead of throwing Runtime errors, should we just warn and render with what we have?
-                    throw new RuntimeError('Could not load shader ' + description.path);
+                    throw new RuntimeError('Could not load shader entryID, ' + entryID + ' from path ' + description.path);
                 });
 
                 return true;
@@ -154,8 +168,9 @@ define([
         this._commandLists = new CommandLists();
 
         this._resourcesToCreate = {
+            buffers : {
+            },
             shaders : {
-
             }
         };
         this._resources = {
@@ -178,6 +193,7 @@ define([
             throw new DeveloperError('url is required');
         }
 
+        this._resourcesToCreate.buffers = {};
         this._resourcesToCreate.shaders = {};
         destroyResources(this._resources);
 
