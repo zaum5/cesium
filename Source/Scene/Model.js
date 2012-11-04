@@ -7,7 +7,7 @@ define([
         '../Renderer/CommandLists',
         '../Renderer/DrawCommand',
         './SceneMode',
-        '../ThirdParty/webgl_tf_loader'
+        '../ThirdParty/webgl-tf-loader'
     ], function(
         DeveloperError,
         RuntimeError,
@@ -16,8 +16,7 @@ define([
         CommandLists,
         DrawCommand,
         SceneMode,
-        // MODELS_TODO: Make webgl_tf_loader.js work with AMD
-        WebGLTFLoader) {
+        webgl_tf_loader) {
     "use strict";
 
     // MODELS_TODO: This needs tests
@@ -33,7 +32,7 @@ define([
         resources.shaders = {};
     }
 
-    var ModelLoader = Object.create(WebGLTFLoader, {
+    var ModelLoader = Object.create(webgl_tf_loader, {
         handleBuffer: {
             value: function(entryID, description, userInfo) {
                 console.log(entryID);
