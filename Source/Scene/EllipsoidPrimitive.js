@@ -378,7 +378,7 @@ define([
             ellipsoidCommandLists.pickList.push(pickCommand);
         }
 
-        commandList.push(this._commandLists);
+        commandList.push(ellipsoidCommandLists);
     };
 
     /**
