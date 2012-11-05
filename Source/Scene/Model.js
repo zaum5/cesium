@@ -168,7 +168,14 @@ define([
 
         handleNode: {
             value: function(entryID, description, userInfo) {
-                console.log(entryID);
+                var nodes = userInfo._resourcesToCreate.nodes;
+
+                if (typeof nodes[entryID] !== 'undefined') {
+                    throw new RuntimeError('Duplicate node entryID, ' + entryID);
+                }
+
+                nodes[entryID] = clone(description);
+
                 return true;
             }
         }
@@ -243,7 +250,6 @@ define([
          */
         this.show = true;
 
-        // new DrawCommand();
         this._colorCommands = [];
         this._commandLists = new CommandLists();
 
@@ -257,6 +263,8 @@ define([
             materials : {
             },
             meshes : {
+            },
+            nodes : {
             }
         };
         this._resources = {
@@ -292,6 +300,7 @@ define([
         this._resourcesToCreate.techniques = {};
         this._resourcesToCreate.materials = {};
         this._resourcesToCreate.meshes = {};
+        this._resourcesToCreate.nodes = {};
         destroyResources(this._resources);
 
         var modelLoader = Object.create(ModelLoader);
@@ -562,12 +571,69 @@ define([
 
         // Remove typed arrays since all meshes are processed at once.
         model._resourcesToCreate.buffers = {};
+        model._resourcesToCreate.meshes = {};
+        // MODEL_TODO: remove others
+    }
+
+    function createNodes(context, model) {
+        var nodes = model._resourcesToCreate.nodes;
+        var vertexArrays = model._resources.vertexArrays;
+        var materials = model._resources.materials;
+        var colorCommands = model._colorCommands;
+
+        for (var property in nodes) {
+            if (nodes.hasOwnProperty(property)) {
+                var node = nodes[property];
+
+                if (node.type === 'node') {
+                    // MODEL_TODO: handle children.  Do we have to traverse them here though?  Or are they provided in linearly?
+// **************** MODEL_TODO: use matrix
+
+                    if (typeof node.meshes !== 'undefined') {
+                        var meshes = node.meshes;
+                        var len = meshes.length;
+                        for (var i = 0; i < len; ++i) {
+                            var vas = vertexArrays[meshes[i]];
+
+                            // MODELS_TODO: dependency graph for loading techniques first
+                            if (typeof vas === 'undefined') {
+                                return;
+                            }
+
+                            var vasLen = vas.length;
+                            for (var j = 0; j < vasLen; ++j) {
+                                var va = vas[j];
+                                var technique = materials[va.materialID].technique;
+
+                                var command = new DrawCommand();
+                                command.boundingVolume = undefined; // MODEL_TODO: set this
+                                command.modelMatrix = model.modelMatrix;
+                                command.primitiveType = va.primitive;
+                                command.vertexArray = va.vertexArray;
+                                command.count = va.indicesLength;
+// ************************ MODELS_TODO: This assumes an index buffer or divides by zero.
+                                command.offset = va.indicesByteOffset / va.vertexArray.getIndexBuffer().getBytesPerIndex();     // MODEL_TODO: verify this
+                                command.shaderProgram = technique.program;
+                                command.uniformMap = technique.uniformMap;
+                                command.renderState = context.createRenderState();  // MODEL_TODO: use real render state
+                                colorCommands.push(command);
+                            }
+                        }
+                    }
+                    // MODELS_TODO: handle nodes without meshes like ones with cameras and lights
+                }
+                // MODELS_TODO: what other types exist?
+
+                delete nodes[property];
+            }
+        }
     }
 
     function createResources(context, model) {
         createTechniques(context, model);
         createMaterials(context, model);
         createMeshes(context, model);
+        createNodes(context, model);
     }
 
     /**
