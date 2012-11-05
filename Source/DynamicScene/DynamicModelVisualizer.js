@@ -237,7 +237,11 @@ define([
 
         model.show = true;
 
-        model.uri = uriProperty.getValue(time, context, model.uri);
+        var uri = uriProperty.getValue(time, context);
+        if (uri !== model.uri) {
+            model.load(uri);
+            model.uri = uri;
+        }
 
         position = defaultValue(positionProperty.getValueCartesian(time, position), model._visualizerPosition);
         orientation = defaultValue(orientationProperty.getValue(time, orientation), model._visualizerOrientation);
