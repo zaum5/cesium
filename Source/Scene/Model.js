@@ -7,6 +7,8 @@ define([
         '../Core/loadArrayBuffer',
         '../Core/clone',
         '../Core/IndexDatatype',
+        '../Core/PrimitiveType',
+        '../Core/ComponentDatatype',
         '../Renderer/BufferUsage',
         '../Renderer/CommandLists',
         '../Renderer/DrawCommand',
@@ -20,6 +22,8 @@ define([
         loadArrayBuffer,
         clone,
         IndexDatatype,
+        PrimitiveType,
+        ComponentDatatype,
         BufferUsage,
         CommandLists,
         DrawCommand,
@@ -196,6 +200,7 @@ define([
         resources.materials = {};
         resources.vertexBuffers = {};
         resources.indexBuffers = {};
+        resources.vertexArrays = {};
     }
 
     /**
@@ -262,6 +267,8 @@ define([
             vertexBuffers : {
             },
             indexBuffers : {
+            },
+            vertexArrays : {
             }
         };
 
@@ -292,7 +299,6 @@ define([
         modelLoader.load(this);
     };
 
-
     function createAttributeIndices(technique) {
         var indices = {};
 
@@ -301,6 +307,8 @@ define([
 
         for (var property in attributes) {
             if (attributes.hasOwnProperty(property)) {
+// ************ MODELS_TODO: This is a hack that assumes symbol and semantic never have the same name for all attributes.  Break into separate data structures.
+                indices[attributes[property].symbol] = j;
                 indices[attributes[property].semantic] = j++;
             }
         }
@@ -462,10 +470,61 @@ define([
             var indices = primitives[i].indices;
             if (typeof indexBuffers[indices.buffer] === 'undefined') {
                 // MODEL_TODO: It is a waste to use the entire buffer
+                // MODEL_TODO: Do not assume that all indices coming from this buffer have the same datatype
                 indexBuffers[indices.buffer] = context.createIndexBuffer(loadedBuffers[indices.buffer], BufferUsage.STATIC_DRAW,
                     indices.type === "Uint16Array" ? IndexDatatype.UNSIGNED_SHORT : IndexDatatype.UNSIGNED_BYTE);
             }
         }
+    }
+
+    function createVertexArrays(context, model, mesh, property) {
+        var materials = model._resources.materials;
+        var vertexBuffers = model._resources.vertexBuffers;
+        var indexBuffers = model._resources.indexBuffers;
+
+        var vertexArrays = [];
+
+        var primitives = mesh.primitives;
+        var len = primitives.length;
+        for (var i = 0; i < len; ++i) {
+            var primitive = primitives[i];
+
+            if (typeof PrimitiveType[primitive.primitive] === 'undefined') {
+                throw new RuntimeError('Mesh with entityID, ' + property + ', has primitive[' + i + '] with an unknown primitive: ' + primitive.primitive);
+            }
+
+            var attributeIndices = materials[primitive.material].technique.attributeIndices;
+            var attributes = [];
+
+            var vertexAttributes = primitive.vertexAttributes;
+            var vertexAttributesLen = vertexAttributes.length;
+            for (var j = 0; j < vertexAttributesLen; ++j) {
+                var vertexAttribute = vertexAttributes[j];
+                var accessor = mesh.accessors[vertexAttribute.accessor];
+
+                // TODO: use accessor min and max for bounding volume
+                attributes.push({
+                    index                  : attributeIndices[vertexAttribute.semantic],
+                    enabled                : true,
+                    vertexBuffer           : vertexBuffers[accessor.buffer],
+                    componentsPerAttribute : accessor.elementsPerValue,
+                    componentDatatype      : ComponentDatatype.FLOAT,        // MODELS_TODO: use elementType
+                    normalize              : false,
+                    offsetInBytes          : accessor.byteOffset,
+                    strideInBytes          : accessor.byteStride
+                });
+            }
+
+            vertexArrays.push({
+                materialID : primitive.material,
+                primitive : PrimitiveType[primitive.primitive],
+                vertexArray : context.createVertexArray(attributes, indexBuffers[primitive.indices.buffer]),
+                indicesByteOffset : primitive.indices.byteOffset,
+                indicesLength : primitive.indices.length
+            });
+        }
+
+        model._resources.vertexArrays[property] = vertexArrays;
     }
 
     function createMeshes(context, model) {
@@ -475,6 +534,8 @@ define([
         for (var property in meshes) {
             if (meshes.hasOwnProperty(property)) {
                 var mesh = meshes[property];
+
+                // TODO: verify materials loaded!
 
                 // MODELS_TODO: dependency graph for loading techniques first
                 var buffers = findBuffers(mesh);
@@ -493,6 +554,7 @@ define([
                 // MODELS_TODO: interleave if they aren't already.
                 createVertexBuffers(context, model, mesh.accessors);
                 createIndexBuffers(context, model, mesh.primitives);
+                createVertexArrays(context, model, mesh, property);
 
                 delete meshes[property];
             }
