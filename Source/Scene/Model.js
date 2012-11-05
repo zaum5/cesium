@@ -233,6 +233,80 @@ define([
         modelLoader.load(this);
     };
 
+
+    function createAttributeIndices(technique) {
+        var indices = {};
+
+        var attributes = technique.attributes;
+        var j = 0;
+
+        for (var property in attributes) {
+            if (attributes.hasOwnProperty(property)) {
+                indices[attributes[property].semantic] = j++;
+            }
+        }
+
+        return indices;
+    }
+
+    function createUniformMap(context, technique) {
+        var uniformMap = {};
+
+        var uniforms = technique.uniforms;
+        var len = uniforms.length;
+        for (var i = 0; i < len; ++i) {
+            var uniform = uniforms[i];
+
+            if (typeof uniform.semantic !== 'undefined') {
+                switch (uniform.semantic) {
+                    case 'WORLDVIEW':
+                        if (uniform.type !== 'FLOAT_MAT4') {
+                            throw new RuntimeError('The type for uniform symbol, ' + uniform.symbol + ', is ' + uniform.type + ', but we expect it to be FLOAT_MAT4 since its semantic is FLOAT_MAT4');
+                        }
+
+                        uniformMap[uniform.symbol] = function() {
+//************************************ MODELS_TODO: this is burnt with our model matrix right?  Both the model's and the node's?
+                            return context.getUniformState().getModelView();
+                        };
+
+                        break;
+                    case 'WORLDVIEWINVERSETRANSPOSE':
+                        if (uniform.type !== 'FLOAT_MAT3') {
+                            throw new RuntimeError('The type for uniform symbol, ' + uniform.symbol + ', is ' + uniform.type + ', but we expect it to be FLOAT_MAT3 since its semantic is WORLDVIEWINVERSETRANSPOSE');
+                        }
+
+                        uniformMap[uniform.symbol] = function() {
+                             return context.getUniformState().getNormal();
+                         };
+
+                        break;
+                    case 'PROJECTION':
+                        if (uniform.type !== 'FLOAT_MAT4') {
+                            throw new RuntimeError('The type for uniform symbol, ' + uniform.symbol + ', is ' + uniform.type + ', but we expect it to be FLOAT_MAT4 since its semantic is PROJECTION');
+                        }
+
+                        uniformMap[uniform.symbol] = function() {
+                            return context.getUniformState().getProjection();
+                        };
+
+                        break;
+                    default:
+                        // MODELS_TODO:
+                        throw new RuntimeError('TODO: Add more uniform semantics');
+                }
+            } else if (typeof uniform.parameter !== 'undefined') {
+                // MODELS_TODO: set with uniform.parameter.  do not assume default texture.
+                uniformMap[uniform.symbol] = function() {
+                    return context.getDefaultTexture();
+                };
+            } else {
+                throw new RuntimeError('Uniform symbol, ' + uniform.symbol + ', does not have a semantic or a parameter.');
+            }
+        }
+
+        return uniformMap;
+    }
+
     function createResources(context, model) {
         var resourcesToCreate = model._resourcesToCreate;
         var shaders = resourcesToCreate.shaders;
@@ -246,67 +320,14 @@ define([
 
                 // MODELS_TODO: dependency graph for loading shaders first
                 if ((typeof vs !== 'undefined') && (typeof fs !== 'undefined')) {
-// **************** MODELS_TODO: attributeIndices
+                    var attributeIndices = createAttributeIndices(technique);
 
                     var loadedTechnique = {
-                        program : context.getShaderCache().getShaderProgram(vs, fs),
-                        uniformMap : {}
+                        program : context.getShaderCache().getShaderProgram(vs, fs, attributeIndices),
+                        attributeIndices : attributeIndices,
+                        uniformMap : createUniformMap(context, technique)
                     };
                     model._resources.techniques[property] = loadedTechnique;
-
-                    var uniformMap = loadedTechnique.uniformMap;
-
-                    var uniforms = technique.uniforms;
-                    var len = uniforms.length;
-                    for (var i = 0; i < len; ++i) {
-                        var uniform = uniforms[i];
-
-                        if (typeof uniform.semantic !== 'undefined') {
-                            switch (uniform.semantic) {
-                                case 'WORLDVIEW':
-                                    if (uniform.type !== 'FLOAT_MAT4') {
-                                        throw new RuntimeError('The type for uniform symbol, ' + uniform.symbol + ', is ' + uniform.type + ', but we expect it to be FLOAT_MAT4 since its semantic is FLOAT_MAT4');
-                                    }
-
-                                    uniformMap[uniform.symbol] = function() {
-// ************************************ MODELS_TODO: this is burnt with our model matrix right?  Both the model's and the node's?
-                                        return context.getUniformState().getModelView();
-                                    };
-
-                                    break;
-                                case 'WORLDVIEWINVERSETRANSPOSE':
-                                    if (uniform.type !== 'FLOAT_MAT3') {
-                                        throw new RuntimeError('The type for uniform symbol, ' + uniform.symbol + ', is ' + uniform.type + ', but we expect it to be FLOAT_MAT3 since its semantic is WORLDVIEWINVERSETRANSPOSE');
-                                    }
-
-                                    uniformMap[uniform.symbol] = function() {
-                                         return context.getUniformState().getNormal();
-                                     };
-
-                                    break;
-                                case 'PROJECTION':
-                                    if (uniform.type !== 'FLOAT_MAT4') {
-                                        throw new RuntimeError('The type for uniform symbol, ' + uniform.symbol + ', is ' + uniform.type + ', but we expect it to be FLOAT_MAT4 since its semantic is PROJECTION');
-                                    }
-
-                                    uniformMap[uniform.symbol] = function() {
-                                        return context.getUniformState().getProjection();
-                                    };
-
-                                    break;
-                                default:
-                                    // MODELS_TODO:
-                                    throw new RuntimeError('TODO: Add more uniform semantics');
-                            }
-                        } else if (typeof uniform.parameter !== 'undefined') {
-                            // MODELS_TODO: set with uniform.parameter.  do not assume default texture.
-                            uniformMap[uniform.symbol] = function() {
-                                return context.getDefaultTexture();
-                            };
-                        } else {
-                            throw new RuntimeError('Uniform symbol, ' + uniform.symbol + ', does not have a semantic or a parameter.');
-                        }
-                    }
 
                     delete techniques[property];
                 }
