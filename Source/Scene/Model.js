@@ -18,30 +18,19 @@ define([
         CommandLists,
         DrawCommand,
         SceneMode,
-        webgl_tf_loader) {
+        WebGLTFLoader) {
     "use strict";
 
     // MODELS_TODO: This needs tests
 
-    function destroyResources(resources) {
-        var shaders = resources.shaders;
-
-        for (var shader in shaders) {
-            if (shaders.hasOwnProperty(shader)) {
-                shader.release();
-            }
-        }
-        resources.shaders = {};
-    }
-
-    var ModelLoader = Object.create(webgl_tf_loader, {
+    var ModelLoader = Object.create(WebGLTFLoader, {
         handleBuffer: {
             value: function(entryID, description, userInfo) {
                 loadArrayBuffer(description.path).then(function(arrayBuffer) {
                     var buffers = userInfo._resourcesToCreate.buffers;
 
                     if (typeof buffers[entryID] !== 'undefined') {
-                        throw new RuntimeError('Duplicate buffer entryID:  ' + entryID);
+                        throw new RuntimeError('Duplicate buffer entryID, ' + entryID + ' from path ' + description.path);
                     }
 
                     buffers[entryID] = arrayBuffer;
@@ -60,7 +49,7 @@ define([
                     var shaders = userInfo._resourcesToCreate.shaders;
 
                     if (typeof shaders[entryID] !== 'undefined') {
-                        throw new RuntimeError('Duplicate shader entryID:  ' + entryID);
+                        throw new RuntimeError('Duplicate shader shader entryID, ' + entryID + ' from path ' + description.path);
                     }
 
                     shaders[entryID] = text;
@@ -75,7 +64,26 @@ define([
 
         handleTechnique: {
             value: function(entryID, description, userInfo) {
-                console.log(entryID);
+                // MODELS_TODO: Are entryIDs for techniques globally unique?
+                var programs = userInfo._resourcesToCreate.programs;
+
+                if (typeof programs[entryID] !== 'undefined') {
+                    throw new RuntimeError('Duplicate technique entryID, ' + entryID + ' from path ' + description.path);
+                }
+
+                // MODELS_TODO: Build delayed shader compiling into the shader program itself?
+                var passes = description.passes;
+
+                for (var pass in passes) {
+                    if (passes.hasOwnProperty(pass)) {
+
+                        programs[entryID] = {
+                            vertexShaderEntityID : passes[pass].program['x-shader/x-vertex'],
+                            fragmentShaderEntityID : passes[pass].program['x-shader/x-fragment']
+                        };
+                    }
+                }
+
                 return true;
             }
         },
@@ -122,6 +130,17 @@ define([
             }
         }
     });
+
+    function destroyResources(resources) {
+        var programs = resources.programs;
+
+        for (var shader in programs) {
+            if (programs.hasOwnProperty(shader)) {
+                programs[shader].release();
+            }
+        }
+        resources.programs = {};
+    }
 
     /**
      * DOC_TBA
@@ -171,10 +190,12 @@ define([
             buffers : {
             },
             shaders : {
+            },
+            programs : {
             }
         };
         this._resources = {
-            shaders : {
+            programs : {
             }
         };
 
@@ -195,12 +216,34 @@ define([
 
         this._resourcesToCreate.buffers = {};
         this._resourcesToCreate.shaders = {};
+        this._resourcesToCreate.programs = {};
         destroyResources(this._resources);
 
         var modelLoader = Object.create(ModelLoader);
         modelLoader.initWithPath(url);
         modelLoader.load(this);
     };
+
+    function createResources(context, model) {
+        var resourcesToCreate = model._resourcesToCreate;
+        var shaders = resourcesToCreate.shaders;
+        var programs = resourcesToCreate.programs;
+
+        for (var property in programs) {
+            if (programs.hasOwnProperty(property)) {
+                var program = programs[property];
+                var vs = shaders[program.vertexShaderEntityID];
+                var fs = shaders[program.fragmentShaderEntityID];
+
+                // MODELS_TODO: dependency graph for loading shaders first
+                if ((typeof vs !== 'undefined') && (typeof fs !== 'undefined')) {
+                    // **************** MODELS_TODO: attributeIndices
+                    model._resources.programs[property] = context.getShaderCache().getShaderProgram(vs, fs);
+                    delete programs[property];
+                }
+            }
+        }
+    }
 
     /**
      * @private
@@ -212,6 +255,8 @@ define([
             (frameState.mode !== SceneMode.SCENE3D)) {
             return;
         }
+
+        createResources(context, this);
 
         var modelCommandLists = this._commandLists;
         modelCommandLists.removeAll();
