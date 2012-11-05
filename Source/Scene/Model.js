@@ -6,6 +6,8 @@ define([
         '../Core/loadText',
         '../Core/loadArrayBuffer',
         '../Core/clone',
+        '../Core/IndexDatatype',
+        '../Renderer/BufferUsage',
         '../Renderer/CommandLists',
         '../Renderer/DrawCommand',
         './SceneMode',
@@ -17,6 +19,8 @@ define([
         loadText,
         loadArrayBuffer,
         clone,
+        IndexDatatype,
+        BufferUsage,
         CommandLists,
         DrawCommand,
         SceneMode,
@@ -70,7 +74,7 @@ define([
                 var techniques = userInfo._resourcesToCreate.techniques;
 
                 if (typeof techniques[entryID] !== 'undefined') {
-                    throw new RuntimeError('Duplicate technique entryID, ' + entryID + ' from path ' + description.path);
+                    throw new RuntimeError('Duplicate technique entryID, ' + entryID);
                 }
 
                 // MODELS_TODO: Build delayed shader compiling into the shader program itself?
@@ -102,7 +106,7 @@ define([
                 var materials = userInfo._resourcesToCreate.materials;
 
                 if (typeof materials[entryID] !== 'undefined') {
-                    throw new RuntimeError('Duplicate material entryID, ' + entryID + ' from path ' + description.path);
+                    throw new RuntimeError('Duplicate material entryID, ' + entryID);
                 }
 
                 var techniques = description.techniques;
@@ -132,7 +136,14 @@ define([
 
         handleMesh: {
             value: function(entryID, description, userInfo) {
-                console.log(entryID);
+                var meshes = userInfo._resourcesToCreate.meshes;
+
+                if (typeof meshes[entryID] !== 'undefined') {
+                    throw new RuntimeError('Duplicate mesh entryID, ' + entryID);
+                }
+
+                meshes[entryID] = clone(description);
+
                 return true;
             }
         },
@@ -161,13 +172,30 @@ define([
 
     function destroyResources(resources) {
         var techniques = resources.techniques;
-
         for (var shader in techniques) {
             if (techniques.hasOwnProperty(shader)) {
                 techniques[shader].program.release();
             }
         }
+
+        var vertexBuffers = resources.vertexBuffers;
+        for (var vertexBuffer in vertexBuffers) {
+            if (vertexBuffers.hasOwnProperty(Array)) {
+                vertexBuffers[vertexBuffer].destroy();
+            }
+        }
+
+        var indexBuffers = resources.indexBuffers;
+        for (var indexBuffer in indexBuffers) {
+            if (indexBuffers.hasOwnProperty(Array)) {
+                indexBuffers[indexBuffer].destroy();
+            }
+        }
+
         resources.techniques = {};
+        resources.materials = {};
+        resources.vertexBuffers = {};
+        resources.indexBuffers = {};
     }
 
     /**
@@ -222,12 +250,18 @@ define([
             techniques : {
             },
             materials : {
+            },
+            meshes : {
             }
         };
         this._resources = {
             techniques : {
             },
             materials : {
+            },
+            vertexBuffers : {
+            },
+            indexBuffers : {
             }
         };
 
@@ -250,6 +284,7 @@ define([
         this._resourcesToCreate.shaders = {};
         this._resourcesToCreate.techniques = {};
         this._resourcesToCreate.materials = {};
+        this._resourcesToCreate.meshes = {};
         destroyResources(this._resources);
 
         var modelLoader = Object.create(ModelLoader);
@@ -380,9 +415,97 @@ define([
         }
     }
 
+    function findBuffers(mesh) {
+        var buffers = {};
+        var accessors = mesh.accessors;
+
+        for (var property in accessors) {
+            if (accessors.hasOwnProperty(property)) {
+                var accessor = accessors[property];
+                buffers[accessor.buffer] = accessor.buffer;
+            }
+        }
+
+        var primitives = mesh.primitives;
+        var len = primitives.length;
+        for (var i = 0; i < len; ++i) {
+            var buffer = primitives[i].indices.buffer;
+            buffers[buffer] = buffer;
+        }
+
+        return buffers;
+    }
+
+    function createVertexBuffers(context, model, accessors) {
+        var vertexBuffers = model._resources.vertexBuffers;
+        var loadedBuffers = model._resourcesToCreate.buffers;
+
+        for (var property in accessors) {
+            if (accessors.hasOwnProperty(property)) {
+                var accessor = accessors[property];
+
+                // MODEL_TODO: With only unsigned short indices, can we create a vertex buffer if it is too big?
+                // MODEL_TODO: The buffer also contains indices, which are not used; they are duplicated in an index buffer.
+                if (typeof vertexBuffers[accessor.buffer] === 'undefined') {
+                    vertexBuffers[accessor.buffer] = context.createVertexBuffer(loadedBuffers[accessor.buffer], BufferUsage.STATIC_DRAW);
+                }
+            }
+        }
+    }
+
+    function createIndexBuffers(context, model, primitives) {
+        var indexBuffers = model._resources.indexBuffers;
+        var loadedBuffers = model._resourcesToCreate.buffers;
+
+        var len = primitives.length;
+        for (var i = 0; i < len; ++i) {
+            var indices = primitives[i].indices;
+            if (typeof indexBuffers[indices.buffer] === 'undefined') {
+                // MODEL_TODO: It is a waste to use the entire buffer
+                indexBuffers[indices.buffer] = context.createIndexBuffer(loadedBuffers[indices.buffer], BufferUsage.STATIC_DRAW,
+                    indices.type === "Uint16Array" ? IndexDatatype.UNSIGNED_SHORT : IndexDatatype.UNSIGNED_BYTE);
+            }
+        }
+    }
+
+    function createMeshes(context, model) {
+        var loadedBuffers = model._resourcesToCreate.buffers;
+        var meshes = model._resourcesToCreate.meshes;
+
+        for (var property in meshes) {
+            if (meshes.hasOwnProperty(property)) {
+                var mesh = meshes[property];
+
+                // MODELS_TODO: dependency graph for loading techniques first
+                var buffers = findBuffers(mesh);
+                for (var p in buffers) {
+                    if (buffers.hasOwnProperty(p)) {
+                        var buffer = buffers[p];
+
+                        if (typeof loadedBuffers[buffer] === 'undefined') {
+                            return;
+                        }
+                    }
+                }
+
+                // MODELS_TODO: create vertex arrays once buffers are loaded.
+                // MODELS_TODO: Do not duplicate vertex arrays if two nodes share them, e.g., texture coordinates.
+                // MODELS_TODO: interleave if they aren't already.
+                createVertexBuffers(context, model, mesh.accessors);
+                createIndexBuffers(context, model, mesh.primitives);
+
+                delete meshes[property];
+            }
+        }
+
+        // Remove typed arrays since all meshes are processed at once.
+        model._resourcesToCreate.buffers = {};
+    }
+
     function createResources(context, model) {
         createTechniques(context, model);
         createMaterials(context, model);
+        createMeshes(context, model);
     }
 
     /**

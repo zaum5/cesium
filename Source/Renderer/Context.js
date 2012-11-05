@@ -1210,13 +1210,13 @@ define([
      * // Example 1. Create a stream index buffer of unsigned shorts that is
      * // 16 bytes in size.
      * var buffer = context.createIndexBuffer(16, BufferUsage.STREAM_DRAW,
-     *     IndexType.unsignedShort);
+     *     IndexDatatype.UNSIGNED_SHORT);
      *
      * ////////////////////////////////////////////////////////////////////////////////
      *
      * // Example 2. Create a static index buffer containing three unsigned shorts.
      * var buffer = context.createIndexBuffer(new Uint16Array([0, 1, 2]),
-     *     BufferUsage.STATIC_DRAW, IndexType.unsignedShort)
+     *     BufferUsage.STATIC_DRAW, IndexDatatype.UNSIGNED_SHORT)
      */
     Context.prototype.createIndexBuffer = function(typedArrayOrSizeInBytes, usage, indexDatatype) {
         var bytesPerIndex;
