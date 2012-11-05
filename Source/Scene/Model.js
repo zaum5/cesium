@@ -5,6 +5,7 @@ define([
         '../Core/Matrix4',
         '../Core/loadText',
         '../Core/loadArrayBuffer',
+        '../Core/loadImage',
         '../Core/clone',
         '../Core/IndexDatatype',
         '../Core/PrimitiveType',
@@ -20,6 +21,7 @@ define([
         Matrix4,
         loadText,
         loadArrayBuffer,
+        loadImage,
         clone,
         IndexDatatype,
         PrimitiveType,
@@ -32,17 +34,18 @@ define([
     "use strict";
 
     // MODELS_TODO: This needs tests
+    // MODELS_TODO: model cache?
 
     var ModelLoader = Object.create(WebGLTFLoader, {
         handleBuffer: {
             value: function(entryID, description, userInfo) {
+                var buffers = userInfo._resourcesToCreate.buffers;
+
+                if (typeof buffers[entryID] !== 'undefined') {
+                    throw new RuntimeError('Duplicate buffer entryID, ' + entryID + ' from path ' + description.path);
+                }
+
                 loadArrayBuffer(description.path).then(function(arrayBuffer) {
-                    var buffers = userInfo._resourcesToCreate.buffers;
-
-                    if (typeof buffers[entryID] !== 'undefined') {
-                        throw new RuntimeError('Duplicate buffer entryID, ' + entryID + ' from path ' + description.path);
-                    }
-
                     buffers[entryID] = arrayBuffer;
                 }, function() {
                     // MODEL_TODO: Instead of throwing Runtime errors, should we just warn and render with what we have?
@@ -53,15 +56,32 @@ define([
             }
         },
 
+        handleImage : {
+            value: function(entryID, description, userInfo) {
+                var images = userInfo._resourcesToCreate.images;
+
+                if (typeof images[entryID] !== 'undefined') {
+                    throw new RuntimeError('Duplicate image entryID, ' + entryID + ' from path ' + description.path);
+                }
+
+                loadImage(description.path).then(function(image) {
+                    images[entryID] = image;
+                }, function() {
+                    // MODEL_TODO: Instead of throwing Runtime errors, should we just warn and render with what we have?
+                    throw new RuntimeError('Could not load image entryID, ' + entryID + ' from path ' + description.path);
+                });
+            }
+        },
+
         handleShader: {
             value: function(entryID, description, userInfo) {
+                var shaders = userInfo._resourcesToCreate.shaders;
+
+                if (typeof shaders[entryID] !== 'undefined') {
+                    throw new RuntimeError('Duplicate shader shader entryID, ' + entryID + ' from path ' + description.path);
+                }
+
                 loadText(description.path).then(function(text) {
-                    var shaders = userInfo._resourcesToCreate.shaders;
-
-                    if (typeof shaders[entryID] !== 'undefined') {
-                        throw new RuntimeError('Duplicate shader shader entryID, ' + entryID + ' from path ' + description.path);
-                    }
-
                     shaders[entryID] = text;
                 }, function() {
                     // MODEL_TODO: Instead of throwing Runtime errors, should we just warn and render with what we have?
@@ -117,12 +137,26 @@ define([
 
                 for (var property in techniques) {
                     if (techniques.hasOwnProperty(property)) {
-                        // MODELS_TODO: use parameters from technique
-                        // var technique = techniques[property];
+
+                        var materialParameters = {};
+
+                        var parameters = techniques[property].parameters;
+                        for (var p in parameters) {
+                            if (parameters.hasOwnProperty(p)) {
+                                var parameter = parameters[p];
+
+                                if (typeof parameter.image !== 'undefined') {
+                                    materialParameters[p] = clone(parameter);
+                                }
+                                // MODELS_TODO: else handle other parameters
+                            }
+                        }
 
                         // MODELS_TODO: This assumes one technique per material
                         materials[entryID] = {
-                            techniqueID : property
+                            techniqueID : property,
+                            // MODELS_TODO: actually use parameters
+                            parameters : materialParameters
                         };
                     }
                 }
@@ -189,6 +223,13 @@ define([
             }
         }
 
+        var textures = resources.textures;
+        for (var texture in textures) {
+            if (textures.hasOwnProperty(texture)) {
+                textures[texture].destroy();
+            }
+        }
+
         var vertexBuffers = resources.vertexBuffers;
         for (var vertexBuffer in vertexBuffers) {
             if (vertexBuffers.hasOwnProperty(Array)) {
@@ -205,6 +246,7 @@ define([
 
         resources.techniques = {};
         resources.materials = {};
+        resources.textures = {};
         resources.vertexBuffers = {};
         resources.indexBuffers = {};
         resources.vertexArrays = {};
@@ -256,6 +298,8 @@ define([
         this._resourcesToCreate = {
             buffers : {
             },
+            images : {
+            },
             shaders : {
             },
             techniques : {
@@ -271,6 +315,8 @@ define([
             techniques : {
             },
             materials : {
+            },
+            textures : {
             },
             vertexBuffers : {
             },
@@ -296,6 +342,7 @@ define([
         }
 
         this._resourcesToCreate.buffers = {};
+        this._resourcesToCreate.images = {};
         this._resourcesToCreate.shaders = {};
         this._resourcesToCreate.techniques = {};
         this._resourcesToCreate.materials = {};
@@ -325,7 +372,10 @@ define([
         return indices;
     }
 
-    function createUniformMap(context, technique) {
+    function createUniformMap(context, model, technique) {
+        var images = model._resourcesToCreate.images;
+        var textures = model._resources.textures;
+
         var uniformMap = {};
 
         var uniforms = technique.uniforms;
@@ -371,8 +421,23 @@ define([
                         throw new RuntimeError('TODO: Add more uniform semantics');
                 }
             } else if (typeof uniform.parameter !== 'undefined') {
-                // MODELS_TODO: set with uniform.parameter.  do not assume default texture.
+                // MODELS_TODO: set with uniform.parameter.  do not assume it is a texture.
                 uniformMap[uniform.symbol] = function() {
+
+                    // MODELS_TODO: real texture cache
+                    if (textures[uniform.parameter]) {
+                        return textures[uniform.parameter];
+                    } else if (typeof images["image_0"] !== 'undefined') {
+                        // MODELS_TODO: this is hard-coded and a big hack.  this belongs with the material, not here with the technique.
+                        var img = images["image_0"];
+                        textures[uniform.parameter] = context.createTexture2D({
+                            source : img
+                        });
+                        delete images["image_0"];
+
+                        return textures[uniform.parameter];
+                    }
+
                     return context.getDefaultTexture();
                 };
             } else {
@@ -401,7 +466,7 @@ define([
                     var loadedTechnique = {
                         program : context.getShaderCache().getShaderProgram(vs, fs, attributeIndices),
                         attributeIndices : attributeIndices,
-                        uniformMap : createUniformMap(context, technique)
+                        uniformMap : createUniformMap(context, model, technique)
                     };
                     model._resources.techniques[property] = loadedTechnique;
 
@@ -569,10 +634,12 @@ define([
             }
         }
 
-        // Remove typed arrays since all meshes are processed at once.
+        // Remove buffers and images since all meshes are processed at once.
         model._resourcesToCreate.buffers = {};
+        model._resourcesToCreate.images = {};
         model._resourcesToCreate.meshes = {};
         // MODEL_TODO: remove others
+        // MODEL_TODO: avoid these allocations
     }
 
     function createNodes(context, model) {
