@@ -279,8 +279,8 @@ define([
          * @see Transforms.eastNorthUpToFixedFrame
          * @see czm_model
          */
+
         this.modelMatrix = Matrix4.IDENTITY.clone();
-        this._computedModelMatrix = Matrix4.IDENTITY.clone();
 
         /**
          * Determines if the model primitive will be shown.
