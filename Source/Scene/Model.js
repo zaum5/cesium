@@ -67,9 +67,9 @@ define([
         handleTechnique: {
             value: function(entryID, description, userInfo) {
                 // MODELS_TODO: Are entryIDs for techniques globally unique?
-                var programs = userInfo._resourcesToCreate.programs;
+                var techniques = userInfo._resourcesToCreate.techniques;
 
-                if (typeof programs[entryID] !== 'undefined') {
+                if (typeof techniques[entryID] !== 'undefined') {
                     throw new RuntimeError('Duplicate technique entryID, ' + entryID + ' from path ' + description.path);
                 }
 
@@ -81,7 +81,8 @@ define([
                         var pass = passes[property];
                         var program = pass.program;
 
-                        programs[entryID] = {
+                        // MODELS_TODO: This assumes one pass per technique
+                        techniques[entryID] = {
                             vertexShaderEntityID : program['x-shader/x-vertex'],
                             fragmentShaderEntityID : program['x-shader/x-fragment'],
                             attributes : clone(program.attributes),
@@ -140,14 +141,14 @@ define([
     });
 
     function destroyResources(resources) {
-        var programs = resources.programs;
+        var techniques = resources.techniques;
 
-        for (var shader in programs) {
-            if (programs.hasOwnProperty(shader)) {
-                programs[shader].release();
+        for (var shader in techniques) {
+            if (techniques.hasOwnProperty(shader)) {
+                techniques[shader].program.release();
             }
         }
-        resources.programs = {};
+        resources.techniques = {};
     }
 
     /**
@@ -199,11 +200,11 @@ define([
             },
             shaders : {
             },
-            programs : {
+            techniques : {
             }
         };
         this._resources = {
-            programs : {
+            techniques : {
             }
         };
 
@@ -224,7 +225,7 @@ define([
 
         this._resourcesToCreate.buffers = {};
         this._resourcesToCreate.shaders = {};
-        this._resourcesToCreate.programs = {};
+        this._resourcesToCreate.techniques = {};
         destroyResources(this._resources);
 
         var modelLoader = Object.create(ModelLoader);
@@ -235,27 +236,27 @@ define([
     function createResources(context, model) {
         var resourcesToCreate = model._resourcesToCreate;
         var shaders = resourcesToCreate.shaders;
-        var programs = resourcesToCreate.programs;
+        var techniques = resourcesToCreate.techniques;
 
-        for (var property in programs) {
-            if (programs.hasOwnProperty(property)) {
-                var program = programs[property];
-                var vs = shaders[program.vertexShaderEntityID];
-                var fs = shaders[program.fragmentShaderEntityID];
+        for (var property in techniques) {
+            if (techniques.hasOwnProperty(property)) {
+                var technique = techniques[property];
+                var vs = shaders[technique.vertexShaderEntityID];
+                var fs = shaders[technique.fragmentShaderEntityID];
 
                 // MODELS_TODO: dependency graph for loading shaders first
                 if ((typeof vs !== 'undefined') && (typeof fs !== 'undefined')) {
 // **************** MODELS_TODO: attributeIndices
 
-                    var loadedProgram = {
+                    var loadedTechnique = {
                         program : context.getShaderCache().getShaderProgram(vs, fs),
                         uniformMap : {}
                     };
-                    model._resources.programs[property] = loadedProgram;
+                    model._resources.techniques[property] = loadedTechnique;
 
-                    var uniformMap = loadedProgram.uniformMap;
+                    var uniformMap = loadedTechnique.uniformMap;
 
-                    var uniforms = program.uniforms;
+                    var uniforms = technique.uniforms;
                     var len = uniforms.length;
                     for (var i = 0; i < len; ++i) {
                         var uniform = uniforms[i];
@@ -307,7 +308,7 @@ define([
                         }
                     }
 
-                    delete programs[property];
+                    delete techniques[property];
                 }
             }
         }
