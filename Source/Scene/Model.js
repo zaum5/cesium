@@ -99,7 +99,26 @@ define([
 
         handleMaterial: {
             value: function(entryID, description, userInfo) {
-                console.log(entryID);
+                var materials = userInfo._resourcesToCreate.materials;
+
+                if (typeof materials[entryID] !== 'undefined') {
+                    throw new RuntimeError('Duplicate material entryID, ' + entryID + ' from path ' + description.path);
+                }
+
+                var techniques = description.techniques;
+
+                for (var property in techniques) {
+                    if (techniques.hasOwnProperty(property)) {
+                        // MODELS_TODO: use parameters from technique
+                        // var technique = techniques[property];
+
+                        // MODELS_TODO: This assumes one technique per material
+                        materials[entryID] = {
+                            techniqueID : property
+                        };
+                    }
+                }
+
                 return true;
             }
         },
@@ -201,10 +220,14 @@ define([
             shaders : {
             },
             techniques : {
+            },
+            materials : {
             }
         };
         this._resources = {
             techniques : {
+            },
+            materials : {
             }
         };
 
@@ -226,6 +249,7 @@ define([
         this._resourcesToCreate.buffers = {};
         this._resourcesToCreate.shaders = {};
         this._resourcesToCreate.techniques = {};
+        this._resourcesToCreate.materials = {};
         destroyResources(this._resources);
 
         var modelLoader = Object.create(ModelLoader);
@@ -307,7 +331,7 @@ define([
         return uniformMap;
     }
 
-    function createResources(context, model) {
+    function createTechniques(context, model) {
         var resourcesToCreate = model._resourcesToCreate;
         var shaders = resourcesToCreate.shaders;
         var techniques = resourcesToCreate.techniques;
@@ -333,6 +357,32 @@ define([
                 }
             }
         }
+    }
+
+    function createMaterials(context, model) {
+        var techniques = model._resources.techniques;
+        var materials = model._resourcesToCreate.materials;
+
+        for (var property in materials) {
+            if (materials.hasOwnProperty(property)) {
+                var material = materials[property];
+                var technique = techniques[material.techniqueID];
+
+                // MODELS_TODO: dependency graph for loading techniques first
+                if (typeof technique !== 'undefined') {
+                    model._resources.materials[property] = {
+                        technique : technique
+                    };
+
+                    delete materials[property];
+                }
+            }
+        }
+    }
+
+    function createResources(context, model) {
+        createTechniques(context, model);
+        createMaterials(context, model);
     }
 
     /**
