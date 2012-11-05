@@ -5,6 +5,7 @@ define([
         '../Core/Matrix4',
         '../Core/loadText',
         '../Core/loadArrayBuffer',
+        '../Core/clone',
         '../Renderer/CommandLists',
         '../Renderer/DrawCommand',
         './SceneMode',
@@ -15,6 +16,7 @@ define([
         Matrix4,
         loadText,
         loadArrayBuffer,
+        clone,
         CommandLists,
         DrawCommand,
         SceneMode,
@@ -74,13 +76,19 @@ define([
                 // MODELS_TODO: Build delayed shader compiling into the shader program itself?
                 var passes = description.passes;
 
-                for (var pass in passes) {
-                    if (passes.hasOwnProperty(pass)) {
+                for (var property in passes) {
+                    if (passes.hasOwnProperty(property)) {
+                        var pass = passes[property];
+                        var program = pass.program;
 
                         programs[entryID] = {
-                            vertexShaderEntityID : passes[pass].program['x-shader/x-vertex'],
-                            fragmentShaderEntityID : passes[pass].program['x-shader/x-fragment']
+                            vertexShaderEntityID : program['x-shader/x-vertex'],
+                            fragmentShaderEntityID : program['x-shader/x-fragment'],
+                            attributes : clone(program.attributes),
+                            uniforms : clone(program.uniforms)
                         };
+
+                        // MODELS_TODO: do not ignore passes[pass].states
                     }
                 }
 
@@ -237,8 +245,68 @@ define([
 
                 // MODELS_TODO: dependency graph for loading shaders first
                 if ((typeof vs !== 'undefined') && (typeof fs !== 'undefined')) {
-                    // **************** MODELS_TODO: attributeIndices
-                    model._resources.programs[property] = context.getShaderCache().getShaderProgram(vs, fs);
+// **************** MODELS_TODO: attributeIndices
+
+                    var loadedProgram = {
+                        program : context.getShaderCache().getShaderProgram(vs, fs),
+                        uniformMap : {}
+                    };
+                    model._resources.programs[property] = loadedProgram;
+
+                    var uniformMap = loadedProgram.uniformMap;
+
+                    var uniforms = program.uniforms;
+                    var len = uniforms.length;
+                    for (var i = 0; i < len; ++i) {
+                        var uniform = uniforms[i];
+
+                        if (typeof uniform.semantic !== 'undefined') {
+                            switch (uniform.semantic) {
+                                case 'WORLDVIEW':
+                                    if (uniform.type !== 'FLOAT_MAT4') {
+                                        throw new RuntimeError('The type for uniform symbol, ' + uniform.symbol + ', is ' + uniform.type + ', but we expect it to be FLOAT_MAT4 since its semantic is FLOAT_MAT4');
+                                    }
+
+                                    uniformMap[uniform.symbol] = function() {
+// ************************************ MODELS_TODO: this is burnt with our model matrix right?  Both the model's and the node's?
+                                        return context.getUniformState().getModelView();
+                                    };
+
+                                    break;
+                                case 'WORLDVIEWINVERSETRANSPOSE':
+                                    if (uniform.type !== 'FLOAT_MAT3') {
+                                        throw new RuntimeError('The type for uniform symbol, ' + uniform.symbol + ', is ' + uniform.type + ', but we expect it to be FLOAT_MAT3 since its semantic is WORLDVIEWINVERSETRANSPOSE');
+                                    }
+
+                                    uniformMap[uniform.symbol] = function() {
+                                         return context.getUniformState().getNormal();
+                                     };
+
+                                    break;
+                                case 'PROJECTION':
+                                    if (uniform.type !== 'FLOAT_MAT4') {
+                                        throw new RuntimeError('The type for uniform symbol, ' + uniform.symbol + ', is ' + uniform.type + ', but we expect it to be FLOAT_MAT4 since its semantic is PROJECTION');
+                                    }
+
+                                    uniformMap[uniform.symbol] = function() {
+                                        return context.getUniformState().getProjection();
+                                    };
+
+                                    break;
+                                default:
+                                    // MODELS_TODO:
+                                    throw new RuntimeError('TODO: Add more uniform semantics');
+                            }
+                        } else if (typeof uniform.parameter !== 'undefined') {
+                            // MODELS_TODO: set with uniform.parameter.  do not assume default texture.
+                            uniformMap[uniform.symbol] = function() {
+                                return context.getDefaultTexture();
+                            };
+                        } else {
+                            throw new RuntimeError('Uniform symbol, ' + uniform.symbol + ', does not have a semantic or a parameter.');
+                        }
+                    }
+
                     delete programs[property];
                 }
             }
