@@ -615,7 +615,11 @@ define([
                                 command.offset = va.indicesByteOffset / va.vertexArray.getIndexBuffer().getBytesPerIndex();     // MODEL_TODO: verify this
                                 command.shaderProgram = technique.program;
                                 command.uniformMap = technique.uniformMap;
-                                command.renderState = context.createRenderState();  // MODEL_TODO: use real render state
+                                command.renderState = context.createRenderState({
+                                    depthTest : {
+                                        enabled : true
+                                    }
+                                });  // MODEL_TODO: use real render state
                                 colorCommands.push(command);
                             }
                         }
@@ -650,10 +654,12 @@ define([
         createResources(context, this);
 
         var modelCommandLists = this._commandLists;
-        modelCommandLists.removeAll();
 
         if (frameState.passes.color) {
             modelCommandLists.colorList = this._colorCommands;
+        }
+        else {
+            modelCommandLists.colorList.length = 0;
         }
 
         commandList.push(modelCommandLists);
