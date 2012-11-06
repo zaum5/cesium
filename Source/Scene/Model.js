@@ -674,7 +674,7 @@ define([
 
                                 var command = new DrawCommand();
                                 command.boundingVolume = undefined; // MODEL_TODO: set this
-                                command.modelMatrix = model.modelMatrix;
+//                                command.modelMatrix = model.modelMatrix;
                                 command.primitiveType = va.primitive;
                                 command.vertexArray = va.vertexArray;
                                 command.count = va.indicesLength;
@@ -723,6 +723,20 @@ define([
         var modelCommandLists = this._commandLists;
 
         if (frameState.passes.color) {
+// MODELS_TODO:  IIS hack
+            for (var i = 0; i < this._colorCommands.length; ++i) {
+                var scale = Matrix4.fromScale({ x: 60.0, y : 60.0, z : 60.0 });
+                var rotate = new Matrix4(
+                        1.0, 0.0, 0.0, 0.0,
+                        0.0, Math.cos(-Math.PI / 2.0), -Math.sin(-Math.PI / 2.0), 0.0,
+                        0.0, Math.sin(-Math.PI / 2.0), Math.cos(-Math.PI / 2.0), 0.0,
+                        0.0, 0.0, 0.0, 1.0);
+                var rs = Matrix4.multiply(rotate, scale);
+                var mv = Matrix4.multiply(this.modelMatrix, rs);
+
+                this._colorCommands[i].modelMatrix = mv;
+            }
+
             modelCommandLists.colorList = this._colorCommands;
         }
         else {
