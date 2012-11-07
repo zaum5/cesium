@@ -34,7 +34,7 @@ define([
         });
         widget.placeAt(dom.byId('cesiumContainer'));
 
-        widget.startWidget();
+        widget.startup();
 
         var scene = widget.scene;
         var primitives = scene.getPrimitives();
@@ -42,6 +42,5 @@ define([
 //        m.modelMatrix = Matrix4.fromScale(new Cartesian3(900000.0, 900000.0, 900000.0));
         primitives.add(m);
 
-        widget.startup();
     });
 });
