@@ -431,7 +431,8 @@ define([
                         // MODELS_TODO: this is hard-coded and a big hack.  this belongs with the material, not here with the technique.
                         var img = images["image_0"];
                         textures[uniform.parameter] = context.createTexture2D({
-                            source : img
+                            source : img,
+                            flipY : false
                         });
                         delete images["image_0"];
 

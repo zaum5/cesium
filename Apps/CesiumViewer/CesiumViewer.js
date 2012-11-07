@@ -41,6 +41,5 @@ define([
         var m = new Model('../../../Assets/Model/duck/duck.json');
 //        m.modelMatrix = Matrix4.fromScale(new Cartesian3(900000.0, 900000.0, 900000.0));
         primitives.add(m);
-
     });
 });

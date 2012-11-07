@@ -4,6 +4,10 @@ Change Log
 Beta Releases
 -------------
 
+TODO
+
+* Added `flipY` property when calling `Context.createTexture2D` and `Context.createCubeMap`.
+
 ### b11 - xx/xx/2012
 
 * Breaking changes:
