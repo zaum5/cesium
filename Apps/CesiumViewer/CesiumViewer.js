@@ -33,6 +33,7 @@ define([
             enableDragDrop : true
         });
         widget.placeAt(dom.byId('cesiumContainer'));
+
         widget.startWidget();
 
         var scene = widget.scene;
@@ -41,6 +42,6 @@ define([
 //        m.modelMatrix = Matrix4.fromScale(new Cartesian3(900000.0, 900000.0, 900000.0));
         primitives.add(m);
 
-        widget.startRenderLoop();
+        widget.startup();
     });
 });
