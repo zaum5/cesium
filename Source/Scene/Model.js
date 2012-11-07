@@ -725,12 +725,15 @@ define([
         if (frameState.passes.color) {
 // MODELS_TODO:  IIS hack
             for (var i = 0; i < this._colorCommands.length; ++i) {
-                var scale = Matrix4.fromScale({ x: 60.0, y : 60.0, z : 60.0 });
-                var rotate = new Matrix4(
-                        1.0, 0.0, 0.0, 0.0,
-                        0.0, Math.cos(-Math.PI / 2.0), -Math.sin(-Math.PI / 2.0), 0.0,
-                        0.0, Math.sin(-Math.PI / 2.0), Math.cos(-Math.PI / 2.0), 0.0,
-                        0.0, 0.0, 0.0, 1.0);
+                var scale = Matrix4.fromScale({ x: 90000.0, y : 90000.0, z : 90000.0 });
+                var rotate = Matrix4.IDENTITY.clone();
+//                var scale = Matrix4.fromScale({ x: 1.0, y : 1.0, z : 1.0 });
+//                var scale = Matrix4.fromScale({ x: 60.0, y : 60.0, z : 60.0 });
+//                var rotate = new Matrix4(
+//                        1.0, 0.0, 0.0, 0.0,
+//                        0.0, Math.cos(-Math.PI / 2.0), -Math.sin(-Math.PI / 2.0), 0.0,
+//                        0.0, Math.sin(-Math.PI / 2.0), Math.cos(-Math.PI / 2.0), 0.0,
+//                        0.0, 0.0, 0.0, 1.0);
                 var rs = Matrix4.multiply(rotate, scale);
                 var mv = Matrix4.multiply(this.modelMatrix, rs);
 

@@ -4,13 +4,20 @@ define([
     'dojo/on',
     'dojo/ready',
     'dojo/io-query',
-    'Widgets/Dojo/CesiumViewerWidget'
+    'Widgets/Dojo/CesiumViewerWidget',
+    'Core/Matrix4',
+    'Core/Cartesian3',
+    'Scene/Model',
+
 ], function(
     dom,
     on,
     ready,
     ioQuery,
-    CesiumViewerWidget
+    CesiumViewerWidget,
+    Matrix4,
+    Cartesian3,
+    Model
 ) {
     "use strict";
     /*global console*/
@@ -27,6 +34,13 @@ define([
         });
         widget.placeAt(dom.byId('cesiumContainer'));
         widget.startWidget();
+
+        var scene = widget.scene;
+        var primitives = scene.getPrimitives();
+        var m = new Model('../../../Assets/Model/duck/duck.json');
+//        m.modelMatrix = Matrix4.fromScale(new Cartesian3(900000.0, 900000.0, 900000.0));
+        primitives.add(m);
+
         widget.startRenderLoop();
     });
 });
