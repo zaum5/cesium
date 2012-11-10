@@ -48,7 +48,7 @@ define([
                 loadArrayBuffer(description.path).then(function(arrayBuffer) {
                     buffers[entryID] = arrayBuffer;
                 }, function() {
-                    // MODEL_TODO: Instead of throwing Runtime errors, should we just warn and render with what we have?
+                    // MODELS_TODO: Instead of throwing Runtime errors, should we just warn and render with what we have?
                     throw new RuntimeError('Could not load buffer entryID, ' + entryID + ' from path ' + description.path);
                 });
 
@@ -67,7 +67,7 @@ define([
                 loadImage(description.path).then(function(image) {
                     images[entryID] = image;
                 }, function() {
-                    // MODEL_TODO: Instead of throwing Runtime errors, should we just warn and render with what we have?
+                    // MODELS_TODO: Instead of throwing Runtime errors, should we just warn and render with what we have?
                     throw new RuntimeError('Could not load image entryID, ' + entryID + ' from path ' + description.path);
                 });
             }
@@ -84,7 +84,7 @@ define([
                 loadText(description.path).then(function(text) {
                     shaders[entryID] = text;
                 }, function() {
-                    // MODEL_TODO: Instead of throwing Runtime errors, should we just warn and render with what we have?
+                    // MODELS_TODO: Instead of throwing Runtime errors, should we just warn and render with what we have?
                     throw new RuntimeError('Could not load shader entryID, ' + entryID + ' from path ' + description.path);
                 });
 
@@ -387,6 +387,239 @@ define([
         return indices;
     }
 
+    var uniformSemantics = {
+        WORLD : {
+            type : 'FLOAT_MAT4',
+
+            get : function(uniformState) {
+                return function() {
+                    return uniformState.getModel();
+                };
+            }
+        },
+        VIEW : {
+            type : 'FLOAT_MAT4',
+
+            get : function(uniformState) {
+                return function() {
+                    return uniformState.getView();
+                };
+            }
+        },
+        PROJECTION : {
+            type : 'FLOAT_MAT4',
+
+            get : function(uniformState) {
+                return function() {
+                    return uniformState.getProjection();
+                };
+            }
+        },
+        WORLDVIEW : {
+            type : 'FLOAT_MAT4',
+
+            get : function(uniformState) {
+                return function() {
+                    return uniformState.getModelView();
+                };
+            }
+        },
+        VIEWPROJECTION : {
+            type : 'FLOAT_MAT4',
+
+            get : function(uniformState) {
+                return function() {
+                    return uniformState.getViewProjection();
+                };
+            }
+        },
+        WORLDVIEWPROJECTION : {
+            type : 'FLOAT_MAT4',
+
+            get : function(uniformState) {
+                return function() {
+                    return uniformState.getModelViewProjection();
+                };
+            }
+        },
+        WORLDINVERSE : {
+            type : 'FLOAT_MAT4',
+
+            get : function(uniformState) {
+                return function() {
+                    // MODELS_TODO:
+                    throw new RuntimeError('MODELS_TODO: uniform semantics');
+                };
+            }
+        },
+        VIEWINVERSE : {
+            type : 'FLOAT_MAT4',
+
+            get : function(uniformState) {
+                return function() {
+                    return uniformState.getInverseView();
+                };
+            }
+        },
+        PROJECTIONINVERSE : {
+            type : 'FLOAT_MAT4',
+
+            get : function(uniformState) {
+                return function() {
+                    return uniformState.getInverseProjection();
+                };
+            }
+        },
+        WORLDVIEWINVERSE : {
+            type : 'FLOAT_MAT4',
+
+            get : function(uniformState) {
+                return function() {
+                    return uniformState.getInverseModelView();
+                };
+            }
+        },
+        VIEWPROJECTIONINVERSE : {
+            type : 'FLOAT_MAT4',
+
+            get : function(uniformState) {
+                return function() {
+                    // MODELS_TODO:
+                    throw new RuntimeError('MODELS_TODO: uniform semantics');
+                };
+            }
+        },
+        WORLDVIEWPROJECTIONINVERSE : {
+            type : 'FLOAT_MAT4',
+
+            get : function(uniformState) {
+                return function() {
+                    // MODELS_TODO:
+                    throw new RuntimeError('MODELS_TODO: uniform semantics');
+                };
+            }
+        },
+        WORLDTRANSPOSE : {
+            type : 'FLOAT_MAT4',
+
+            get : function(uniformState) {
+                return function() {
+                    // MODELS_TODO:
+                    throw new RuntimeError('MODELS_TODO: uniform semantics');
+                };
+            }
+        },
+        VIEWTRANSPOSE : {
+            type : 'FLOAT_MAT4',
+
+            get : function(uniformState) {
+                return function() {
+                    // MODELS_TODO:
+                    throw new RuntimeError('MODELS_TODO: uniform semantics');
+                };
+            }
+        },
+        PROJECTIONTRANSPOSE : {
+            type : 'FLOAT_MAT4',
+
+            get : function(uniformState) {
+                return function() {
+                    // MODELS_TODO:
+                    throw new RuntimeError('MODELS_TODO: uniform semantics');
+                };
+            }
+        },
+        WORLDVIEWTRANSPOSE : {
+            type : 'FLOAT_MAT4',
+
+            get : function(uniformState) {
+                return function() {
+                    // MODELS_TODO:
+                    throw new RuntimeError('MODELS_TODO: uniform semantics');
+                };
+            }
+        },
+        VIEWPROJECTIONTRANSPOSE : {
+            type : 'FLOAT_MAT4',
+
+            get : function(uniformState) {
+                return function() {
+                    // MODELS_TODO:
+                    throw new RuntimeError('MODELS_TODO: uniform semantics');
+                };
+            }
+        },
+        WORLDVIEWPROJECTIONTRANSPOSE : {
+            type : 'FLOAT_MAT4',
+
+            get : function(uniformState) {
+                return function() {
+                    // MODELS_TODO:
+                    throw new RuntimeError('MODELS_TODO: uniform semantics');
+                };
+            }
+        },
+        WORLDINVERSETRANSPOSE : {
+            type : 'FLOAT_MAT3',
+
+            get : function(uniformState) {
+                return function() {
+                    // MODELS_TODO:
+                    throw new RuntimeError('MODELS_TODO: uniform semantics');
+                };
+            }
+        },
+        VIEWINVERSETRANSPOSE : {
+            type : 'FLOAT_MAT3',
+
+            get : function(uniformState) {
+                return function() {
+                    // MODELS_TODO:
+                    throw new RuntimeError('MODELS_TODO: uniform semantics');
+                };
+            }
+        },
+        PROJECTIONINVERSETRANSPOSE : {
+            type : 'FLOAT_MAT3',
+
+            get : function(uniformState) {
+                return function() {
+                    // MODELS_TODO:
+                    throw new RuntimeError('MODELS_TODO: uniform semantics');
+                };
+            }
+        },
+        WORLDVIEWINVERSETRANSPOSE : {
+            type : 'FLOAT_MAT3',
+
+            get : function(uniformState) {
+                return function() {
+                    return uniformState.getNormal();
+                };
+            }
+        },
+        VIEWPROJECTIONINVERSETRANSPOSE : {
+            type : 'FLOAT_MAT3',
+
+            get : function(uniformState) {
+                return function() {
+                    // MODELS_TODO:
+                    throw new RuntimeError('MODELS_TODO: uniform semantics');
+                };
+            }
+        },
+        WORLDVIEWPROJECTIONINVERSETRANSPOSE : {
+            type : 'FLOAT_MAT3',
+
+            get : function(uniformState) {
+                return function() {
+                    // MODELS_TODO:
+                    throw new RuntimeError('MODELS_TODO: uniform semantics');
+                };
+            }
+        }
+    };
+
     function createUniformMap(context, model, technique) {
         var images = model._resourcesToCreate.images;
         var textures = model._resources.textures;
@@ -399,41 +632,18 @@ define([
             var uniform = uniforms[i];
 
             if (typeof uniform.semantic !== 'undefined') {
-                switch (uniform.semantic) {
-                    case 'WORLDVIEW':
-                        if (uniform.type !== 'FLOAT_MAT4') {
-                            throw new RuntimeError('The type for uniform symbol, ' + uniform.symbol + ', is ' + uniform.type + ', but we expect it to be FLOAT_MAT4 since its semantic is FLOAT_MAT4');
-                        }
+                // MODELS_TODO:  Move semantics into the renderer?
 
-                        uniformMap[uniform.symbol] = function() {
-//************************************ MODELS_TODO: this is burnt with our model matrix right?  Both the model's and the node's?
-                            return context.getUniformState().getModelView();
-                        };
+                var semantic = uniformSemantics[uniform.semantic];
 
-                        break;
-                    case 'WORLDVIEWINVERSETRANSPOSE':
-                        if (uniform.type !== 'FLOAT_MAT3') {
-                            throw new RuntimeError('The type for uniform symbol, ' + uniform.symbol + ', is ' + uniform.type + ', but we expect it to be FLOAT_MAT3 since its semantic is WORLDVIEWINVERSETRANSPOSE');
-                        }
+                if (typeof semantic !== 'undefined') {
+                    if (uniform.type !== semantic.type) {
+                        throw new RuntimeError('The type for uniform symbol, ' + uniform.symbol + ', is ' + uniform.type + ', but we expect it to be ' + semantic.type + ' since its semantic is ' + uniform.semantic);
+                    }
 
-                        uniformMap[uniform.symbol] = function() {
-                             return context.getUniformState().getNormal();
-                         };
-
-                        break;
-                    case 'PROJECTION':
-                        if (uniform.type !== 'FLOAT_MAT4') {
-                            throw new RuntimeError('The type for uniform symbol, ' + uniform.symbol + ', is ' + uniform.type + ', but we expect it to be FLOAT_MAT4 since its semantic is PROJECTION');
-                        }
-
-                        uniformMap[uniform.symbol] = function() {
-                            return context.getUniformState().getProjection();
-                        };
-
-                        break;
-                    default:
-                        // MODELS_TODO:
-                        throw new RuntimeError('TODO: Add more uniform semantics');
+                    uniformMap[uniform.symbol] = semantic.get(context.getUniformState());
+                } else {
+                    throw new RuntimeError('Uniform symbol, ' + uniform.symbol + ', with type, ' + uniform.type + ', has unknown semantic, ' + uniform.semantic);
                 }
             } else if (typeof uniform.parameter !== 'undefined') {
                 // MODELS_TODO: set with uniform.parameter.  do not assume it is a texture.
@@ -542,8 +752,8 @@ define([
             if (accessors.hasOwnProperty(property)) {
                 var accessor = accessors[property];
 
-                // MODEL_TODO: With only unsigned short indices, can we create a vertex buffer if it is too big?
-                // MODEL_TODO: The buffer also contains indices, which are not used; they are duplicated in an index buffer.
+                // MODELS_TODO: With only unsigned short indices, can we create a vertex buffer if it is too big?
+                // MODELS_TODO: The buffer also contains indices, which are not used; they are duplicated in an index buffer.
                 if (typeof vertexBuffers[accessor.buffer] === 'undefined') {
                     vertexBuffers[accessor.buffer] = context.createVertexBuffer(loadedBuffers[accessor.buffer], BufferUsage.STATIC_DRAW);
                 }
@@ -559,8 +769,8 @@ define([
         for (var i = 0; i < len; ++i) {
             var indices = primitives[i].indices;
             if (typeof indexBuffers[indices.buffer] === 'undefined') {
-                // MODEL_TODO: It is a waste to use the entire buffer
-                // MODEL_TODO: Do not assume that all indices coming from this buffer have the same datatype
+                // MODELS_TODO: It is a waste to use the entire buffer
+                // MODELS_TODO: Do not assume that all indices coming from this buffer have the same datatype
                 indexBuffers[indices.buffer] = context.createIndexBuffer(loadedBuffers[indices.buffer], BufferUsage.STATIC_DRAW,
                     indices.type === "Uint16Array" ? IndexDatatype.UNSIGNED_SHORT : IndexDatatype.UNSIGNED_BYTE);
             }
@@ -654,8 +864,8 @@ define([
         model._resourcesToCreate.buffers = {};
         model._resourcesToCreate.images = {};
         model._resourcesToCreate.meshes = {};
-        // MODEL_TODO: remove others
-        // MODEL_TODO: avoid these allocations
+        // MODELS_TODO: remove others
+        // MODELS_TODO: avoid these allocations
     }
 
     function createNodes(context, model) {
@@ -669,8 +879,8 @@ define([
                 var node = nodes[property];
 
                 if (node.type === 'node') {
-                    // MODEL_TODO: handle children.  Do we have to traverse them here though?  Or are they provided in linearly?
-// **************** MODEL_TODO: use matrix
+                    // MODELS_TODO: handle children.  Do we have to traverse them here though?  Or are they provided in linearly?
+// **************** MODELS_TODO: use matrix
 
                     if (typeof node.meshes !== 'undefined') {
                         var meshes = node.meshes;
@@ -689,20 +899,20 @@ define([
                                 var technique = materials[va.materialID].technique;
 
                                 var command = new DrawCommand();
-                                command.boundingVolume = undefined; // MODEL_TODO: set this
+                                command.boundingVolume = undefined; // MODELS_TODO: set this
 //                                command.modelMatrix = model.modelMatrix;
                                 command.primitiveType = va.primitive;
                                 command.vertexArray = va.vertexArray;
                                 command.count = va.indicesLength;
 // ************************ MODELS_TODO: This assumes an index buffer or divides by zero.
-                                command.offset = va.indicesByteOffset / va.vertexArray.getIndexBuffer().getBytesPerIndex();     // MODEL_TODO: verify this
+                                command.offset = va.indicesByteOffset / va.vertexArray.getIndexBuffer().getBytesPerIndex();     // MODELS_TODO: verify this
                                 command.shaderProgram = technique.program;
                                 command.uniformMap = technique.uniformMap;
                                 command.renderState = context.createRenderState({
                                     depthTest : {
                                         enabled : true
                                     }
-                                });  // MODEL_TODO: use real render state
+                                });  // MODELS_TODO: use real render state
                                 colorCommands.push(command);
                             }
                         }
