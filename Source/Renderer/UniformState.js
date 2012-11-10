@@ -39,8 +39,12 @@ define([
         this._infiniteProjection = Matrix4.IDENTITY.clone();
         // Arbitrary.  The user will explicitly set this later.
         this._sunPosition = new Cartesian3(2.0 * Ellipsoid.WGS84.getRadii().x, 0.0, 0.0);
+        this._frameNumber = 1.0;
 
         // Derived members
+        this._inverseModelDirty = true;
+        this._inverseModel = new Matrix4();
+
         this._viewRotation = new Matrix3();
         this._inverseViewRotation = new Matrix3();
 
@@ -59,8 +63,14 @@ define([
         this._viewProjectionDirty = true;
         this._viewProjection = new Matrix4();
 
+        this._inverseViewProjectionDirty = true;
+        this._inverseViewProjection = new Matrix4();
+
         this._modelViewProjectionDirty = true;
         this._modelViewProjection = new Matrix4();
+
+        this._inverseModelViewProjectionDirty = true;
+        this._inverseModelViewProjection = new Matrix4();
 
         this._modelViewInfiniteProjectionDirty = true;
         this._modelViewInfiniteProjection = new Matrix4();
@@ -76,8 +86,6 @@ define([
 
         this._sunDirectionWCDirty = true;
         this._sunDirectionWC = new Cartesian3();
-
-        this._frameNumber = 1.0;
     };
 
     /**
@@ -166,8 +174,10 @@ define([
         Matrix4.clone(defaultValue(matrix, Matrix4.IDENTITY), this._model);
 
         this._modelViewDirty = true;
+        this._inverseModelDirty = true;
         this._inverseModelViewDirty = true;
         this._modelViewProjectionDirty = true;
+        this._inverseModelViewProjectionDirty = true;
         this._modelViewInfiniteProjectionDirty = true;
         this._normalDirty = true;
         this._inverseNormalDirty = true;
@@ -186,6 +196,29 @@ define([
      */
     UniformState.prototype.getModel = function() {
         return this._model;
+    };
+
+    function cleanInverseModel(uniformState) {
+        if (uniformState._inverseModelDirty) {
+            uniformState._inverseModelDirty = false;
+
+            // PERFORMANCE_TODO: could use faster Matrix4.inverseTransformation here, right?  It works with scale, right?
+            Matrix4.inverse(uniformState._model, uniformState._inverseModel);
+        }
+    }
+
+    /**
+     * Returns the inverse model matrix
+     *
+     * @memberof UniformState
+     *
+     * @return {Matrix4} The inverse model matrix.
+     *
+     * @see czm_inverseModel
+     */
+    UniformState.prototype.getInverseModel = function() {
+        cleanInverseModel(this);
+        return this._inverseModel;
     };
 
     /**
@@ -207,7 +240,9 @@ define([
         this._modelViewDirty = true;
         this._inverseModelViewDirty = true;
         this._viewProjectionDirty = true;
+        this._inverseViewProjectionDirty = true;
         this._modelViewProjectionDirty = true;
+        this._inverseModelViewProjectionDirty = true;
         this._modelViewInfiniteProjectionDirty = true;
         this._normalDirty = true;
         this._inverseNormalDirty = true;
@@ -295,7 +330,9 @@ define([
 
         this._inverseProjectionDirty = true;
         this._viewProjectionDirty = true;
+        this.__inverseViewProjectionDirty = true;
         this._modelViewProjectionDirty = true;
+        this._inverseModelViewProjectionDirty = true;
     };
 
     /**
@@ -431,6 +468,28 @@ define([
         return this._viewProjection;
     };
 
+    function cleanInverseViewProjection(uniformState) {
+        if (uniformState._inverseViewProjectionDirty) {
+            uniformState._inverseViewProjectionDirty = false;
+
+            Matrix4.inverse(uniformState.getViewProjection(), uniformState._inverseViewProjection);
+        }
+    }
+
+    /**
+     * Returns the inverse view-projection matrix
+     *
+     * @memberof UniformState
+     *
+     * @return {Matrix4} The inverse view-projection matrix.
+     *
+     * @see czm_inverseViewProjection
+     */
+    UniformState.prototype.getInverseViewProjection = function() {
+        cleanInverseViewProjection(this);
+        return this._inverseViewProjection;
+    };
+
     UniformState.prototype._cleanModelViewProjection = function() {
         if (this._modelViewProjectionDirty) {
             this._modelViewProjectionDirty = false;
@@ -451,6 +510,28 @@ define([
     UniformState.prototype.getModelViewProjection = function() {
         this._cleanModelViewProjection();
         return this._modelViewProjection;
+    };
+
+    function cleanInverseModelViewProjection(uniformState) {
+        if (uniformState._inverseModelViewProjectionDirty) {
+            uniformState._inverseModelViewProjectionDirty = false;
+
+            Matrix4.inverse(uniformState.getModelViewProjection(), uniformState._inverseModelViewProjection);
+        }
+    }
+
+    /**
+     * Returns the inverse model-view-projection matrix.
+     *
+     * @memberof UniformState
+     *
+     * @return {Matrix4} The inverse model-view-projection matrix.
+     *
+     * @see czm_inverseModelViewProjection
+     */
+    UniformState.prototype.getInverseModelViewProjection = function() {
+        cleanInverseModelViewProjection(this);
+        return this._inverseModelViewProjection;
     };
 
     UniformState.prototype._cleanModelViewInfiniteProjection = function() {

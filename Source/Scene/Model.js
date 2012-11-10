@@ -447,8 +447,7 @@ define([
 
             get : function(uniformState) {
                 return function() {
-                    // MODELS_TODO:
-                    throw new RuntimeError('MODELS_TODO: uniform semantics');
+                    return uniformState.getInverseModel();
                 };
             }
         },
@@ -484,8 +483,7 @@ define([
 
             get : function(uniformState) {
                 return function() {
-                    // MODELS_TODO:
-                    throw new RuntimeError('MODELS_TODO: uniform semantics');
+                    return uniformState.getInverseViewProjection();
                 };
             }
         },
@@ -560,7 +558,7 @@ define([
             }
         },
         WORLDINVERSETRANSPOSE : {
-            type : 'FLOAT_MAT3',
+            type : 'FLOAT_MAT4',
 
             get : function(uniformState) {
                 return function() {
@@ -570,7 +568,7 @@ define([
             }
         },
         VIEWINVERSETRANSPOSE : {
-            type : 'FLOAT_MAT3',
+            type : 'FLOAT_MAT4',
 
             get : function(uniformState) {
                 return function() {
@@ -580,7 +578,7 @@ define([
             }
         },
         PROJECTIONINVERSETRANSPOSE : {
-            type : 'FLOAT_MAT3',
+            type : 'FLOAT_MAT4',
 
             get : function(uniformState) {
                 return function() {
@@ -599,7 +597,7 @@ define([
             }
         },
         VIEWPROJECTIONINVERSETRANSPOSE : {
-            type : 'FLOAT_MAT3',
+            type : 'FLOAT_MAT4',
 
             get : function(uniformState) {
                 return function() {
@@ -609,7 +607,7 @@ define([
             }
         },
         WORLDVIEWPROJECTIONINVERSETRANSPOSE : {
-            type : 'FLOAT_MAT3',
+            type : 'FLOAT_MAT4',
 
             get : function(uniformState) {
                 return function() {

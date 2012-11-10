@@ -11,6 +11,7 @@ TODO
 * Added `fromUniformScale` to `Matrix2`, `Matrix3`, and `Matrix4`.
 * Added `fromScale` to `Matrix2`.
 * Added `multiplyByUniformScale` to `Matrix4`.
+* Added `czm_inverseModel`, `czm_inverseViewProjection`, and `czm_inverseModelViewProjection` automatic GLSL uniform.
 
 ### b11 - xx/xx/2012
 
