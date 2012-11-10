@@ -52,6 +52,44 @@ defineSuite([
         expect(matrix).toEqual(expected);
     });
 
+    it('fromScale works without a result parameter', function() {
+        var expected = new Matrix2(
+                7.0, 0.0,
+                0.0, 8.0);
+        var returnedResult = Matrix2.fromScale(new Cartesian2(7.0, 8.0));
+        expect(returnedResult).toNotBe(expected);
+        expect(returnedResult).toEqual(expected);
+    });
+
+    it('fromScale works with a result parameter', function() {
+        var expected = new Matrix2(
+                7.0, 0.0,
+                0.0, 8.0);
+        var result = new Matrix2();
+        var returnedResult = Matrix2.fromScale(new Cartesian2(7.0, 8.0), result);
+        expect(returnedResult).toBe(result);
+        expect(returnedResult).toEqual(expected);
+    });
+
+    it('fromUniformScale works without a result parameter', function() {
+        var expected = new Matrix2(
+                2.0, 0.0,
+                0.0, 2.0);
+        var returnedResult = Matrix2.fromUniformScale(2.0);
+        expect(returnedResult).toNotBe(expected);
+        expect(returnedResult).toEqual(expected);
+    });
+
+    it('fromUniformScale works with a result parameter', function() {
+        var expected = new Matrix2(
+                2.0, 0.0,
+                0.0, 2.0);
+        var result = new Matrix2();
+        var returnedResult = Matrix2.fromUniformScale(2.0, result);
+        expect(returnedResult).toBe(result);
+        expect(returnedResult).toEqual(expected);
+    });
+
     it('clone works without a result parameter', function() {
         var expected = new Matrix2(1.0, 2.0, 3.0, 4.0);
         var returnedResult = expected.clone();
@@ -390,6 +428,18 @@ defineSuite([
     it('fromColumnMajorArray throws with undefined parameter', function() {
         expect(function() {
             Matrix2.fromColumnMajorArray(undefined);
+        }).toThrow();
+    });
+
+    it('static fromScale throws without scale parameter', function() {
+        expect(function() {
+            Matrix2.fromScale(undefined);
+        }).toThrow();
+    });
+
+    it('static fromUniformScale throws without scale parameter', function() {
+        expect(function() {
+            Matrix2.fromUniformScale(undefined);
         }).toThrow();
     });
 

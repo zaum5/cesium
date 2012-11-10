@@ -668,7 +668,7 @@ define([
             this.showGroundAtmosphere(true);
             this._configureCentralBodyImagery();
 
-//            scene.getPrimitives().setCentralBody(centralBody);
+            scene.getPrimitives().setCentralBody(centralBody);
 
             var camera = scene.getCamera();
             camera.position = camera.position.multiplyByScalar(1.5);

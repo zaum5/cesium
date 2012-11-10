@@ -7,7 +7,7 @@
      "uri":{
        "webgltf":"duck.json"
      },
-     "scale":1.0,
+     "scale":60.0,
      "show":true
     },
     "billboard":{

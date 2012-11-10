@@ -283,6 +283,21 @@ define([
         this.modelMatrix = Matrix4.IDENTITY.clone();
 
         /**
+         * A uniform scale applied to this model before the {@link Model#modelMatrix}.
+         * Values greater than <code>1.0</code> increase the size of the model; values
+         * less than <code>1.0</code> decrease.
+         * <p>
+         * The default is <code>1.0</code>, which uses the model's original size.
+         * </p>
+         *
+         * @type Number
+         */
+        this.scale = 1.0;
+
+        // Derived from modelMatrix and scale.
+        this._computedModelMatrix = Matrix4.IDENTITY.clone();
+
+        /**
          * Determines if the model primitive will be shown.
          * <p>
          * The default is <code>true</code>.
@@ -725,20 +740,21 @@ define([
 
         if (frameState.passes.color) {
 // MODELS_TODO:  IIS hack
-            for (var i = 0; i < this._colorCommands.length; ++i) {
-                var scale = Matrix4.fromScale({ x: 90000.0, y : 90000.0, z : 90000.0 });
-                var rotate = Matrix4.IDENTITY.clone();
-//                var scale = Matrix4.fromScale({ x: 1.0, y : 1.0, z : 1.0 });
-//                var scale = Matrix4.fromScale({ x: 60.0, y : 60.0, z : 60.0 });
-//                var rotate = new Matrix4(
-//                        1.0, 0.0, 0.0, 0.0,
-//                        0.0, Math.cos(-Math.PI / 2.0), -Math.sin(-Math.PI / 2.0), 0.0,
-//                        0.0, Math.sin(-Math.PI / 2.0), Math.cos(-Math.PI / 2.0), 0.0,
-//                        0.0, 0.0, 0.0, 1.0);
-                var rs = Matrix4.multiply(rotate, scale);
-                var mv = Matrix4.multiply(this.modelMatrix, rs);
+//
+// var rotate = new Matrix4(
+//     1.0, 0.0, 0.0, 0.0,
+//     0.0, Math.cos(-Math.PI / 2.0), -Math.sin(-Math.PI / 2.0), 0.0,
+//     0.0, Math.sin(-Math.PI / 2.0), Math.cos(-Math.PI / 2.0), 0.0,
+//     0.0, 0.0, 0.0, 1.0);
+// var rs = Matrix4.multiplyByUniformScale(rotate, this.scale);
+// this._computedModelMatrix = Matrix4.multiply(this.modelMatrix, rs);
 
-                this._colorCommands[i].modelMatrix = mv;
+            Matrix4.multiplyByUniformScale(this.modelMatrix, this.scale, this._computedModelMatrix);
+
+            var commandsLength = this._colorCommands.length;
+
+            for (var i = 0; i < commandsLength; ++i) {
+                this._colorCommands[i].modelMatrix = this._computedModelMatrix;
             }
 
             modelCommandLists.colorList = this._colorCommands;

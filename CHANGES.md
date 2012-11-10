@@ -6,7 +6,11 @@ Beta Releases
 
 TODO
 
+* Added `Model` for rendering [WebGLTF](https://github.com/KhronosGroup/collada2json/wiki/WebGLTF) models.  [collada2json](https://github.com/KhronosGroup/collada2json) is a COLLADA to WebGLTF converter.
 * Added `flipY` property when calling `Context.createTexture2D` and `Context.createCubeMap`.
+* Added `fromUniformScale` to `Matrix2`, `Matrix3`, and `Matrix4`.
+* Added `fromScale` to `Matrix2`.
+* Added `multiplyByUniformScale` to `Matrix4`.
 
 ### b11 - xx/xx/2012
 
