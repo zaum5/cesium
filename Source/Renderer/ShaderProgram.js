@@ -174,7 +174,6 @@ define([
          * @glslUniform
          *
          * @see UniformState#getModel
-         * @see czm_inverseModel
          * @see czm_modelView
          * @see czm_modelViewProjection
          *
@@ -196,41 +195,6 @@ define([
 
             getValue : function(uniformState) {
                 return uniformState.getModel();
-            }
-        },
-
-        /**
-         * An automatic GLSL uniform representing a 4x4 model transformation matrix that
-         * transforms world coordinates to model coordinates.
-         * <br /><br />
-         * Like all automatic uniforms, <code>czm_inverseModel</code> does not need to be explicitly declared.
-         * However, it can be explicitly declared when a shader is also used by other applications such
-         * as a third-party authoring tool.
-         *
-         * @alias czm_inverseModel
-         * @glslUniform
-         *
-         * @see UniformState#getInverseModel
-         * @see czm_model
-         *
-         * @example
-         * // GLSL declaration
-         * uniform mat4 czm_inverseModel;
-         *
-         * // Example
-         * vec4 modelPosition = czm_model * worldPosition;
-         */
-        czm_inverseModel : {
-            getSize : function() {
-                return 1;
-            },
-
-            getDatatype : function() {
-                return UniformDatatype.FLOAT_MATRIX4;
-            },
-
-            getValue : function(uniformState) {
-                return uniformState.getInverseModel();
             }
         },
 

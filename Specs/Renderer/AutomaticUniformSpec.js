@@ -106,21 +106,6 @@ defineSuite([
            13.0, 14.0, 15.0, 16.0));
     });
 
-    it('has czm_inverseModel', function() {
-        var fs =
-            'void main() { ' +
-            '  gl_FragColor = vec4(' +
-            '    (czm_inverseModel[0][0] == 1.0) && (czm_inverseModel[1][0] == 0.0) && (czm_inverseModel[2][0] == 0.0) && (czm_inverseModel[3][0] == -7.0) &&' +
-            '    (czm_inverseModel[0][1] == 0.0) && (czm_inverseModel[1][1] == 1.0) && (czm_inverseModel[2][1] == 0.0) && (czm_inverseModel[3][1] == -8.0) &&' +
-            '    (czm_inverseModel[0][2] == 0.0) && (czm_inverseModel[1][2] == 0.0) && (czm_inverseModel[2][2] == 1.0) && (czm_inverseModel[3][2] == -9.0)' +
-            '  ); ' +
-            '}';
-        verifyDraw(fs, new Matrix4(1.0, 0.0, 0.0, 7.0,
-            0.0, 1.0, 0.0, 8.0,
-            0.0, 0.0, 1.0, 9.0,
-            0.0, 0.0, 0.0, 1.0));
-    });
-
     it('has czm_view', function() {
         var us = context.getUniformState();
         us.setView(new Matrix4( 1.0,  2.0,  3.0,  4.0,

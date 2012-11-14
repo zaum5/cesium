@@ -42,9 +42,6 @@ define([
         this._frameNumber = 1.0;
 
         // Derived members
-        this._inverseModelDirty = true;
-        this._inverseModel = new Matrix4();
-
         this._viewRotation = new Matrix3();
         this._inverseViewRotation = new Matrix3();
 
@@ -174,7 +171,6 @@ define([
         Matrix4.clone(defaultValue(matrix, Matrix4.IDENTITY), this._model);
 
         this._modelViewDirty = true;
-        this._inverseModelDirty = true;
         this._inverseModelViewDirty = true;
         this._modelViewProjectionDirty = true;
         this._inverseModelViewProjectionDirty = true;
@@ -196,29 +192,6 @@ define([
      */
     UniformState.prototype.getModel = function() {
         return this._model;
-    };
-
-    function cleanInverseModel(uniformState) {
-        if (uniformState._inverseModelDirty) {
-            uniformState._inverseModelDirty = false;
-
-            // PERFORMANCE_TODO: could use faster Matrix4.inverseTransformation here, right?  It works with scale, right?
-            Matrix4.inverse(uniformState._model, uniformState._inverseModel);
-        }
-    }
-
-    /**
-     * Returns the inverse model matrix
-     *
-     * @memberof UniformState
-     *
-     * @return {Matrix4} The inverse model matrix.
-     *
-     * @see czm_inverseModel
-     */
-    UniformState.prototype.getInverseModel = function() {
-        cleanInverseModel(this);
-        return this._inverseModel;
     };
 
     /**
