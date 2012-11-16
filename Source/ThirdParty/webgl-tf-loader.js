@@ -174,7 +174,7 @@ var global = window;
             set: function(value) {
                 if (this._json !== value) {
                     this._json = value;
-                    this._resolvePathsForCategories(["buffers", "shaders"]);
+                    this._resolvePathsForCategories(["buffers", "shaders", "images"]);
                 }
             }
         },
