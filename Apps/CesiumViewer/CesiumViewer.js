@@ -38,7 +38,7 @@ define([
 
         var scene = widget.scene;
         var primitives = scene.getPrimitives();
-        var m = new Model('../../../Assets/Model/duck/duck.json');
+        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/duck/duck.json');
         m.scale = 90000.0;
         primitives.add(m);
         scene.getPrimitives().setCentralBody(undefined);
