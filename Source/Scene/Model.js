@@ -775,6 +775,26 @@ define([
         }
     }
 
+    function getComponentDatatype(elementType) {
+        switch (elementType) {
+            case 'Float32':
+                return ComponentDatatype.FLOAT;
+            case 'Uint32':
+                // MODELS_TODO: Should not be part of WebGL TF?
+                throw new RuntimeError('Uint32 not supported');
+            case 'Uint16':
+                return ComponentDatatype.UNSIGNED_SHORT;
+            case 'Int16':
+                return ComponentDatatype.SHORT;
+            case 'Uint8':
+                return ComponentDatatype.UNSIGNED_BYTE;
+            case 'Int8':
+                return ComponentDatatype.BYTE;
+        }
+
+        throw new RuntimeError('Unknown elementType: ' + elementType);
+    }
+
     function createVertexArrays(context, model, mesh, property) {
         var materials = model._resources.materials;
         var vertexBuffers = model._resources.vertexBuffers;
@@ -806,7 +826,7 @@ define([
                     enabled                : true,
                     vertexBuffer           : vertexBuffers[accessor.buffer],
                     componentsPerAttribute : accessor.elementsPerValue,
-                    componentDatatype      : ComponentDatatype.FLOAT,        // MODELS_TODO: use elementType
+                    componentDatatype      : getComponentDatatype(accessor.elementType),
                     normalize              : false,
                     offsetInBytes          : accessor.byteOffset,
                     strideInBytes          : accessor.byteStride

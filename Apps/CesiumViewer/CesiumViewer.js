@@ -37,9 +37,26 @@ define([
         widget.startup();
 
         var scene = widget.scene;
+        scene.getContext().setValidateShaderProgram(true);
+        scene.getContext().setValidateFramebuffer(true);
+        scene.getContext().setLogShaderCompilation(true);
+        scene.getContext().setThrowOnWebGLError(true);
+
         var primitives = scene.getPrimitives();
-        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/duck/duck.json');
-        m.scale = 90000.0;
+
+//        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/_FA-18_Hornet/model0.json');         // vertex pointer
+//        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/_Internet Man 2/Internet Man.json'); // no warning
+        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/_M1A2_Abrams/model0.json');          // OK
+//        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/_M1043_HMMWV/model0.json');          // OK with vertex pointer
+
+//        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/_A320-200/models/untitled.json');     // vertex pointer
+//        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/_C-130-Hercules/model0.json');        // OK
+//        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/_Ford_Contour_Sedan/model0.json');    // vertex pointer
+
+//        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/_RQ-1_Predator/model0.json');         // vertex pointer
+//        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/duck/duck.json');                     // OK
+
+        m.scale = 900000.0;
         primitives.add(m);
         scene.getPrimitives().setCentralBody(undefined);
     });
