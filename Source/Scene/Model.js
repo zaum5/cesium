@@ -195,7 +195,14 @@ define([
 
         handleScene: {
             value: function(entryID, description, userInfo) {
-                console.log(entryID);
+                var scenes = userInfo._resourcesToCreate.scenes;
+
+                if (typeof scenes[entryID] !== 'undefined') {
+                    throw new RuntimeError('Duplicate scene entryID, ' + entryID);
+                }
+
+                scenes[entryID] = clone(description);
+
                 return true;
             }
         },
@@ -324,6 +331,8 @@ define([
             meshes : {
             },
             nodes : {
+            },
+            scenes : {
             }
         };
         this._resources = {
@@ -363,6 +372,7 @@ define([
         this._resourcesToCreate.materials = {};
         this._resourcesToCreate.meshes = {};
         this._resourcesToCreate.nodes = {};
+        this._resourcesToCreate.scenes = {};
         destroyResources(this._resources);
 
         var modelLoader = Object.create(ModelLoader);
@@ -828,14 +838,22 @@ define([
     function createMeshes(context, model) {
         var loadedBuffers = model._resourcesToCreate.buffers;
         var meshes = model._resourcesToCreate.meshes;
+        var materials = model._resources.materials;
 
         for (var property in meshes) {
             if (meshes.hasOwnProperty(property)) {
                 var mesh = meshes[property];
 
-                // TODO: verify materials loaded!
+                // MODELS_TODO: dependency graph for loading materials first
+                var primitives = mesh.primitives;
+                var len = primitives.length;
+                for (var i = 0; i < len; ++i) {
+                    if (typeof materials[primitives[i].material] === 'undefined') {
+                        return;
+                    }
+                }
 
-                // MODELS_TODO: dependency graph for loading techniques first
+                // MODELS_TODO: dependency graph for loading buffers first
                 var buffers = findBuffers(mesh);
                 for (var p in buffers) {
                     if (buffers.hasOwnProperty(p)) {
