@@ -39,14 +39,18 @@ define([
     var ModelLoader = Object.create(WebGLTFLoader, {
         handleBuffer: {
             value: function(entryID, description, userInfo) {
-                var buffers = userInfo._resourcesToCreate.buffers;
+                var resourcesToCreate = userInfo._resourcesToCreate;
+                var buffers = resourcesToCreate.buffers;
 
                 if (typeof buffers[entryID] !== 'undefined') {
                     throw new RuntimeError('Duplicate buffer entryID, ' + entryID + ' from path ' + description.path);
                 }
 
+                ++resourcesToCreate.pendingRequests;
+
                 loadArrayBuffer(description.path).then(function(arrayBuffer) {
                     buffers[entryID] = arrayBuffer;
+                    --resourcesToCreate.pendingRequests;
                 }, function() {
                     // MODELS_TODO: Instead of throwing Runtime errors, should we just warn and render with what we have?
                     throw new RuntimeError('Could not load buffer entryID, ' + entryID + ' from path ' + description.path);
@@ -58,14 +62,18 @@ define([
 
         handleImage : {
             value: function(entryID, description, userInfo) {
-                var images = userInfo._resourcesToCreate.images;
+                var resourcesToCreate = userInfo._resourcesToCreate;
+                var images = resourcesToCreate.images;
 
                 if (typeof images[entryID] !== 'undefined') {
                     throw new RuntimeError('Duplicate image entryID, ' + entryID + ' from path ' + description.path);
                 }
 
+                ++resourcesToCreate.pendingRequests;
+
                 loadImage(description.path).then(function(image) {
                     images[entryID] = image;
+                    --resourcesToCreate.pendingRequests;
                 }, function() {
                     // MODELS_TODO: Instead of throwing Runtime errors, should we just warn and render with what we have?
                     throw new RuntimeError('Could not load image entryID, ' + entryID + ' from path ' + description.path);
@@ -75,14 +83,18 @@ define([
 
         handleShader: {
             value: function(entryID, description, userInfo) {
-                var shaders = userInfo._resourcesToCreate.shaders;
+                var resourcesToCreate = userInfo._resourcesToCreate;
+                var shaders = resourcesToCreate.shaders;
 
                 if (typeof shaders[entryID] !== 'undefined') {
                     throw new RuntimeError('Duplicate shader shader entryID, ' + entryID + ' from path ' + description.path);
                 }
 
+                ++resourcesToCreate.pendingRequests;
+
                 loadText(description.path).then(function(text) {
                     shaders[entryID] = text;
+                    --resourcesToCreate.pendingRequests;
                 }, function() {
                     // MODELS_TODO: Instead of throwing Runtime errors, should we just warn and render with what we have?
                     throw new RuntimeError('Could not load shader entryID, ' + entryID + ' from path ' + description.path);
@@ -202,6 +214,7 @@ define([
                 }
 
                 scenes[entryID] = clone(description);
+                userInfo._resourcesToCreate.jsonReady = true;
 
                 return true;
             }
@@ -221,6 +234,19 @@ define([
             }
         }
     });
+
+    function destroyResourcesToCreate(resourcesToCreate) {
+        resourcesToCreate.buffers = {};
+        resourcesToCreate.images = {};
+        resourcesToCreate.shaders = {};
+        resourcesToCreate.techniques = {};
+        resourcesToCreate.materials = {};
+        resourcesToCreate.meshes = {};
+        resourcesToCreate.nodes = {};
+        resourcesToCreate.scenes = {};
+        resourcesToCreate.jsonReady = false;
+        resourcesToCreate.pendingRequests = 0;
+    }
 
     function destroyResources(resources) {
         var techniques = resources.techniques;
@@ -333,7 +359,9 @@ define([
             nodes : {
             },
             scenes : {
-            }
+            },
+            jsonReady : false,
+            pendingRequests : 0
         };
         this._resources = {
             techniques : {
@@ -365,14 +393,7 @@ define([
             throw new DeveloperError('url is required');
         }
 
-        this._resourcesToCreate.buffers = {};
-        this._resourcesToCreate.images = {};
-        this._resourcesToCreate.shaders = {};
-        this._resourcesToCreate.techniques = {};
-        this._resourcesToCreate.materials = {};
-        this._resourcesToCreate.meshes = {};
-        this._resourcesToCreate.nodes = {};
-        this._resourcesToCreate.scenes = {};
+        destroyResourcesToCreate(this._resourcesToCreate);
         destroyResources(this._resources);
 
         var modelLoader = Object.create(ModelLoader);
@@ -693,19 +714,14 @@ define([
                 var vs = shaders[technique.vertexShaderEntityID];
                 var fs = shaders[technique.fragmentShaderEntityID];
 
-                // MODELS_TODO: dependency graph for loading shaders first
-                if ((typeof vs !== 'undefined') && (typeof fs !== 'undefined')) {
-                    var attributeIndices = createAttributeIndices(technique);
+                var attributeIndices = createAttributeIndices(technique);
 
-                    var loadedTechnique = {
-                        program : context.getShaderCache().getShaderProgram(vs, fs, attributeIndices),
-                        attributeIndices : attributeIndices,
-                        uniformMap : createUniformMap(context, model, technique)
-                    };
-                    model._resources.techniques[property] = loadedTechnique;
-
-                    delete techniques[property];
-                }
+                var loadedTechnique = {
+                    program : context.getShaderCache().getShaderProgram(vs, fs, attributeIndices),
+                    attributeIndices : attributeIndices,
+                    uniformMap : createUniformMap(context, model, technique)
+                };
+                model._resources.techniques[property] = loadedTechnique;
             }
         }
     }
@@ -719,37 +735,11 @@ define([
                 var material = materials[property];
                 var technique = techniques[material.techniqueID];
 
-                // MODELS_TODO: dependency graph for loading techniques first
-                if (typeof technique !== 'undefined') {
-                    model._resources.materials[property] = {
-                        technique : technique
-                    };
-
-                    delete materials[property];
-                }
+                model._resources.materials[property] = {
+                    technique : technique
+                };
             }
         }
-    }
-
-    function findBuffers(mesh) {
-        var buffers = {};
-        var accessors = mesh.accessors;
-
-        for (var property in accessors) {
-            if (accessors.hasOwnProperty(property)) {
-                var accessor = accessors[property];
-                buffers[accessor.buffer] = accessor.buffer;
-            }
-        }
-
-        var primitives = mesh.primitives;
-        var len = primitives.length;
-        for (var i = 0; i < len; ++i) {
-            var buffer = primitives[i].indices.buffer;
-            buffers[buffer] = buffer;
-        }
-
-        return buffers;
     }
 
     function createVertexBuffers(context, model, accessors) {
@@ -836,52 +826,20 @@ define([
     }
 
     function createMeshes(context, model) {
-        var loadedBuffers = model._resourcesToCreate.buffers;
         var meshes = model._resourcesToCreate.meshes;
-        var materials = model._resources.materials;
 
         for (var property in meshes) {
             if (meshes.hasOwnProperty(property)) {
                 var mesh = meshes[property];
 
-                // MODELS_TODO: dependency graph for loading materials first
-                var primitives = mesh.primitives;
-                var len = primitives.length;
-                for (var i = 0; i < len; ++i) {
-                    if (typeof materials[primitives[i].material] === 'undefined') {
-                        return;
-                    }
-                }
-
-                // MODELS_TODO: dependency graph for loading buffers first
-                var buffers = findBuffers(mesh);
-                for (var p in buffers) {
-                    if (buffers.hasOwnProperty(p)) {
-                        var buffer = buffers[p];
-
-                        if (typeof loadedBuffers[buffer] === 'undefined') {
-                            return;
-                        }
-                    }
-                }
-
                 // MODELS_TODO: create vertex arrays once buffers are loaded.
                 // MODELS_TODO: Do not duplicate vertex arrays if two nodes share them, e.g., texture coordinates.
-                // MODELS_TODO: interleave if they aren't already.
+                // MODELS_TODO: interleave if they aren't ready.
                 createVertexBuffers(context, model, mesh.accessors);
                 createIndexBuffers(context, model, mesh.primitives);
                 createVertexArrays(context, model, mesh, property);
-
-                delete meshes[property];
             }
         }
-
-        // Remove buffers and images since all meshes are processed at once.
-        model._resourcesToCreate.buffers = {};
-        model._resourcesToCreate.images = {};
-        model._resourcesToCreate.meshes = {};
-        // MODELS_TODO: remove others
-        // MODELS_TODO: avoid these allocations
     }
 
     function createNodes(context, model) {
@@ -903,11 +861,6 @@ define([
                         var len = meshes.length;
                         for (var i = 0; i < len; ++i) {
                             var vas = vertexArrays[meshes[i]];
-
-                            // MODELS_TODO: dependency graph for loading techniques first
-                            if (typeof vas === 'undefined') {
-                                return;
-                            }
 
                             var vasLen = vas.length;
                             for (var j = 0; j < vasLen; ++j) {
@@ -936,17 +889,22 @@ define([
                     // MODELS_TODO: handle nodes without meshes like ones with cameras and lights
                 }
                 // MODELS_TODO: what other types exist?
-
-                delete nodes[property];
             }
         }
     }
 
     function createResources(context, model) {
-        createTechniques(context, model);
-        createMaterials(context, model);
-        createMeshes(context, model);
-        createNodes(context, model);
+        var resourcesToCreate = model._resourcesToCreate;
+
+        // MODELS_TODO: Progressively load; this is embarrassing.
+        if (resourcesToCreate.jsonReady && resourcesToCreate.pendingRequests === 0) {
+            createTechniques(context, model);
+            createMaterials(context, model);
+            createMeshes(context, model);
+            createNodes(context, model);
+
+            destroyResourcesToCreate(resourcesToCreate);
+        }
     }
 
     /**
