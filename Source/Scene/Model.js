@@ -763,14 +763,24 @@ define([
         var indexBuffers = model._resources.indexBuffers;
         var loadedBuffers = model._resourcesToCreate.buffers;
 
+        // MODELS_TODO: Combine buffers and adjust offsets in drawElements for better performance.
         var len = primitives.length;
         for (var i = 0; i < len; ++i) {
             var indices = primitives[i].indices;
-            if (typeof indexBuffers[indices.buffer] === 'undefined') {
-                // MODELS_TODO: It is a waste to use the entire buffer
-                // MODELS_TODO: Do not assume that all indices coming from this buffer have the same datatype
-                indexBuffers[indices.buffer] = context.createIndexBuffer(loadedBuffers[indices.buffer], BufferUsage.STATIC_DRAW,
-                    indices.type === "Uint16Array" ? IndexDatatype.UNSIGNED_SHORT : IndexDatatype.UNSIGNED_BYTE);
+            var key = JSON.stringify(indices);
+
+            if (typeof indexBuffers[key] === 'undefined') {
+                var indicesArray;
+                var type;
+                if (indices.type === "Uint16Array") {
+                    indicesArray = new Uint16Array(loadedBuffers[indices.buffer], indices.byteOffset, indices.length);
+                    type = IndexDatatype.UNSIGNED_SHORT;
+                } else {
+                    indicesArray = new Uint8Array(loadedBuffers[indices.buffer], indices.byteOffset, indices.length);
+                    type = IndexDatatype.UNSIGNED_BYTE;
+                }
+
+                indexBuffers[key] = context.createIndexBuffer(indicesArray, BufferUsage.STATIC_DRAW, type);
             }
         }
     }
@@ -836,9 +846,7 @@ define([
             vertexArrays.push({
                 materialID : primitive.material,
                 primitive : PrimitiveType[primitive.primitive],
-                vertexArray : context.createVertexArray(attributes, indexBuffers[primitive.indices.buffer]),
-                indicesByteOffset : primitive.indices.byteOffset,
-                indicesLength : primitive.indices.length
+                vertexArray : context.createVertexArray(attributes, indexBuffers[JSON.stringify(primitive.indices)]),
             });
         }
 
@@ -892,9 +900,6 @@ define([
 //                                command.modelMatrix = model.modelMatrix;
                                 command.primitiveType = va.primitive;
                                 command.vertexArray = va.vertexArray;
-                                command.count = va.indicesLength;
-// ************************ MODELS_TODO: This assumes an index buffer or divides by zero.
-                                command.offset = va.indicesByteOffset / va.vertexArray.getIndexBuffer().getBytesPerIndex();     // MODELS_TODO: verify this
                                 command.shaderProgram = technique.program;
                                 command.uniformMap = technique.uniformMap;
                                 command.renderState = context.createRenderState({
