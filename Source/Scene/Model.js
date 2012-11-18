@@ -742,18 +742,48 @@ define([
         }
     }
 
+    function getComponentDatatype(elementType) {
+        switch (elementType) {
+            case 'Float32':
+                return ComponentDatatype.FLOAT;
+            case 'Uint32':
+                // MODELS_TODO: Should not be part of WebGL TF?
+                throw new RuntimeError('Uint32 not supported');
+            case 'Uint16':
+                return ComponentDatatype.UNSIGNED_SHORT;
+            case 'Int16':
+                return ComponentDatatype.SHORT;
+            case 'Uint8':
+                return ComponentDatatype.UNSIGNED_BYTE;
+            case 'Int8':
+                return ComponentDatatype.BYTE;
+        }
+
+        throw new RuntimeError('Unknown elementType: ' + elementType);
+    }
+
     function createVertexBuffers(context, model, accessors) {
         var vertexBuffers = model._resources.vertexBuffers;
         var loadedBuffers = model._resourcesToCreate.buffers;
 
+        // MODELS_TODO: Combine buffers for better performance.
         for (var property in accessors) {
             if (accessors.hasOwnProperty(property)) {
                 var accessor = accessors[property];
+                var key = JSON.stringify(accessor);
 
-                // MODELS_TODO: With only unsigned short indices, can we create a vertex buffer if it is too big?
-                // MODELS_TODO: The buffer also contains indices, which are not used; they are duplicated in an index buffer.
-                if (typeof vertexBuffers[accessor.buffer] === 'undefined') {
-                    vertexBuffers[accessor.buffer] = context.createVertexBuffer(loadedBuffers[accessor.buffer], BufferUsage.STATIC_DRAW);
+                if (typeof vertexBuffers[key] === 'undefined') {
+                    var verticesArray;
+                    var attributeSizeInBytes = accessor.elementsPerValue * getComponentDatatype(accessor.elementType).sizeInBytes;
+                    if (attributeSizeInBytes === accessor.byteStride) {
+                        verticesArray = new Uint8Array(loadedBuffers[accessor.buffer],
+                            accessor.byteOffset, accessor.count * attributeSizeInBytes);
+                    } else {
+                        // MODEL_TODO: Support interleaved attributes
+                        throw new Runtime('MODEL_TODO: Support interleaved attributes');
+                    }
+
+                    vertexBuffers[key] = context.createVertexBuffer(verticesArray, BufferUsage.STATIC_DRAW);
                 }
             }
         }
@@ -785,26 +815,6 @@ define([
         }
     }
 
-    function getComponentDatatype(elementType) {
-        switch (elementType) {
-            case 'Float32':
-                return ComponentDatatype.FLOAT;
-            case 'Uint32':
-                // MODELS_TODO: Should not be part of WebGL TF?
-                throw new RuntimeError('Uint32 not supported');
-            case 'Uint16':
-                return ComponentDatatype.UNSIGNED_SHORT;
-            case 'Int16':
-                return ComponentDatatype.SHORT;
-            case 'Uint8':
-                return ComponentDatatype.UNSIGNED_BYTE;
-            case 'Int8':
-                return ComponentDatatype.BYTE;
-        }
-
-        throw new RuntimeError('Unknown elementType: ' + elementType);
-    }
-
     function createVertexArrays(context, model, mesh, property) {
         var materials = model._resources.materials;
         var vertexBuffers = model._resources.vertexBuffers;
@@ -834,11 +844,10 @@ define([
                 attributes.push({
                     index                  : attributeIndices[vertexAttribute.semantic],
                     enabled                : true,
-                    vertexBuffer           : vertexBuffers[accessor.buffer],
+                    vertexBuffer           : vertexBuffers[JSON.stringify(accessor)],
                     componentsPerAttribute : accessor.elementsPerValue,
                     componentDatatype      : getComponentDatatype(accessor.elementType),
                     normalize              : false,
-                    offsetInBytes          : accessor.byteOffset,
                     strideInBytes          : accessor.byteStride
                 });
             }
@@ -860,7 +869,6 @@ define([
             if (meshes.hasOwnProperty(property)) {
                 var mesh = meshes[property];
 
-                // MODELS_TODO: create vertex arrays once buffers are loaded.
                 // MODELS_TODO: Do not duplicate vertex arrays if two nodes share them, e.g., texture coordinates.
                 // MODELS_TODO: interleave if they aren't ready.
                 createVertexBuffers(context, model, mesh.accessors);
