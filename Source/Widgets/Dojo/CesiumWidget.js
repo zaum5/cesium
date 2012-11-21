@@ -228,8 +228,6 @@ define([
             var camera = scene.getCamera();
             camera.position = camera.position.multiplyByScalar(1.5);
 
-            this.centralBodyCameraController = camera.getControllers().addCentralBody();
-
             var handler = new EventHandler(canvas);
             handler.setMouseAction(lang.hitch(this, '_handleLeftClick'), MouseEventType.LEFT_CLICK);
             handler.setMouseAction(lang.hitch(this, '_handleRightClick'), MouseEventType.RIGHT_CLICK);
@@ -260,10 +258,6 @@ define([
             camera.up = this.defaultCamera.up;
             camera.transform = this.defaultCamera.transform;
             camera.frustum = this.defaultCamera.frustum.clone();
-
-            var controllers = camera.getControllers();
-            controllers.removeAll();
-            this.centralBodyCameraController = controllers.addCentralBody();
         },
 
         enableStatistics : function(showStatistics) {
@@ -301,6 +295,10 @@ define([
             }
         },
 
+        initializeFrame : function() {
+            this.scene.initializeFrame();
+        },
+
         update : function(currentTime) {
         },
 
@@ -334,6 +332,7 @@ define([
 
             function updateAndRender() {
                 var currentTime = new JulianDate();
+                widget.initializeFrame();
                 widget.update(currentTime);
                 widget.render(currentTime);
                 requestAnimationFrame(updateAndRender);

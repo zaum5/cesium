@@ -127,6 +127,12 @@ defineSuite([
         expect(actual.equals(expected));
     });
 
+    it('get and set sun position', function() {
+        var position = Cartesian3.UNIT_X;
+        scene.setSunPosition(position);
+        expect(scene.getSunPosition()).toEqual(position);
+    });
+
     it('isDestroyed', function() {
         var s = createScene();
         expect(s.isDestroyed()).toEqual(false);

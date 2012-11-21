@@ -18,6 +18,7 @@ TODO
    * `Fullscreen.getFullScreenChangeEventName` and `Fullscreen.getFullScreenChangeEventName` now return the proper event name, suitable for use with the `addEventListener` API, instead prefixing them with "on".
    * Removed `Scene.setSunPosition` and `Scene.getSunPosition`.  The sun position used for lighting is automatically computed based on the scene's time.
    * Removed a number of rendering options from `CentralBody`, including the ground atmosphere, night texture, specular map, cloud map, cloud shadows, and bump map.  These features weren't really production ready and had a disproportionate cost in terms of shader complexity and compilation time.  They may return in a more polished form in a future release.  
+   * Removed `Camera2DController`, `CameraCentralBodyController`, `CameraColumbusViewController`, `CameraFlightController`, `CameraFreeLookController`, `CameraSpindleController`, and `CameraControllerCollection`. Common ways to modify the camera are through the `CameraController` object of the `Camera` and will work in all scene modes. The default camera mouse handler is the 'CameraMouseController` object on the `Scene`.
 * Improved lighting in Columbus view and on polygons, ellipsoids, and sensors.
 * Added `Water` material.  See the Materials Sandbox example.
 * Fixed jitter artifacts with billboards and polylines.

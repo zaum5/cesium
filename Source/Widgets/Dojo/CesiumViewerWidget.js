@@ -42,6 +42,7 @@ define([
         '../../Scene/PerspectiveFrustum',
         '../../Scene/Material',
         '../../Scene/Scene',
+        '../../Scene/CameraColumbusViewMode',
         '../../Scene/CentralBody',
         '../../Scene/BingMapsImageryProvider',
         '../../Scene/BingMapsStyle',
@@ -98,6 +99,7 @@ define([
         PerspectiveFrustum,
         Material,
         Scene,
+        CameraColumbusViewMode,
         CentralBody,
         BingMapsImageryProvider,
         BingMapsStyle,
@@ -309,21 +311,6 @@ define([
                 }
             } else {
                 this._viewFromTo = undefined;
-
-                var scene = this.scene;
-                var mode = scene.mode;
-                var camera = scene.getCamera();
-                var controllers = camera.getControllers();
-                if (mode === SceneMode.SCENE2D) {
-                    controllers.removeAll();
-                    controllers.add2D(scene.scene2D.projection);
-                } else if (mode === SceneMode.SCENE3D) {
-                    //For now just rename at the last location
-                    //camera will stay in spindle/rotate mode.
-                } else if (mode === SceneMode.COLUMBUS_VIEW) {
-                    controllers.removeAll();
-                    controllers.addColumbusView();
-                }
             }
         },
 
@@ -670,8 +657,6 @@ define([
             var camera = scene.getCamera();
             camera.position = camera.position.multiplyByScalar(1.5);
 
-            this.centralBodyCameraController = camera.getControllers().addCentralBody();
-
             var handler = new EventHandler(canvas);
             handler.setMouseAction(lang.hitch(this, '_handleLeftClick'), MouseEventType.LEFT_CLICK);
             handler.setMouseAction(lang.hitch(this, '_handleRightClick'), MouseEventType.RIGHT_CLICK);
@@ -917,15 +902,19 @@ define([
 
             var scene = this.scene;
             var mode = scene.mode;
+
             var camera = scene.getCamera();
-            var controllers = camera.getControllers();
-            controllers.removeAll();
+            camera.controller.constrainedAxis = undefined;
+
+            var mouseHandler = scene.getCameraMouseController();
+            mouseHandler.enableTranslate = true;
+            mouseHandler.enableTilt = true;
+            mouseHandler.setEllipsoid(Ellipsoid.WGS84);
+            mouseHandler.columbusViewMode = CameraColumbusViewMode.FREE;
 
             if (mode === SceneMode.SCENE2D) {
-                controllers.add2D(scene.scene2D.projection);
-                scene.viewExtent(Extent.MAX_VALUE);
+                camera.controller.viewExtent(Extent.MAX_VALUE);
             } else if (mode === SceneMode.SCENE3D) {
-                this.centralBodyCameraController = controllers.addCentralBody();
                 var camera3D = this._camera3D;
                 camera3D.position.clone(camera.position);
                 camera3D.direction.clone(camera.direction);
@@ -942,8 +931,10 @@ define([
                 var maxRadii = Ellipsoid.WGS84.getMaximumRadius();
                 var position = new Cartesian3(0.0, -1.0, 1.0).normalize().multiplyByScalar(5.0 * maxRadii);
                 var direction = Cartesian3.ZERO.subtract(position).normalize();
-                var right = direction.cross(Cartesian3.UNIT_Z).normalize();
+                var right = direction.cross(Cartesian3.UNIT_Z);
                 var up = right.cross(direction);
+                right = direction.cross(up);
+                direction = up.cross(right);
 
                 var frustum = new PerspectiveFrustum();
                 frustum.fovy = CesiumMath.toRadians(60.0);
@@ -952,10 +943,9 @@ define([
                 camera.position = position;
                 camera.direction = direction;
                 camera.up = up;
+                camera.right = right;
                 camera.frustum = frustum;
                 camera.transform = transform;
-
-                controllers.addColumbusView();
             }
         },
 
@@ -1069,6 +1059,15 @@ define([
         },
 
         /**
+         * Initialize the current frame.
+         * @function
+         * @memberof CesiumViewerWidget.prototype
+         */
+        initializeFrame : function() {
+            this.scene.initializeFrame();
+        },
+
+        /**
          * Call this function prior to rendering each animation frame, to prepare
          * all CZML objects and other settings for the next frame.
          *
@@ -1172,6 +1171,7 @@ define([
          * var animationController = widget.animationController;
          * function updateAndRender() {
          *     var currentTime = animationController.update();
+         *     widget.initializeFrame();
          *     widget.update(currentTime);
          *     widget.render(currentTime);
          *     requestAnimationFrame(updateAndRender);
@@ -1184,6 +1184,8 @@ define([
          *
          * function updateAndRender() {
          *     var currentTime = animationController.update();
+         *     widget1.initializeFrame();
+         *     widget2.initializeFrame();
          *     widget1.update(currentTime);
          *     widget2.update(currentTime);
          *     widget1.render(currentTime);
@@ -1198,6 +1200,8 @@ define([
          * function updateAndRender() {
          *     var time1 = widget1.animationController.update();
          *     var time2 = widget2.animationController.update();
+         *     widget1.initializeFrame();
+         *     widget2.initializeFrame();
          *     widget1.update(time1);
          *     widget2.update(time2);
          *     widget1.render(currentTime);
@@ -1212,6 +1216,7 @@ define([
 
             function updateAndRender() {
                 var currentTime = animationController.update();
+                widget.initializeFrame();
                 widget.update(currentTime);
                 widget.render(currentTime);
                 requestAnimationFrame(updateAndRender);
