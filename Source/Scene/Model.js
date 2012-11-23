@@ -10,6 +10,7 @@ define([
         '../Core/IndexDatatype',
         '../Core/PrimitiveType',
         '../Core/ComponentDatatype',
+        '../Core/defaultValue',
         '../Renderer/BufferUsage',
         '../Renderer/CommandLists',
         '../Renderer/DrawCommand',
@@ -26,6 +27,7 @@ define([
         IndexDatatype,
         PrimitiveType,
         ComponentDatatype,
+        defaultValue,
         BufferUsage,
         CommandLists,
         DrawCommand,
@@ -312,8 +314,8 @@ define([
          * @see Transforms.eastNorthUpToFixedFrame
          * @see czm_model
          */
-
         this.modelMatrix = Matrix4.IDENTITY.clone();
+        this._modelMatrix = Matrix4.IDENTITY.clone();
 
         /**
          * A uniform scale applied to this model before the {@link Model#modelMatrix}.
@@ -326,9 +328,12 @@ define([
          * @type Number
          */
         this.scale = 1.0;
+        this._scale = 1.0;
 
         // Derived from modelMatrix and scale.
         this._computedModelMatrix = Matrix4.IDENTITY.clone();
+
+        this._transformsDirty = false;
 
         /**
          * Determines if the model primitive will be shown.
@@ -363,6 +368,7 @@ define([
             jsonReady : false,
             pendingRequests : 0
         };
+
         this._resources = {
             techniques : {
             },
@@ -377,6 +383,10 @@ define([
             vertexArrays : {
             }
         };
+
+        this._scenes = {};
+        this._nodes = {};
+        this._nodeStack = []; // To reduce allocations in update()
 
         if (typeof url !== 'undefined') {
             this.load(url);
@@ -395,6 +405,8 @@ define([
 
         destroyResourcesToCreate(this._resourcesToCreate);
         destroyResources(this._resources);
+        this._scenes = {};
+        this._nodes = {};
 
         var modelLoader = Object.create(ModelLoader);
         modelLoader.initWithPath(url);
@@ -879,63 +891,70 @@ define([
     }
 
     function createNodes(context, model) {
-        var property;
+        var i;
+        var len;
         var scenes = model._resourcesToCreate.scenes;
         var nodes = model._resourcesToCreate.nodes;
         var vertexArrays = model._resources.vertexArrays;
         var materials = model._resources.materials;
         var colorCommands = model._colorCommands;
+        var nodeStack = model._nodeStack;
 
-        var nodesToProcess = [];
-
-        for (property in scenes) {
+        for (var property in scenes) {
             if (scenes.hasOwnProperty(property)) {
                 var scene = scenes[property];
 
-                nodesToProcess.push(scene.node);
+                var n = nodes[scene.node];
+                // Computed transform from the root to this node.  This is
+                // not part of the original model; is used for rendering.
+                n.computedTransform = defaultValue(n.matrix, Matrix4.IDENTITY);
+                nodeStack.push(n);
 
-                while (nodesToProcess.length > 0) {
-                    var n = nodes[nodesToProcess.pop()];
+                while (nodeStack.length > 0) {
+                    n = nodeStack.pop();
 
+                    // DDR commands for this node.  This is not part of the original model;
+                    // it is the commands to render this node.
+                    n.commands = [];
+                    var commands = n.commands;
 
-                    if (n.type === 'node') {
-    // **************** MODELS_TODO: use matrix
+                    if (typeof n.meshes !== 'undefined') {
+                        var meshes = n.meshes;
+                        len = meshes.length;
+                        for (i = 0; i < len; ++i) {
+                            var vas = vertexArrays[meshes[i]];
 
-                        if (typeof n.meshes !== 'undefined') {
-                            var meshes = n.meshes;
-                            var len = meshes.length;
-                            for (var i = 0; i < len; ++i) {
-                                var vas = vertexArrays[meshes[i]];
+                            var vasLen = vas.length;
+                            for (var j = 0; j < vasLen; ++j) {
+                                var va = vas[j];
+                                var technique = materials[va.materialID].technique;
 
-                                var vasLen = vas.length;
-                                for (var j = 0; j < vasLen; ++j) {
-                                    var va = vas[j];
-                                    var technique = materials[va.materialID].technique;
+                                var command = new DrawCommand();
+                                command.boundingVolume = undefined;      // MODELS_TODO: set this
+                                command.modelMatrix = new Matrix4();     // Computed in update()
+                                command.primitiveType = va.primitive;
+                                command.vertexArray = va.vertexArray;
+                                command.shaderProgram = technique.program;
+                                command.uniformMap = technique.uniformMap;
+                                command.renderState = context.createRenderState({
+                                    depthTest : {
+                                        enabled : true
+                                    }
+                                });  // MODELS_TODO: use real render state
 
-                                    var command = new DrawCommand();
-                                    command.boundingVolume = undefined; // MODELS_TODO: set this
-//                                    command.modelMatrix = model.modelMatrix;
-                                    command.primitiveType = va.primitive;
-                                    command.vertexArray = va.vertexArray;
-                                    command.shaderProgram = technique.program;
-                                    command.uniformMap = technique.uniformMap;
-                                    command.renderState = context.createRenderState({
-                                        depthTest : {
-                                            enabled : true
-                                        }
-                                    });  // MODELS_TODO: use real render state
-                                    colorCommands.push(command);
-                                }
+                                commands.push(command);
+                                colorCommands.push(command);
                             }
                         }
-                        // MODELS_TODO: handle nodes without meshes like ones with cameras and lights
                     }
-                    // MODELS_TODO: what other types exist?
+                    // MODELS_TODO: handle nodes without meshes like ones with cameras and lights
 
                     var children = n.children;
-                    var len = children.length;
-                    for (var i = 0; i < len; ++i) {
-                        nodesToProcess.push(children[i]);
+                    len = children.length;
+                    for (i = 0; i < len; ++i) {
+                        var child = nodes[children[i]];
+                        child.computedTransform = Matrix4.multiply(n.computedTransform, defaultValue(child.matrix, Matrix4.IDENTITY));
+                        nodeStack.push(child);
                     }
                 }
             }
@@ -951,6 +970,9 @@ define([
             createMaterials(context, model);
             createMeshes(context, model);
             createNodes(context, model);
+            model._scenes = model._resourcesToCreate.scenes;
+            model._nodes = model._resourcesToCreate.nodes;
+            model._transformsDirty = true;
 
             destroyResourcesToCreate(resourcesToCreate);
         }
@@ -982,12 +1004,47 @@ define([
 // var rs = Matrix4.multiplyByUniformScale(rotate, this.scale);
 // this._computedModelMatrix = Matrix4.multiply(this.modelMatrix, rs);
 
-            Matrix4.multiplyByUniformScale(this.modelMatrix, this.scale, this._computedModelMatrix);
 
-            var commandsLength = this._colorCommands.length;
+            if (!Matrix4.equals(this._modelMatrix, this.modelMatrix) ||
+                (this._scale !== this.scale) ||
+                this._transformsDirty) {
 
-            for (var i = 0; i < commandsLength; ++i) {
-                this._colorCommands[i].modelMatrix = this._computedModelMatrix;
+                Matrix4.clone(this.modelMatrix, this._modelMatrix);
+                this._scale = this.scale;
+                this._transformsDirty = false;
+
+                Matrix4.multiplyByUniformScale(this.modelMatrix, this.scale, this._computedModelMatrix);
+
+                var i;
+                var len;
+                var scenes = this._scenes;
+                var nodes = this._nodes;
+                var nodeStack = this._nodeStack;
+
+                for (var property in scenes) {
+                    if (scenes.hasOwnProperty(property)) {
+                        var scene = scenes[property];
+                        nodeStack.push(nodes[scene.node]);
+
+                        while (nodeStack.length > 0) {
+                            var n = nodeStack.pop();
+                            var transform = n.computedTransform;
+                            var commands = n.commands;
+
+                            len = commands.length;
+                            for (i = 0; i < len; ++i) {
+                                var command = commands[i];
+                                Matrix4.multiply(this._computedModelMatrix, transform, command.modelMatrix);
+                            }
+
+                            var children = n.children;
+                            len = children.length;
+                            for (i = 0; i < len; ++i) {
+                                nodeStack.push(nodes[children[i]]);
+                            }
+                        }
+                    }
+                }
             }
 
             modelCommandLists.colorList = this._colorCommands;
