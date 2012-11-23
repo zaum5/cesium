@@ -3,6 +3,7 @@ define([
         '../Core/DeveloperError',
         '../Core/RuntimeError',
         '../Core/Matrix4',
+        '../Core/Cartesian4',
         '../Core/loadText',
         '../Core/loadArrayBuffer',
         '../Core/loadImage',
@@ -21,6 +22,7 @@ define([
         DeveloperError,
         RuntimeError,
         Matrix4,
+        Cartesian4,
         loadText,
         loadArrayBuffer,
         loadImage,
@@ -646,7 +648,7 @@ define([
         }
     };
 
-    function createUniformMap(context, model, technique) {
+    function createUniformMap(context, model, technique, parameters) {
         var images = model._resourcesToCreate.images;
         var textures = model._resources.textures;
 
@@ -672,26 +674,34 @@ define([
                     throw new RuntimeError('Uniform symbol, ' + uniform.symbol + ', with type, ' + uniform.type + ', has unknown semantic, ' + uniform.semantic);
                 }
             } else if (typeof uniform.parameter !== 'undefined') {
-                // MODELS_TODO: set with uniform.parameter.  do not assume it is a texture.
-                uniformMap[uniform.symbol] = function() {
 
+                var parameter = parameters[uniform.parameter];
+
+                if (uniform.type === 'FLOAT_VEC4') {
+                    uniformMap[uniform.symbol] = function() {
+                        return new Cartesian4(parameter[0], parameter[1], parameter[2], parameter[4]);
+                    };
+                } else if (uniform.type === 'FLOAT') {
+                    uniformMap[uniform.symbol] = function() {
+                        return parameter;
+                    };
+                } else if (uniform.type === 'SAMPLER_2D') {
                     // MODELS_TODO: real texture cache
-                    if (textures[uniform.parameter]) {
-                        return textures[uniform.parameter];
-                    } else if (typeof images["image_0"] !== 'undefined') {
-                        // MODELS_TODO: this is hard-coded and a big hack.  this belongs with the material, not here with the technique.
-                        var img = images["image_0"];
-                        textures[uniform.parameter] = context.createTexture2D({
-                            source : img,
+                    if (typeof textures[parameter.image] === 'undefined') {
+                        // MODELS_TODO: use filtering states
+                        textures[parameter.image] = context.createTexture2D({
+                            source : images[parameter.image],
                             flipY : false
                         });
-                        delete images["image_0"];
-
-                        return textures[uniform.parameter];
+                        delete images[parameter.image];
                     }
 
-                    return context.getDefaultTexture();
-                };
+                    uniformMap[uniform.symbol] = function() {
+                        return textures[parameter.image];
+                    };
+                } else {
+                    debugger;
+                }
             } else {
                 throw new RuntimeError('Uniform symbol, ' + uniform.symbol + ', does not have a semantic or a parameter.');
             }
@@ -733,11 +743,9 @@ define([
                 var material = materials[property];
                 var technique = techniques[material.techniqueID];
 
-//                parameters : material.parameters
-
                 model._resources.materials[property] = {
                     technique : technique,
-                    uniformMap : createUniformMap(context, model, technique)
+                    uniformMap : createUniformMap(context, model, technique, material.parameters)
                 };
             }
         }
