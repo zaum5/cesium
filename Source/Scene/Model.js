@@ -152,26 +152,10 @@ define([
 
                 for (var property in techniques) {
                     if (techniques.hasOwnProperty(property)) {
-
-                        var materialParameters = {};
-
-                        var parameters = techniques[property].parameters;
-                        for (var p in parameters) {
-                            if (parameters.hasOwnProperty(p)) {
-                                var parameter = parameters[p];
-
-                                if (typeof parameter.image !== 'undefined') {
-                                    materialParameters[p] = clone(parameter);
-                                }
-                                // MODELS_TODO: else handle other parameters
-                            }
-                        }
-
                         // MODELS_TODO: This assumes one technique per material
                         materials[entryID] = {
                             techniqueID : property,
-                            // MODELS_TODO: actually use parameters
-                            parameters : materialParameters
+                            parameters : clone(techniques[property].parameters)
                         };
                     }
                 }
@@ -732,7 +716,8 @@ define([
                 var loadedTechnique = {
                     program : context.getShaderCache().getShaderProgram(vs, fs, attributeIndices),
                     attributeIndices : attributeIndices,
-                    uniformMap : createUniformMap(context, model, technique)
+                    uniforms : technique.uniforms,
+                    states : technique.states
                 };
                 model._resources.techniques[property] = loadedTechnique;
             }
@@ -748,8 +733,11 @@ define([
                 var material = materials[property];
                 var technique = techniques[material.techniqueID];
 
+//                parameters : material.parameters
+
                 model._resources.materials[property] = {
-                    technique : technique
+                    technique : technique,
+                    uniformMap : createUniformMap(context, model, technique)
                 };
             }
         }
@@ -928,7 +916,8 @@ define([
                             var vasLen = vas.length;
                             for (var j = 0; j < vasLen; ++j) {
                                 var va = vas[j];
-                                var technique = materials[va.materialID].technique;
+                                var material = materials[va.materialID];
+                                var technique = material.technique;
 
                                 var command = new DrawCommand();
                                 command.boundingVolume = undefined;      // MODELS_TODO: set this
@@ -936,13 +925,13 @@ define([
                                 command.primitiveType = va.primitive;
                                 command.vertexArray = va.vertexArray;
                                 command.shaderProgram = technique.program;
-                                command.uniformMap = technique.uniformMap;
+                                command.uniformMap = material.uniformMap;
                                 // MODELS_TODO: Complete render state support
                                 command.renderState = context.createRenderState({
                                     depthTest : {
                                         enabled : true
                                     },
-                                    blending : technique.state.BLEND ? BlendingState.ALPHA_BLEND : BlendingState.DISABLED
+                                    blending : technique.states.BLEND ? BlendingState.ALPHA_BLEND : BlendingState.DISABLED
                                 });
 
                                 commands.push(command);
