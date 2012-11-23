@@ -14,6 +14,7 @@ define([
         '../Renderer/BufferUsage',
         '../Renderer/CommandLists',
         '../Renderer/DrawCommand',
+        '../Renderer/BlendingState',
         './SceneMode',
         '../ThirdParty/webgl-tf-loader'
     ], function(
@@ -31,6 +32,7 @@ define([
         BufferUsage,
         CommandLists,
         DrawCommand,
+        BlendingState,
         SceneMode,
         WebGLTFLoader) {
     "use strict";
@@ -128,10 +130,9 @@ define([
                             vertexShaderEntityID : program['x-shader/x-vertex'],
                             fragmentShaderEntityID : program['x-shader/x-fragment'],
                             attributes : clone(program.attributes),
-                            uniforms : clone(program.uniforms)
+                            uniforms : clone(program.uniforms),
+                            states : clone(pass.states)
                         };
-
-                        // MODELS_TODO: do not ignore passes[pass].states
                     }
                 }
 
@@ -936,11 +937,13 @@ define([
                                 command.vertexArray = va.vertexArray;
                                 command.shaderProgram = technique.program;
                                 command.uniformMap = technique.uniformMap;
+                                // MODELS_TODO: Complete render state support
                                 command.renderState = context.createRenderState({
                                     depthTest : {
                                         enabled : true
-                                    }
-                                });  // MODELS_TODO: use real render state
+                                    },
+                                    blending : technique.state.BLEND ? BlendingState.ALPHA_BLEND : BlendingState.DISABLED
+                                });
 
                                 commands.push(command);
                                 colorCommands.push(command);
