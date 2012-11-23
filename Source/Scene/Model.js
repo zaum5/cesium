@@ -3,6 +3,8 @@ define([
         '../Core/DeveloperError',
         '../Core/RuntimeError',
         '../Core/Matrix4',
+        '../Core/Cartesian2',
+        '../Core/Cartesian3',
         '../Core/Cartesian4',
         '../Core/loadText',
         '../Core/loadArrayBuffer',
@@ -22,6 +24,8 @@ define([
         DeveloperError,
         RuntimeError,
         Matrix4,
+        Cartesian2,
+        Cartesian3,
         Cartesian4,
         loadText,
         loadArrayBuffer,
@@ -648,10 +652,54 @@ define([
         }
     };
 
-    function createUniformMap(context, model, technique, parameters) {
-        var images = model._resourcesToCreate.images;
-        var textures = model._resources.textures;
+    var uniformParameters = {
+        FLOAT : function(context, model, uniform, parameter) {
+            return function() {
+                return parameter;
+            };
+        },
+        FLOAT_VEC2 : function(context, model, uniform, parameter) {
+            var v = new Cartesian2(parameter[0], parameter[1]);
 
+            return function() {
+                return v;
+            };
+        },
+        FLOAT_VEC3 : function(context, model, uniform, parameter) {
+            var v = new Cartesian3(parameter[0], parameter[1], parameter[2]);
+
+            return function() {
+                return v;
+            };
+        },
+        FLOAT_VEC4 : function(context, model, uniform, parameter) {
+            var v = new Cartesian4(parameter[0], parameter[1], parameter[2], parameter[3]);
+
+            return function() {
+                return v;
+            };
+        },
+        SAMPLER_2D : function(context, model, uniform, parameter) {
+            var images = model._resourcesToCreate.images;
+            var textures = model._resources.textures;
+
+            // MODELS_TODO: real texture cache
+            if (typeof textures[parameter.image] === 'undefined') {
+                // MODELS_TODO: use filtering states
+                textures[parameter.image] = context.createTexture2D({
+                    source : images[parameter.image],
+                    flipY : false
+                });
+                delete images[parameter.image];
+            }
+
+            return function() {
+                return textures[parameter.image];
+            };
+        }
+    };
+
+    function createUniformMap(context, model, technique, parameters) {
         var uniformMap = {};
 
         var uniforms = technique.uniforms;
@@ -665,6 +713,7 @@ define([
                 var semantic = uniformSemantics[uniform.semantic];
 
                 if (typeof semantic !== 'undefined') {
+                    // MODELS_TODO:  Support different types for the same semantic
                     if (uniform.type !== semantic.type) {
                         throw new RuntimeError('The type for uniform symbol, ' + uniform.symbol + ', is ' + uniform.type + ', but we expect it to be ' + semantic.type + ' since its semantic is ' + uniform.semantic);
                     }
@@ -675,32 +724,26 @@ define([
                 }
             } else if (typeof uniform.parameter !== 'undefined') {
 
-                var parameter = parameters[uniform.parameter];
+                var parameter = uniformParameters[uniform.type];
 
-                if (uniform.type === 'FLOAT_VEC4') {
-                    uniformMap[uniform.symbol] = function() {
-                        return new Cartesian4(parameter[0], parameter[1], parameter[2], parameter[4]);
-                    };
-                } else if (uniform.type === 'FLOAT') {
-                    uniformMap[uniform.symbol] = function() {
-                        return parameter;
-                    };
-                } else if (uniform.type === 'SAMPLER_2D') {
-                    // MODELS_TODO: real texture cache
-                    if (typeof textures[parameter.image] === 'undefined') {
-                        // MODELS_TODO: use filtering states
-                        textures[parameter.image] = context.createTexture2D({
-                            source : images[parameter.image],
-                            flipY : false
-                        });
-                        delete images[parameter.image];
-                    }
-
-                    uniformMap[uniform.symbol] = function() {
-                        return textures[parameter.image];
-                    };
+                if (typeof parameter !== 'undefined') {
+                    uniformMap[uniform.symbol] = parameter(context, model, uniform, parameters[uniform.parameter]);
                 } else {
-                    debugger;
+                    // MODELS_TODO: Add support for
+                    //
+                    // GL_INT
+                    // GL_INT_VEC2
+                    // GL_INT_VEC3
+                    // GL_INT_VEC4
+                    // GL_BOOL
+                    // GL_BOOL_VEC2
+                    // GL_BOOL_VEC3
+                    // GL_BOOL_VEC4
+                    // GL_FLOAT_MAT2
+                    // GL_FLOAT_MAT3
+                    // GL_FLOAT_MAT4
+                    // GL_SAMPLER_CUBE
+                    throw new RuntimeError('MODELS_TODO: Support more uniform types.');
                 }
             } else {
                 throw new RuntimeError('Uniform symbol, ' + uniform.symbol + ', does not have a semantic or a parameter.');
@@ -788,8 +831,8 @@ define([
                         verticesArray = new Uint8Array(loadedBuffers[accessor.buffer],
                             accessor.byteOffset, accessor.count * attributeSizeInBytes);
                     } else {
-                        // MODEL_TODO: Support interleaved attributes
-                        throw new Runtime('MODEL_TODO: Support interleaved attributes');
+                        // MODELS_TODO: Support interleaved attributes
+                        throw new Runtime('MODELS_TODO: Support interleaved attributes');
                     }
 
                     vertexBuffers[key] = context.createVertexBuffer(verticesArray, BufferUsage.STATIC_DRAW);

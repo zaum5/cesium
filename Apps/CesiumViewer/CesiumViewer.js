@@ -44,19 +44,22 @@ define([
 
         var primitives = scene.getPrimitives();
 
+//        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/_Internet Man 2/Internet Man.json'); // Need to flip normal for shading.  Still has holes though.
+//        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/_A320-200/models/untitled.json');    // No shading. scale = 9000.0
+
 //        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/_FA-18_Hornet/model0.json');         // OK
-//        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/_Internet Man 2/Internet Man.json'); // No shading
 //        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/_M1A2_Abrams/model0.json');          // OK
 //        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/_M1043_HMMWV/model0.json');          // OK
+//        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/_C-130-Hercules/model0.json');       // OK
+//        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/_Ford_Contour_Sedan/model0.json');   // OK
+//        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/_RQ-1_Predator/model0.json');        // OK
 
-        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/_A320-200/models/untitled.json');     // No shading
-//        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/_C-130-Hercules/model0.json');        // OK
-//        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/_Ford_Contour_Sedan/model0.json');    // OK
+        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/duck/duck.json');                     // OK
+//        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/rambler/Rambler.json');               // Can't invert matrix
+//        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/SuperMurdoch/SuperMurdoch.json');     // OK. scale = 9000.0.
+//        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/wine/wine.json');                     // OK.
 
-//        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/_RQ-1_Predator/model0.json');         // OK
-//        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/duck/duck.json');                     // OK
-
-        m.scale = 9000.0;
+        m.scale = 900000.0;
 //        m.modelMatrix = Matrix4.fromTranslation(new Cartesian3(8000000.0, 0.0, 0.0));
         primitives.add(m);
         scene.getPrimitives().setCentralBody(undefined);
