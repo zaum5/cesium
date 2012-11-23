@@ -879,49 +879,65 @@ define([
     }
 
     function createNodes(context, model) {
+        var property;
+        var scenes = model._resourcesToCreate.scenes;
         var nodes = model._resourcesToCreate.nodes;
         var vertexArrays = model._resources.vertexArrays;
         var materials = model._resources.materials;
         var colorCommands = model._colorCommands;
 
-        for (var property in nodes) {
-            if (nodes.hasOwnProperty(property)) {
-                var node = nodes[property];
+        var nodesToProcess = [];
 
-                if (node.type === 'node') {
-                    // MODELS_TODO: handle children.  Do we have to traverse them here though?  Or are they provided in linearly?
-// **************** MODELS_TODO: use matrix
+        for (property in scenes) {
+            if (scenes.hasOwnProperty(property)) {
+                var scene = scenes[property];
 
-                    if (typeof node.meshes !== 'undefined') {
-                        var meshes = node.meshes;
-                        var len = meshes.length;
-                        for (var i = 0; i < len; ++i) {
-                            var vas = vertexArrays[meshes[i]];
+                nodesToProcess.push(scene.node);
 
-                            var vasLen = vas.length;
-                            for (var j = 0; j < vasLen; ++j) {
-                                var va = vas[j];
-                                var technique = materials[va.materialID].technique;
+                while (nodesToProcess.length > 0) {
+                    var n = nodes[nodesToProcess.pop()];
 
-                                var command = new DrawCommand();
-                                command.boundingVolume = undefined; // MODELS_TODO: set this
-//                                command.modelMatrix = model.modelMatrix;
-                                command.primitiveType = va.primitive;
-                                command.vertexArray = va.vertexArray;
-                                command.shaderProgram = technique.program;
-                                command.uniformMap = technique.uniformMap;
-                                command.renderState = context.createRenderState({
-                                    depthTest : {
-                                        enabled : true
-                                    }
-                                });  // MODELS_TODO: use real render state
-                                colorCommands.push(command);
+
+                    if (n.type === 'node') {
+    // **************** MODELS_TODO: use matrix
+
+                        if (typeof n.meshes !== 'undefined') {
+                            var meshes = n.meshes;
+                            var len = meshes.length;
+                            for (var i = 0; i < len; ++i) {
+                                var vas = vertexArrays[meshes[i]];
+
+                                var vasLen = vas.length;
+                                for (var j = 0; j < vasLen; ++j) {
+                                    var va = vas[j];
+                                    var technique = materials[va.materialID].technique;
+
+                                    var command = new DrawCommand();
+                                    command.boundingVolume = undefined; // MODELS_TODO: set this
+//                                    command.modelMatrix = model.modelMatrix;
+                                    command.primitiveType = va.primitive;
+                                    command.vertexArray = va.vertexArray;
+                                    command.shaderProgram = technique.program;
+                                    command.uniformMap = technique.uniformMap;
+                                    command.renderState = context.createRenderState({
+                                        depthTest : {
+                                            enabled : true
+                                        }
+                                    });  // MODELS_TODO: use real render state
+                                    colorCommands.push(command);
+                                }
                             }
                         }
+                        // MODELS_TODO: handle nodes without meshes like ones with cameras and lights
                     }
-                    // MODELS_TODO: handle nodes without meshes like ones with cameras and lights
+                    // MODELS_TODO: what other types exist?
+
+                    var children = n.children;
+                    var len = children.length;
+                    for (var i = 0; i < len; ++i) {
+                        nodesToProcess.push(children[i]);
+                    }
                 }
-                // MODELS_TODO: what other types exist?
             }
         }
     }
