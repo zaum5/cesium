@@ -16,6 +16,7 @@ define([
         '../Core/defaultValue',
         '../Renderer/BufferUsage',
         '../Renderer/CommandLists',
+        '../Renderer/CullFace',
         '../Renderer/DrawCommand',
         '../Renderer/BlendingState',
         './SceneMode',
@@ -37,6 +38,7 @@ define([
         defaultValue,
         BufferUsage,
         CommandLists,
+        CullFace,
         DrawCommand,
         BlendingState,
         SceneMode,
@@ -982,7 +984,11 @@ define([
                                     depthTest : {
                                         enabled : true
                                     },
-                                    blending : technique.states.BLEND ? BlendingState.ALPHA_BLEND : BlendingState.DISABLED
+                                    blending : technique.states.BLEND ? BlendingState.ALPHA_BLEND : BlendingState.DISABLED,
+                                    cull : {
+                                        enabled : true,
+                                        face : CullFace.BACK
+                                    }
                                 });
 
                                 commands.push(command);
