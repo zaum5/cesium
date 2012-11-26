@@ -257,8 +257,7 @@ define([
          * //Set the view to in the inertial frame.
          * function updateAndRender() {
          *     var now = new JulianDate();
-         *     scene.initializeFrame();
-         *     scene.setSunPosition(computeSunPosition(now));
+         *     scene.initializeFrame(now);
          *     scene.getCamera().transform = Matrix4.fromRotationTranslation(Transforms.computeTemeToPseudoFixedMatrix(now), Cartesian3.ZERO);
          *     scene.render();
          *     requestAnimationFrame(updateAndRender);
