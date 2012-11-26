@@ -301,7 +301,6 @@ var global = window;
                     var jsonPath = this._path;
                     var i = jsonPath.lastIndexOf("/");
                     this.baseURL = (i !== 0) ? jsonPath.substring(0, i + 1) : '';
-
                     var jsonfile = new XMLHttpRequest();
                     jsonfile.open("GET", jsonPath, true);
                     jsonfile.onreadystatechange = function() {
