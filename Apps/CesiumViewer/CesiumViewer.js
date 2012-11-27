@@ -44,8 +44,8 @@ define([
 
         var primitives = scene.getPrimitives();
 
-//        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/_Internet Man 2/Internet Man.json'); // Need to flip normal for shading.  Still has holes though.
-//        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/_A320-200/models/untitled.json');    // No shading. scale = 9000.0
+//        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/_Internet Man 2/Internet Man.json'); // OK
+//        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/_A320-200/models/untitled.json');    // OK.  Needs nodes combined.
 
         var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/_FA-18_Hornet/model0.json');         // OK
 //        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/_M1A2_Abrams/model0.json');          // OK
