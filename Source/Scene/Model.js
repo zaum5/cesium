@@ -341,7 +341,7 @@ define([
         this.show = true;
 
         this._colorCommands = [];
-        this._commandLists = new CommandLists();
+        this._commandLists = new CommandLists(); // To reduce allocations in update()
 
         this._resourcesToCreate = {
             buffers : {
@@ -398,10 +398,12 @@ define([
             throw new DeveloperError('url is required');
         }
 
+        this._colorCommands = [];
         destroyResourcesToCreate(this._resourcesToCreate);
         destroyResources(this._resources);
         this._scenes = {};
         this._nodes = {};
+        this._nodeStack = [];
 
         var modelLoader = Object.create(ModelLoader);
         modelLoader.initWithPath(url);
