@@ -11,12 +11,14 @@ uniform float u_dayTextureOneOverGamma[TEXTURE_UNITS];
 uniform vec4 u_dayTextureTexCoordsExtent[TEXTURE_UNITS];
 #endif
 
+#ifdef SHOW_REFLECTIVE_OCEAN
+uniform sampler2D u_waterMask;
+uniform vec4 u_waterMaskTranslationAndScale;
+#endif
+
 varying vec3 v_positionMC;
 varying vec3 v_positionEC;
-
 varying vec2 v_textureCoordinates;
-
-varying float v_waterMask;
 
 vec3 sampleAndBlend(
     vec3 previousColor,
@@ -70,11 +72,6 @@ vec3 computeDayColor(vec3 initialColor, vec2 textureCoordinates);
 
 void main()
 {
-#if defined(SHOW_OCEAN)
-    vec3 normalMC = normalize(czm_geodeticSurfaceNormal(v_positionMC, vec3(0.0), vec3(1.0)));   // normalized surface normal in model coordinates
-    vec3 normalEC = normalize(czm_normal * normalMC);                                           // normalized surface normal in eye coordiantes
-#endif
-
     // The clamp below works around an apparent bug in Chrome Canary v23.0.1241.0
     // where the fragment shader sees textures coordinates < 0.0 and > 1.0 for the
     // fragments on the edges of tiles even though the vertex shader is outputting
@@ -90,29 +87,36 @@ void main()
     }
 #endif
 
-#ifdef SHOW_OCEAN
-    czm_materialInput oceanInput;
+    vec4 color = vec4(startDayColor, 1.0);
 
-    // TODO: Real 1D distance, and better 3D coordinate
-    oceanInput.st = czm_ellipsoidWgs84TextureCoordinates(normalMC);
-    oceanInput.str = vec3(oceanInput.st, 0.0);
-    oceanInput.positionMC = v_positionMC;
-    
-    //Convert tangent space material normal to eye space
-    oceanInput.normalEC = normalEC;  
-    oceanInput.tangentToEyeMatrix = czm_eastNorthUpToEyeCoordinates(v_positionMC, oceanInput.normalEC);
-    
-    //Convert view vector to world space
-    vec3 positionToEyeEC = -v_positionEC; 
-    oceanInput.positionToEyeEC = positionToEyeEC;
+#ifdef SHOW_REFLECTIVE_OCEAN
+    vec2 waterMaskTranslation = u_waterMaskTranslationAndScale.xy;
+    vec2 waterMaskScale = u_waterMaskTranslationAndScale.zw;
+    vec2 waterMaskTextureCoordinates = v_textureCoordinates * waterMaskScale + waterMaskTranslation;
 
-    czm_material material = czm_getSurfaceMaterial(oceanInput, startDayColor, startDayColor, v_waterMask);
-    
-    material.emission = startDayColor;
-    material.diffuse -= startDayColor; 
-    
-    gl_FragColor = czm_phong(normalize(positionToEyeEC), material);
+    float mask = texture2D(u_waterMask, waterMaskTextureCoordinates).r;
+
+    if (mask > 0.0)
+    {
+        vec3 normalMC = normalize(czm_geodeticSurfaceNormal(v_positionMC, vec3(0.0), vec3(1.0)));   // normalized surface normal in model coordinates
+        vec3 normalEC = normalize(czm_normal * normalMC);                                           // normalized surface normal in eye coordiantes
+#ifdef SHOW_OCEAN_WAVES
+        mat3 enuToEye = czm_eastNorthUpToEyeCoordinates(v_positionMC, normalEC);
+        color = computeWaterColor(v_positionEC, czm_ellipsoidWgs84TextureCoordinates(normalMC), enuToEye, startDayColor, mask);
 #else
-    gl_FragColor = vec4(startDayColor, 1.0);
+	    czm_material material;
+
+	    material.emission = startDayColor;
+	    material.diffuse = vec3(0.1);
+	    material.normal = normalEC;
+	    material.specular = mix(0.0, 1.0, mask);
+	    material.shininess = 10.0;
+
+	    color = czm_phong(normalize(v_positionEC), material);
 #endif
+    }
+#endif
+
+    
+    gl_FragColor = color;
 }

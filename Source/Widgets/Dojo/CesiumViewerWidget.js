@@ -51,6 +51,7 @@ define([
         '../../Scene/PerformanceDisplay',
         '../../Scene/SceneMode',
         '../../Scene/SkyBox',
+        '../../Scene/SkyAtmosphere',
         '../../DynamicScene/processCzml',
         '../../DynamicScene/DynamicObjectView',
         '../../DynamicScene/DynamicObjectCollection',
@@ -108,6 +109,7 @@ define([
         PerformanceDisplay,
         SceneMode,
         SkyBox,
+        SkyAtmosphere,
         processCzml,
         DynamicObjectView,
         DynamicObjectCollection,
@@ -638,7 +640,6 @@ define([
             // This logo is replicated by the imagery selector button, so it's hidden here.
             centralBody.logoOffset = new Cartesian2(-100, -100);
 
-            this.showSkyAtmosphere(true);
             this._configureCentralBodyImagery();
 
             scene.getPrimitives().setCentralBody(centralBody);
@@ -653,6 +654,8 @@ define([
                     negativeZ: require.toUrl(imageryUrl + 'SkyBox/tycho8_mz_80.jpg')
                 });
             }
+
+            scene.skyAtmosphere = new SkyAtmosphere(ellipsoid);
 
             var camera = scene.getCamera();
             camera.position = camera.position.multiplyByScalar(1.5);
@@ -823,7 +826,6 @@ define([
                 view2D.set('checked', true);
                 view3D.set('checked', false);
                 viewColumbus.set('checked', false);
-                widget.showSkyAtmosphere(false);
                 transitioner.morphTo2D();
             });
             on(view3D, 'Click', function() {
@@ -831,19 +833,12 @@ define([
                 view3D.set('checked', true);
                 viewColumbus.set('checked', false);
                 transitioner.morphTo3D();
-                widget.showSkyAtmosphere(true);
             });
             on(viewColumbus, 'Click', function() {
                 view2D.set('checked', false);
                 view3D.set('checked', false);
                 viewColumbus.set('checked', true);
-                widget.showSkyAtmosphere(false);
                 transitioner.morphToColumbusView();
-            });
-
-            var cbLighting = widget.cbLighting;
-            on(cbLighting, 'Change', function(value) {
-                widget.centralBody.showSkyAtmosphere = widget._showSkyAtmosphere && !value;
             });
 
             var imagery = widget.imagery;
@@ -975,8 +970,7 @@ define([
          * @param {Boolean} show - <code>true</code> to enable the effect.
          */
         showSkyAtmosphere : function(show) {
-            this._showSkyAtmosphere = show;
-            this.centralBody.showSkyAtmosphere = show;
+            this.scene.skyAtmosphere.show = show;
         },
 
         /**
@@ -1204,8 +1198,13 @@ define([
          *     widget2.initializeFrame(time2);
          *     widget1.update(time1);
          *     widget2.update(time2);
+<<<<<<< HEAD
          *     widget1.render();
          *     widget2.render();
+=======
+         *     widget1.render(time1);
+         *     widget2.render(time2);
+>>>>>>> origin/terrainAndOcean
          *     requestAnimationFrame(updateAndRender);
          * }
          * requestAnimationFrame(updateAndRender);

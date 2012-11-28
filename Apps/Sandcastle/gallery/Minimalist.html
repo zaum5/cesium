@@ -60,8 +60,9 @@
 
     var cb = new Cesium.CentralBody(ellipsoid);
     cb.getImageryLayers().addImageryProvider(imageryProvider);
-    cb.showSkyAtmosphere = true;
     primitives.setCentralBody(cb);
+
+    scene.skyAtmosphere = new Cesium.SkyAtmosphere();
 
     function animate() {
         // INSERT CODE HERE to update primitives based on changes to animation time, camera parameters, etc.

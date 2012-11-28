@@ -98,11 +98,22 @@ define([
         });
 
         /**
-         * DOC_TBA
+         * The {@link SkyBox} used to draw the stars.
          *
          * @type SkyBox
+         *
+         * @default undefined
          */
         this.skyBox = undefined;
+
+        /**
+         * The sky atmosphere drawn around the globe.
+         *
+         * @type SkyAtmosphere
+         *
+         * @default undefined
+         */
+        this.skyAtmosphere = undefined;
 
         /**
          * The current mode of the scene.
@@ -364,17 +375,22 @@ define([
         var context = scene._context;
         var us = context.getUniformState();
         var skyBoxCommand = (typeof scene.skyBox !== 'undefined') ? scene.skyBox.update(context, scene._frameState) : undefined;
+        var skyAtmosphereCommand = (typeof scene.skyAtmosphere !== 'undefined') ? scene.skyAtmosphere.update(context, scene._frameState) : undefined;
 
         scene._clearColorCommand.execute(context, framebuffer);
 
-        if (typeof skyBoxCommand !== 'undefined') {
-            frustum.near = camera.frustum.near;
-            frustum.far = camera.frustum.far;
-            us.updateFrustum(frustum);
+        // Ideally, we would render the sky box and atmosphere last for
+        // early-z, but we would have to draw it in each frustum
+        frustum.near = camera.frustum.near;
+        frustum.far = camera.frustum.far;
+        us.updateFrustum(frustum);
 
-            // Ideally, we would render the sky box last for early-z, but
-            // we would have to draw it in each frustum
+        if (typeof skyBoxCommand !== 'undefined') {
             skyBoxCommand.execute(context, framebuffer);
+        }
+
+        if (typeof skyAtmosphereCommand !== 'undefined') {
+            skyAtmosphereCommand.execute(context, framebuffer);
         }
 
         var clearDepthStencil = scene._clearDepthStencilCommand;
@@ -583,6 +599,7 @@ define([
         this._pickFramebuffer = this._pickFramebuffer && this._pickFramebuffer.destroy();
         this._primitives = this._primitives && this._primitives.destroy();
         this.skyBox = this.skyBox && this.skyBox.destroy();
+        this.skyAtmosphere = this.skyAtmosphere && this.skyAtmosphere.destroy();
         this._context = this._context && this._context.destroy();
         return destroyObject(this);
     };

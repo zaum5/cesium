@@ -20,7 +20,6 @@ define([
         '../Core/MeshFilters',
         '../Core/Occluder',
         '../Core/PrimitiveType',
-        '../Core/RuntimeError',
         '../Core/Transforms',
         '../Renderer/BufferUsage',
         '../Renderer/ClearCommand',
@@ -41,9 +40,7 @@ define([
         '../Shaders/CentralBodyFSPole',
         '../Shaders/CentralBodyVS',
         '../Shaders/CentralBodyVSDepth',
-        '../Shaders/CentralBodyVSPole',
-        '../Shaders/SkyAtmosphereFS',
-        '../Shaders/SkyAtmosphereVS'
+        '../Shaders/CentralBodyVSPole'
     ], function(
         combine,
         defaultValue,
@@ -65,7 +62,6 @@ define([
         MeshFilters,
         Occluder,
         PrimitiveType,
-        RuntimeError,
         Transforms,
         BufferUsage,
         ClearCommand,
@@ -86,9 +82,7 @@ define([
         CentralBodyFSPole,
         CentralBodyVS,
         CentralBodyVSDepth,
-        CentralBodyVSPole,
-        SkyAtmosphereFS,
-        SkyAtmosphereVS) {
+        CentralBodyVSPole) {
     "use strict";
 
     /**
@@ -119,13 +113,6 @@ define([
         this._rsColor = undefined;
         this._rsColorWithoutDepthTest = undefined;
 
-        this._spSkyFromSpace = undefined;
-        this._spSkyFromAtmosphere = undefined;
-
-        this._skyCommand = new DrawCommand();
-        this._skyCommand.primitiveType = PrimitiveType.TRIANGLES;
-        // this._skyCommand.shaderProgram references sky-from-space or sky-from-atmosphere
-
         this._clearDepthCommand = new ClearCommand();
 
         this._depthCommand = new DrawCommand();
@@ -136,12 +123,6 @@ define([
         this._northPoleCommand.primitiveType = PrimitiveType.TRIANGLE_FAN;
         this._southPoleCommand = new DrawCommand();
         this._southPoleCommand.primitiveType = PrimitiveType.TRIANGLE_FAN;
-
-        // this._northPoleCommand.shaderProgram and this.southPoleCommand.shaderProgram reference
-        // without-atmosphere, ground-from-space, or ground-from-atmosphere
-        this._spPolesWithoutAtmosphere = undefined;
-        this._spPolesGroundFromSpace = undefined;
-        this._spPolesGroundFromAtmosphere = undefined;
 
         this._drawNorthPole = false;
         this._drawSouthPole = false;
@@ -184,14 +165,6 @@ define([
         this.show = true;
 
         /**
-         * Determines if the sky atmosphere will be shown.
-         *
-         * @type {Boolean}
-         * @default false
-         */
-        this.showSkyAtmosphere = false;
-
-        /**
          * The current morph transition time between 2D/Columbus View and 3D,
          * with 0.0 being 2D or Columbus View and 1.0 being 3D.
          *
@@ -204,77 +177,7 @@ define([
         this._mode = SceneMode.SCENE3D;
         this._projection = undefined;
 
-        this._fCameraHeight = undefined;
-        this._fCameraHeight2 = undefined;
-        this._outerRadius = ellipsoid.getRadii().multiplyByScalar(1.025).getMaximumComponent();
-
-        // TODO: Do we want to expose any of these atmosphere constants?
-        var Kr = 0.0025;
-        var Kr4PI = Kr * 4.0 * Math.PI;
-        var Km = 0.0015;
-        var Km4PI = Km * 4.0 * Math.PI;
-        var ESun = 15.0;
-        var g = -0.95;
-        var innerRadius = ellipsoid.getMaximumRadius();
-        var rayleighScaleDepth = 0.25;
-        var inverseWaveLength = {
-            x : 1.0 / Math.pow(0.650, 4.0), // Red
-            y : 1.0 / Math.pow(0.570, 4.0), // Green
-            z : 1.0 / Math.pow(0.475, 4.0) // Blue
-        };
-
         var that = this;
-
-        this._skyCommand.uniformMap = {
-            v3InvWavelength : function() {
-                return inverseWaveLength;
-            },
-            fCameraHeight : function() {
-                return that._fCameraHeight;
-            },
-            fCameraHeight2 : function() {
-                return that._fCameraHeight2;
-            },
-            fOuterRadius : function() {
-                return that._outerRadius;
-            },
-            fOuterRadius2 : function() {
-                return that._outerRadius * that._outerRadius;
-            },
-            fInnerRadius : function() {
-                return innerRadius;
-            },
-            fInnerRadius2 : function() {
-                return innerRadius * innerRadius;
-            },
-            fKrESun : function() {
-                return Kr * ESun;
-            },
-            fKmESun : function() {
-                return Km * ESun;
-            },
-            fKr4PI : function() {
-                return Kr4PI;
-            },
-            fKm4PI : function() {
-                return Km4PI;
-            },
-            fScale : function() {
-                return 1.0 / (that._outerRadius - innerRadius);
-            },
-            fScaleDepth : function() {
-                return rayleighScaleDepth;
-            },
-            fScaleOverScaleDepth : function() {
-                return (1.0 / (that._outerRadius - innerRadius)) / rayleighScaleDepth;
-            },
-            g : function() {
-                return g;
-            },
-            g2 : function() {
-                return g * g;
-            }
-        };
 
         this._drawUniforms = {
             u_mode : function() {
@@ -550,48 +453,6 @@ define([
             return;
         }
 
-        var vs;
-        var fs;
-        var shaderCache = context.getShaderCache();
-
-        if (this.showSkyAtmosphere && !this._skyCommand.vertexArray) {
-            // PERFORMANCE_IDEA:  Is 60 the right amount to tessellate?  I think scaling the original
-            // geometry in a vertex is a bad idea; at least, because it introduces a draw call per tile.
-            var skyMesh = CubeMapEllipsoidTessellator.compute(Ellipsoid.fromCartesian3(this._ellipsoid.getRadii().multiplyByScalar(1.025)), 60);
-            this._skyCommand.vertexArray = context.createVertexArrayFromMesh({
-                mesh : skyMesh,
-                attributeIndices : MeshFilters.createAttributeIndices(skyMesh),
-                bufferUsage : BufferUsage.STATIC_DRAW
-            });
-
-            vs = '#define SKY_FROM_SPACE\n' +
-                 '#line 0\n' +
-                 SkyAtmosphereVS;
-
-            fs = '#line 0\n' +
-                 SkyAtmosphereFS;
-
-            this._spSkyFromSpace = shaderCache.getShaderProgram(vs, fs);
-
-            vs = '#define SKY_FROM_ATMOSPHERE\n' +
-                 '#line 0\n' +
-                 SkyAtmosphereVS;
-
-            this._spSkyFromAtmosphere = shaderCache.getShaderProgram(vs, fs);
-            this._skyCommand.renderState = context.createRenderState({
-                cull : {
-                    enabled : true,
-                    face : CullFace.FRONT
-                },
-                depthTest : {
-                    enabled : true
-                },
-                depthMask : false,
-                blending : BlendingState.ALPHA_BLEND
-            });
-            this._skyCommand.boundingVolume = new BoundingSphere(Cartesian3.ZERO, this._ellipsoid.getMaximumRadius() * 1.025);
-        }
-
         var mode = frameState.mode;
         var projection = frameState.scene2D.projection;
         var modeChanged = false;
@@ -676,6 +537,8 @@ define([
             this._depthCommand.vertexArray.getAttribute(0).vertexBuffer.copyFromArrayView(datatype.toTypedArray(depthQuad));
         }
 
+        var shaderCache = context.getShaderCache();
+
         if (!this._depthCommand.shaderProgram) {
             this._depthCommand.shaderProgram = shaderCache.getShaderProgram(
                     CentralBodyVSDepth,
@@ -683,13 +546,6 @@ define([
                     CentralBodyFSDepth, {
                         position : 0
                     });
-        }
-
-        // Throw exception if there was a problem asynchronously loading an image.
-        if (this._exception) {
-            var message = this._exception;
-            this._exception = undefined;
-            throw new RuntimeError(message);
         }
 
         // Initial compile or re-compile if uber-shader parameters changed
@@ -739,7 +595,8 @@ define([
                  getPositionMode + '\n' +
                  get2DYPositionFraction;
             this._surfaceShaderSet.baseFragmentShaderString =
-                (typeof this.oceanMaterial !== 'undefined' ? '#define SHOW_OCEAN\n' + this.oceanMaterial.shaderSource : '') +
+                (this._surface._terrainProvider.hasWaterMask ? '#define SHOW_REFLECTIVE_OCEAN\n' : '') +
+                (typeof this.oceanMaterial !== 'undefined' ? '#define SHOW_OCEAN_WAVES\n' + this.oceanMaterial.shaderSource : '') +
                 '#line 0\n' +
                 CentralBodyFS;
             this._surfaceShaderSet.invalidateShaders();
@@ -752,16 +609,6 @@ define([
         }
 
         var cameraPosition = frameState.camera.getPositionWC();
-
-        this._fCameraHeight2 = cameraPosition.magnitudeSquared();
-        this._fCameraHeight = Math.sqrt(this._fCameraHeight2);
-
-        if (this._fCameraHeight > this._outerRadius) {
-            // Viewer in space
-            this._skyCommand.shaderProgram = this._spSkyFromSpace;
-        } else {
-            this._skyCommand.shaderProgram = this._spSkyFromAtmosphere;
-        }
 
         this._occluder.setCameraPosition(cameraPosition);
 
@@ -807,10 +654,6 @@ define([
             // render depth plane
             if (mode === SceneMode.SCENE3D) {
                 colorCommandList.push(this._depthCommand);
-            }
-
-            if (this.showSkyAtmosphere) {
-                colorCommandList.push(this._skyCommand);
             }
         }
 
@@ -868,10 +711,6 @@ define([
 
         this._northPoleCommand.shaderProgram = this._northPoleCommand.shaderProgram && this._northPoleCommand.shaderProgram.release();
         this._southPoleCommand.shaderProgram = this._northPoleCommand.shaderProgram;
-
-        this._skyCommand.vertexArray = this._skyCommand.vertexArray && this._skyCommand.vertexArray.destroy();
-        this._spSkyFromSpace = this._spSkyFromSpace && this._spSkyFromSpace.release();
-        this._spSkyFromAtmosphere = this._spSkyFromAtmosphere && this._spSkyFromAtmosphere.release();
 
         this._depthCommand.shaderProgram = this._depthCommand.shaderProgram && this._depthCommand.shaderProgram.release();
         this._depthCommand.vertexArray = this._depthCommand.vertexArray && this._depthCommand.vertexArray.destroy();
