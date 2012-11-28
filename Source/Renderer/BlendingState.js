@@ -17,7 +17,7 @@ define([
          * DOC_TBA
          */
         DISABLED : {
-            enabled : false,
+            enabled : false
         },
 
         /**

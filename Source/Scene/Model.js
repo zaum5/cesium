@@ -838,7 +838,7 @@ define([
                             accessor.byteOffset, accessor.count * attributeSizeInBytes);
                     } else {
                         // MODELS_TODO: Support interleaved attributes
-                        throw new Runtime('MODELS_TODO: Support interleaved attributes');
+                        throw new RuntimeError('MODELS_TODO: Support interleaved attributes');
                     }
 
                     vertexBuffers[key] = context.createVertexBuffer(verticesArray, BufferUsage.STATIC_DRAW);
@@ -913,7 +913,7 @@ define([
             vertexArrays.push({
                 materialID : primitive.material,
                 primitive : PrimitiveType[primitive.primitive],
-                vertexArray : context.createVertexArray(attributes, indexBuffers[JSON.stringify(primitive.indices)]),
+                vertexArray : context.createVertexArray(attributes, indexBuffers[JSON.stringify(primitive.indices)])
             });
         }
 

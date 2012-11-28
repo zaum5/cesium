@@ -7,7 +7,7 @@ define([
     'Widgets/Dojo/CesiumViewerWidget',
     'Core/Matrix4',
     'Core/Cartesian3',
-    'Scene/Model',
+    'Scene/Model'
 
 ], function(
     dom,

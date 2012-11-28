@@ -430,24 +430,6 @@ defineSuite([
                 0.0, 0.0, 0.0, 1.0));
     });
 
-    it('has czm_inverseModelViewProjection', function() {
-        var us = context.getUniformState();
-        us.setView(new Matrix4(1.0, 0.0, 0.0, 0.0,
-                               0.0, 1.0, 0.0, 8.0,
-                               0.0, 0.0, 1.0, 0.0,
-                               0.0, 0.0, 0.0, 1.0));
-        us.setProjection(new Matrix4(1.0, 0.0, 0.0, 0.0,
-                                     0.0, 1.0, 0.0, 0.0,
-                                     0.0, 0.0, 1.0, 9.0,
-                                     0.0, 0.0, 0.0, 1.0));
-
-        var fs =
-            'void main() { ' +
-            '  bool b0 = (czm_inverseModelViewProjection[0][0] == 1.0) && (czm_inverseModelViewProjection[1][0] == 0.0) && (czm_inverseModelViewProjection[2][0] == 0.0) && (czm_inverseModelViewProjection[3][0] == -7.0); ' +
-            '  bool b1 = (czm_inverseModelViewProjection[0][1] == 0.0) && (czm_inverseModelViewProjection[1][1] == 1.0) && (czm_inverseModelViewProjection[2][1] == 0.0) && (czm_inverseModelViewProjection[3][1] == -8.0); ' +
-            '  bool b2 = (czm_inverseModelViewProjection[0][2] == 0.0) && (czm_inverseModelViewProjection[1][2] == 0.0) && (czm_inverseModelViewProjection[2][2] == 1.0) && (czm_inverseModelViewProjection[3][2] == -9.0); ' +
-            '  bool b3 = (czm_inverseModelViewProjection[0][3] == 0.0) && (czm_inverseModelViewProjection[1][3] == 0.0) && (czm_inverseModelViewProjection[2][3] == 0.0) && (czm_inverseModelViewProjection[3][3] ==  1.0); ' +
-
     it('has czm_modelViewProjectionRelativeToEye', function() {
         var us = context.getUniformState();
         us.update(createMockCamera(
