@@ -4,12 +4,10 @@ Change Log
 Beta Releases
 -------------
 
-TODO
-
-### b11 - xx/xx/2012
+### b11 - 12/03/2012
 
 * Breaking changes:
-   * Widget render loop now started by default.  Startup code changed, see Sandcastle examples.
+   * Widget render loop now started by default.  Startup code changed, see `Sandcastle` examples.
    * Changed `Timeline.makeLabel` to take a `JulianDate` instead of a JavaScript date parameter.
    * Default Earth imagery has been moved to a new package `Assets`.  Images used by `Sandcastle` examples have been moved to the Sandcastle folder, and images used by the Dojo widgets are now self-contained in the `Widgets` package.
    * `positionToEyeEC` in `czm_materialInput` is no longer normalized by default.
@@ -24,18 +22,21 @@ TODO
    * `Matrix2.getElementIndex`, `Matrix3.getElementIndex`, and `Matrix4.getElementIndex` functions have had their parameters swapped and now take row first and column second.  This is consistent with other class constants, such as Matrix2.COLUMN1ROW2.
    * Replaced `CentralBody.showSkyAtmosphere` with `Scene.skyAtmosphere` and `SkyAtmosphere`.  This has no impact for those using the Cesium widget.
 * Fixed atmosphere rendering artifacts and improved Columbus view transition.
+* Added `TileMapServiceImageryProvider`.  See the Imagery Layers `Sandcastle` example.
 * Improved lighting in Columbus view and on polygons, ellipsoids, and sensors.
-* Added `Water` material.  See the Materials Sandbox example.
 * Fixed jitter artifacts with billboards and polylines.
+* Added `Water` material.  See the Materials `Sandcastle` example.
 * Added `SkyBox` to draw stars.  Added `CesiumWidget.showSkyBox` and `CesiumViewerWidget.showSkyBox`.
 * Added new `Matrix4` functions: `Matrix4.multiplyByTranslation`, `multiplyByPoint`, and `Matrix4.fromScale`. Added `Matrix3.fromScale`.
 * Added `EncodedCartesian3`, which is used to eliminate jitter when drawing primitives.
-* Added new automatic GLSL uniforms: 'czm_frameNumber', `czm_temeToPseudoFixed, `czm_entireFrustum`, `czm_inverseModel`, `czm_modelViewRelativeToEye`, `czm_modelViewProjectionRelativeToEye`, `czm_encodedCameraPositionMCHigh`, and `czm_encodedCameraPositionMCLow`.
+* Added new automatic GLSL uniforms: `czm_frameNumber`, `czm_temeToPseudoFixed`, `czm_entireFrustum`, `czm_inverseModel`, `czm_modelViewRelativeToEye`, `czm_modelViewProjectionRelativeToEye`, `czm_encodedCameraPositionMCHigh`, and `czm_encodedCameraPositionMCLow`.
 * Added `czm_translateRelativeToEye` and `czm_luminance` GLSL functions.
 * Added `shininess` to `czm_materialInput`.
 * Added `QuadraticRealPolynomial`, `CubicRealPolynomial`, and `QuarticRealPolynomial` for finding the roots of quadratic, cubic, and quartic polynomials.
 * Added `IntersectionTests.grazingAltitudeLocation` for finding a point on a ray nearest to an ellipsoid.
 * Added `mostOrthogonalAxis` function to `Cartesian2`, `Cartesian3`, and `Cartesian4`.
+* Changed CesiumViewerWidget default behavior so that zooming to an object now requires a single left-click, rather than a double-click. 
+* Updated third-party [Tween.js](https://github.com/sole/tween.js/).
 
 ### b10 - 11/02/2012
 

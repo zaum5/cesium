@@ -167,8 +167,9 @@ define([
      * @exception {RuntimeError} The browser does not support WebGL.  Visit http://get.webgl.org.
      * @exception {RuntimeError} The browser supports WebGL, but initialization failed.
      * @exception {DeveloperError} canvas is required.
+     * @exception {DeveloperError} options.fragmentShaderFloatPrecision must be highp, mediump, or lowp.
      */
-    var Context = function(canvas, options) {
+    var Context = function(canvas, webglOptions, options) {
         if (!window.WebGLRenderingContext) {
             throw new RuntimeError('The browser does not support WebGL.  Visit http://get.webgl.org.');
         }
@@ -179,20 +180,44 @@ define([
 
         this._canvas = canvas;
 
-        if (typeof options === 'undefined') {
-            options = {};
-        }
-        if (typeof options.stencil === 'undefined') {
-            options.stencil = true;
-        }
-        if (typeof options.alpha === 'undefined') {
-            options.alpha = false;
-        }
+// TODO: Expose webglOptions and options through getters?
+// TODO: Change textureFilterAnisotropic at runtime?  More fine-grain control - per primitive?
 
-        this._originalGLContext = canvas.getContext('webgl', options) || canvas.getContext('experimental-webgl', options);
+        webglOptions = defaultValue(webglOptions, {});
+        webglOptions = {
+            alpha : defaultValue(webglOptions.alpha, false),                              // WebGL default is true
+            depth : defaultValue(webglOptions.depth, true),
+            stencil : defaultValue(webglOptions.stencil, true),                           // WebGL default is false
+            antialias : defaultValue(webglOptions.antialias, true),
+            premultipliedAlpha : defaultValue(webglOptions.premultipliedAlpha, true),     // Doesn't matter since alpha is false
+            preserveDrawingBuffer : defaultValue(webglOptions.preserveDrawingBuffer, false)
+        };
+
+        this._originalGLContext = canvas.getContext('webgl', webglOptions) || canvas.getContext('experimental-webgl', webglOptions);
 
         if (!this._originalGLContext) {
             throw new RuntimeError('The browser supports WebGL, but initialization failed.');
+        }
+
+        options = defaultValue(options, {});
+        var fragmentShaderFloatPrecision = defaultValue(options.fragmentShaderFloatPrecision, 'highp');
+        var allowTextureFilterAnisotropic = defaultValue(options.textureFilterAnisotropic, true);
+
+        if ((fragmentShaderFloatPrecision !== 'highp') &&
+            (fragmentShaderFloatPrecision !== 'mediump') &&
+            (fragmentShaderFloatPrecision !== 'lowp')) {
+            throw new DeveloperError('options.fragmentShaderFloatPrecision must be highp, mediump, or lowp.');
+        }
+
+        if (fragmentShaderFloatPrecision === 'highp') {
+            this._fragmentShaderFloatPrecision =
+                '#ifdef GL_FRAGMENT_PRECISION_HIGH \n' +
+                '  precision highp float; \n' +
+                '#else \n' +
+                '  precision mediump float; \n' +
+                '#endif \n\n';
+        } else {
+            this._fragmentShaderFloatPrecision = 'precision mediump float; \n';
         }
 
         this._id = createGuid();
@@ -236,9 +261,12 @@ define([
         // Query and initialize extensions
         this._standardDerivatives = gl.getExtension('OES_standard_derivatives');
         this._depthTexture = gl.getExtension('WEBKIT_WEBGL_depth_texture') || gl.getExtension('MOZ_WEBGL_depth_texture');
-        var textureFilterAnisotropic = gl.getExtension('EXT_texture_filter_anisotropic') || gl.getExtension('WEBKIT_EXT_texture_filter_anisotropic') || gl.getExtension('MOZ_EXT_texture_filter_anisotropic');
+        var textureFilterAnisotropic = allowTextureFilterAnisotropic ?
+                gl.getExtension('EXT_texture_filter_anisotropic') ||
+                gl.getExtension('WEBKIT_EXT_texture_filter_anisotropic') ||
+                gl.getExtension('MOZ_EXT_texture_filter_anisotropic') : undefined;
         this._textureFilterAnisotropic = textureFilterAnisotropic;
-        this._maximumTextureFilterAnisotropy = textureFilterAnisotropic ? gl.getParameter(textureFilterAnisotropic.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : 1.0;
+        this._maximumTextureFilterAnisotropy = (typeof textureFilterAnisotropic !== 'undefined') ? gl.getParameter(textureFilterAnisotropic.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : 1.0;
 
         var cc = gl.getParameter(gl.COLOR_CLEAR_VALUE);
         this._clearColor = new Color(cc[0], cc[1], cc[2], cc[3]);
@@ -1111,7 +1139,7 @@ define([
      * sp = context.createShaderProgram(vs, fs, attributes);            *
      */
     Context.prototype.createShaderProgram = function(vertexShaderSource, fragmentShaderSource, attributeLocations) {
-        return new ShaderProgram(this._gl, this._logShaderCompilation, vertexShaderSource, fragmentShaderSource, attributeLocations);
+        return new ShaderProgram(this._gl, this._logShaderCompilation, this._fragmentShaderFloatPrecision, vertexShaderSource, fragmentShaderSource, attributeLocations);
     };
 
     function createBuffer(gl, bufferTarget, typedArrayOrSizeInBytes, usage) {
