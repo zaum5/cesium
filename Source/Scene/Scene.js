@@ -21,7 +21,7 @@ define([
         '../Renderer/Context',
         '../Renderer/ClearCommand',
         './Camera',
-        './CameraMouseController',
+        './ScreenSpaceCameraController',
         './CompositePrimitive',
         './CullingVolume',
         './AnimationCollection',
@@ -52,7 +52,7 @@ define([
         Context,
         ClearCommand,
         Camera,
-        CameraMouseController,
+        ScreenSpaceCameraController,
         CompositePrimitive,
         CullingVolume,
         AnimationCollection,
@@ -78,7 +78,7 @@ define([
         this._primitives = new CompositePrimitive();
         this._pickFramebuffer = undefined;
         this._camera = new Camera(canvas);
-        this._cameraMouseController = new CameraMouseController(canvas, this._camera.controller);
+        this._screenSpaceCameraController = new ScreenSpaceCameraController(canvas, this._camera.controller);
 
         this._animations = new AnimationCollection();
 
@@ -188,8 +188,8 @@ define([
      * DOC_TBA
      * @memberof Scene
      */
-    Scene.prototype.getCameraMouseController = function() {
-        return this._cameraMouseController;
+    Scene.prototype.getScreenSpaceCameraController = function() {
+        return this._screenSpaceCameraController;
     };
 
     /**
@@ -437,18 +437,24 @@ define([
             time = new JulianDate();
         }
 
+        // Destroy released shaders once every 120 frames to avoid thrashing the cache
+        if (this._shaderFrameCount++ === 120) {
+            this._shaderFrameCount = 0;
+            this._context.getShaderCache().destroyReleasedShaderPrograms();
+        }
+
         this._animations.update();
 
         var us = this.getUniformState();
         var frameState = this._frameState;
 
+        this._camera.controller.update(frameState);
+        this._screenSpaceCameraController.update(this._frameState);
+
         var frameNumber = CesiumMath.incrementWrap(us.getFrameNumber(), 15000000.0, 1.0);
         updateFrameState(this, frameNumber, time);
         frameState.passes.color = true;
         frameState.passes.overlay = true;
-
-        this._camera.controller.update(frameState);
-        this._cameraMouseController.update(frameState);
     };
 
     /**
@@ -566,7 +572,8 @@ define([
         this._pickFramebuffer = this._pickFramebuffer || context.createPickFramebuffer();
         var fb = this._pickFramebuffer.begin();
 
-        updateFrameState(this);
+        // Update with previous frame's number aqnd time, assuming that render is called before picking.
+        updateFrameState(this, frameState.frameNumber, frameState.time);
         frameState.cullingVolume = getPickCullingVolume(this, windowPosition, rectangleWidth, rectangleHeight);
         frameState.passes.pick = true;
 
@@ -595,7 +602,7 @@ define([
      * @memberof Scene
      */
     Scene.prototype.destroy = function() {
-        this._cameraMouseController = this._cameraMouseController && this._cameraMouseController.destroy();
+        this._screenSpaceCameraController = this._screenSpaceCameraController && this._screenSpaceCameraController.destroy();
         this._pickFramebuffer = this._pickFramebuffer && this._pickFramebuffer.destroy();
         this._primitives = this._primitives && this._primitives.destroy();
         this.skyBox = this.skyBox && this.skyBox.destroy();

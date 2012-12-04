@@ -22,8 +22,6 @@ define([
         camera.frustum.aspectRatio = 1.0;
         camera.frustum.near = defaultValue(near, 0.01);
         camera.frustum.far = defaultValue(far, 10.0);
-        camera.update();
-
         return camera;
     }
 
