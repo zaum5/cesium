@@ -180,7 +180,7 @@ require([
     cb = scene.getPrimitives().getCentralBody();
 
     var terrainProvider = new Cesium.CesiumTerrainProvider({
-        url : 'http://cesium.agi.com/terrain2'
+        url : 'http://cesium.agi.com/terrain'
     });
     
     /*var terrainProvider = new Cesium.TileMapServiceTerrainProvider({
@@ -240,12 +240,12 @@ require([
 
     document.addEventListener('keydown', keydownHandler, false);
     
-    /*var handler = new Cesium.EventHandler(widget.canvas);
+    var handler = new Cesium.ScreenSpaceEventHandler(widget.canvas);
 
-    handler.setMouseAction(function(movement) {
+    handler.setInputAction(function(movement) {
         mousePosition = movement.endPosition;
         // Use movement.startPosition, movement.endPosition
-    }, Cesium.MouseEventType.MOVE);*/
+    }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 });
 </script>
 </body>

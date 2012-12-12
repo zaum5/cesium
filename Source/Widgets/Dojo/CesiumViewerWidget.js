@@ -633,7 +633,7 @@ define([
             }
 
             var imageryUrl = '../../Assets/Textures/';
-            this.dayImageUrl = defaultValue(this.dayImageUrl, require.toUrl(imageryUrl + 'NE2_50M_SR_W_2048.jpg'));
+            this.dayImageUrl = defaultValue(this.dayImageUrl, require.toUrl(imageryUrl + 'NE2_LR_LC_SR_W_DR_2048.jpg'));
 
             var centralBody = this.centralBody = new CentralBody(ellipsoid);
 
@@ -1198,13 +1198,8 @@ define([
          *     widget2.initializeFrame(time2);
          *     widget1.update(time1);
          *     widget2.update(time2);
-<<<<<<< HEAD
          *     widget1.render();
          *     widget2.render();
-=======
-         *     widget1.render(time1);
-         *     widget2.render(time2);
->>>>>>> origin/terrainAndOcean
          *     requestAnimationFrame(updateAndRender);
          * }
          * requestAnimationFrame(updateAndRender);
