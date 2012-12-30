@@ -5,6 +5,7 @@ defineSuite([
          'Specs/createContext',
          'Specs/destroyContext',
          'Specs/createCamera',
+         'Specs/createFrameState',
          'Specs/frameState',
          'Specs/pick',
          'Specs/render',
@@ -14,6 +15,7 @@ defineSuite([
          'Core/Cartographic',
          'Core/Matrix4',
          'Core/Math',
+         'Core/JulianDate',
          'Renderer/BufferUsage',
          'Scene/SceneMode'
      ], function(
@@ -22,6 +24,7 @@ defineSuite([
          createContext,
          destroyContext,
          createCamera,
+         createFrameState,
          frameState,
          pick,
          render,
@@ -31,6 +34,7 @@ defineSuite([
          Cartographic,
          Matrix4,
          CesiumMath,
+         JulianDate,
          BufferUsage,
          SceneMode) {
     "use strict";
@@ -52,7 +56,7 @@ defineSuite([
         polylines = new PolylineCollection();
 
         us = context.getUniformState();
-        us.update(createCamera(context));
+        us.update(createFrameState(createCamera(context)));
     });
 
     afterEach(function() {
@@ -96,8 +100,8 @@ defineSuite([
         });
 
         expect(p.getShow()).toEqual(false);
-        expect(p.getPositions()[0].equals(new Cartesian3(1.0, 2.0, 3.0))).toEqual(true);
-        expect(p.getPositions()[1].equals(new Cartesian3(4.0, 5.0, 6.0))).toEqual(true);
+        expect(p.getPositions()[0]).toEqual(new Cartesian3(1.0, 2.0, 3.0));
+        expect(p.getPositions()[1]).toEqual(new Cartesian3(4.0, 5.0, 6.0));
         expect(p.getColor().red).toEqual(1.0);
         expect(p.getColor().green).toEqual(2.0);
         expect(p.getColor().blue).toEqual(3.0);
@@ -130,8 +134,8 @@ defineSuite([
         p.setOutlineWidth(7);
 
         expect(p.getShow()).toEqual(false);
-        expect(p.getPositions()[0].equals(new Cartesian3(1.0, 2.0, 3.0))).toEqual(true);
-        expect(p.getPositions()[1].equals(new Cartesian3(4.0, 5.0, 6.0))).toEqual(true);
+        expect(p.getPositions()[0]).toEqual(new Cartesian3(1.0, 2.0, 3.0));
+        expect(p.getPositions()[1]).toEqual(new Cartesian3(4.0, 5.0, 6.0));
         expect(p.getColor().red).toEqual(1.0);
         expect(p.getColor().green).toEqual(2.0);
         expect(p.getColor().blue).toEqual(3.0);
@@ -1631,7 +1635,7 @@ defineSuite([
 
     it('does not equal undefined', function() {
         var polyline = polylines.add();
-        expect(polyline.equals(undefined)).toEqual(false);
+        expect(polyline).not.toEqual(undefined);
     });
 
     it('throws when accessing without an index', function() {
@@ -1717,7 +1721,7 @@ defineSuite([
         }
         var bs = BoundingSphere.fromPoints(projectedPositions);
         bs.center = new Cartesian3(bs.center.z, bs.center.x, bs.center.y);
-        expect(one._boundingVolume2D.center.equalsEpsilon(bs.center, CesiumMath.EPSILON8)).toEqual(true);
+        expect(one._boundingVolume2D.center).toEqualEpsilon(bs.center, CesiumMath.EPSILON8);
         expect(one._boundingVolume2D.radius).toEqualEpsilon(bs.radius, CesiumMath.EPSILON12);
 
         positions = two.getPositions();
@@ -1727,7 +1731,7 @@ defineSuite([
         }
         bs = BoundingSphere.fromPoints(projectedPositions);
         bs.center = new Cartesian3(bs.center.z, bs.center.x, bs.center.y);
-        expect(two._boundingVolume2D.center.equalsEpsilon(bs.center, CesiumMath.EPSILON8)).toEqual(true);
+        expect(two._boundingVolume2D.center).toEqualEpsilon(bs.center, CesiumMath.EPSILON8);
         expect(two._boundingVolume2D.radius).toEqualEpsilon(bs.radius, CesiumMath.EPSILON12);
 
         expect(boundingVolume).toEqual(one._boundingVolume2D.union(two._boundingVolume2D));
