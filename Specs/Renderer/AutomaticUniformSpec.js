@@ -602,4 +602,4 @@ defineSuite([
             '}';
         verifyDraw(fs);
     });
-});
+}, 'WebGL');
