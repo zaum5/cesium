@@ -102,6 +102,7 @@ define([
 
         this._allLandTexture = undefined;
         this._allWaterTexture = undefined;
+        this._waterMaskSampler = undefined;
     }
 
     /**
@@ -474,16 +475,21 @@ define([
                     }
                 });
                 tile.waterMaskTexture.referenceCount = 1;
-                tile.waterMaskTexture.setSampler({
-                    wrapS : TextureWrap.CLAMP,
-                    wrapT : TextureWrap.CLAMP,
-                    minificationFilter : TextureMinificationFilter.LINEAR,
-                    magnificationFilter : TextureMagnificationFilter.LINEAR
-                });
+
+                if (typeof this._waterMaskSampler === 'undefined') {
+                    this._waterMaskSampler = context.createSampler({
+                        wrapS : TextureWrap.CLAMP,
+                        wrapT : TextureWrap.CLAMP,
+                        minificationFilter : TextureMinificationFilter.LINEAR,
+                        magnificationFilter : TextureMagnificationFilter.LINEAR
+                    });
+                }
+
+                tile.waterMaskTexture.setSampler(this._waterMaskSampler);
             }
         }
 
-        TerrainProvider.createTileEllipsoidGeometryFromBuffers(context, tile, buffers);
+        TerrainProvider.createTileEllipsoidGeometryFromBuffers(context, tile, buffers, true);
         tile.minHeight = buffers.statistics.minHeight;
         tile.maxHeight = buffers.statistics.maxHeight;
         tile.boundingSphere3D = BoundingSphere.fromVertices(buffers.vertices, tile.center, 5);
