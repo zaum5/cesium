@@ -1,10 +1,12 @@
 /*global defineSuite*/
 defineSuite([
          'Core/Matrix2',
-         'Core/Cartesian2'
+         'Core/Cartesian2',
+         'Core/Math'
      ], function(
          Matrix2,
-         Cartesian2) {
+         Cartesian2,
+         CesiumMath) {
     "use strict";
     /*global jasmine,describe,xdescribe,it,xit,expect,beforeEach,afterEach,beforeAll,afterAll,spyOn,runs,waits,waitsFor*/
 
@@ -88,6 +90,23 @@ defineSuite([
         var returnedResult = Matrix2.fromUniformScale(2.0, result);
         expect(returnedResult).toBe(result);
         expect(returnedResult).toEqual(expected);
+    it('fromRotation works without a result parameter', function() {
+        var matrix = Matrix2.fromRotation(0.0);
+        expect(matrix).toEqual(Matrix2.IDENTITY);
+    });
+
+    it('fromRotation works with a result parameter', function() {
+        var expected = new Matrix2(0.0, -1.0, 1.0, 0.0);
+        var result = new Matrix2();
+        var matrix = Matrix2.fromRotation(CesiumMath.toRadians(90.0), result);
+        expect(matrix).toBe(result);
+        expect(matrix).toEqualEpsilon(expected, CesiumMath.EPSILON15);
+    });
+
+    it('fromRotation throws without angle', function() {
+        expect(function() {
+            Matrix2.fromRotation();
+        }).toThrow();
     });
 
     it('clone works without a result parameter', function() {
