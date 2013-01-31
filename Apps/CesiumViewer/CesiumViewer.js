@@ -1,28 +1,38 @@
 /*global define*/
 define([
-    'dojo/dom',
-    'dojo/on',
-    'dojo/ready',
-    'dojo/io-query',
-    'Widgets/Dojo/CesiumViewerWidget',
-    'Core/Matrix4',
-    'Core/Cartesian3',
-    'Scene/Model'
-
-], function(
-    dom,
-    on,
-    ready,
-    ioQuery,
-    CesiumViewerWidget,
-    Matrix4,
-    Cartesian3,
-    Model
+        'dojo/_base/window',
+        'dojo/dom',
+        'dojo/dom-class',
+        'dojo/io-query',
+        'dojo/parser',
+        'dojo/ready',
+        'Widgets/Dojo/checkForChromeFrame',
+        'Widgets/Dojo/CesiumViewerWidget',
+        'Core/Matrix4',
+        'Core/Cartesian3',
+        'Scene/Model'
+    ], function(
+        win,
+        dom,
+        domClass,
+        ioQuery,
+        parser,
+        ready,
+        checkForChromeFrame,
+        CesiumViewerWidget,
+        Matrix4,
+        Cartesian3,
+        Model
 ) {
+
     "use strict";
     /*global console*/
 
     ready(function() {
+        parser.parse();
+
+        checkForChromeFrame();
+
         var endUserOptions = {};
         if (window.location.search) {
             endUserOptions = ioQuery.queryToObject(window.location.search.substring(1));
@@ -63,5 +73,7 @@ define([
 //        m.modelMatrix = Matrix4.fromTranslation(new Cartesian3(8000000.0, 0.0, 0.0));
         primitives.add(m);
         scene.getPrimitives().setCentralBody(undefined);
+
+        domClass.remove(win.body(), 'loading');
     });
 });
