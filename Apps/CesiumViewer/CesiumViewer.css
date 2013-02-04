@@ -12,3 +12,57 @@
     padding: 0;
     font-family: sans-serif;
 }
+
+.activeOverlay {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    margin: 0;
+    overflow: hidden;
+    padding: 0;
+    font-family: sans-serif;
+    color:cyan;
+    font: bold 16px Sans-Serif; 
+}
+.altitudeOverlay {
+    position: absolute;
+    top: 26px;
+    left: 6px;
+    margin: 0;
+    overflow: hidden;
+    padding: 0;
+    font-family: sans-serif;
+    color:magenta;
+    font: bold 16px Sans-Serif; 
+}
+.closeOverlay {
+    position: absolute;
+    top: 46px;
+    left: 6px;
+    margin: 0;
+    overflow: hidden;
+    padding: 0;
+    font-family: sans-serif;
+    color:white;
+    font: bold 16px Sans-Serif; 
+}
+.jplOverlay {
+    position: absolute;
+    bottom: 35px;
+    right: 275px;
+    margin: 0;
+    overflow: hidden;
+    padding: 0;
+    font-family: sans-serif;
+    color:white;
+    font: 16px Sans-Serif; 
+}
+.zoomButton {
+    position: absolute;
+    top: 50px;
+    right: 6px;
+    margin: 0;
+    overflow: hidden;
+    padding: 0;
+}
+

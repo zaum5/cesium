@@ -514,8 +514,9 @@ define([
                 clock.clockRange = ClockRange.LOOP;
             }
 
-            clock.multiplier = 60;
-            clock.currentTime = clock.startTime;
+            clock.multiplier = 600;
+            clock.currentTime = JulianDate.fromIso8601("2013-02-15T18:41:56.205Z");
+            clock.tick(0);
             this.timelineControl.zoomTo(clock.startTime, clock.stopTime);
         },
 
@@ -896,6 +897,7 @@ define([
             if (this.autoStartRenderLoop) {
                 this.startRenderLoop();
             }
+            this.viewHome();
         },
 
         /**
@@ -928,6 +930,7 @@ define([
                 camera3D.right.clone(camera.right);
                 camera3D.transform.clone(camera.transform);
                 camera3D.frustum.clone(camera.frustum);
+                camera3D.position.multiplyByScalar(5, camera.position);
             } else if (mode === SceneMode.COLUMBUS_VIEW) {
                 var transform = new Matrix4(0.0, 0.0, 1.0, 0.0,
                                             1.0, 0.0, 0.0, 0.0,
@@ -1234,6 +1237,7 @@ define([
             var animationController = widget.animationController;
 
             function updateAndRender() {
+                widget.scene.getCamera().frustum.far = 10000000000;
                 var currentTime = animationController.update();
                 widget.initializeFrame();
                 widget.update(currentTime);

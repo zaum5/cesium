@@ -36,5 +36,16 @@ define([
         widget.startup();
 
         domClass.remove(win.body(), 'loading');
+
+        var zoomButton = document.getElementById('zoomID');
+        console.log(zoomButton);
+        zoomButton.onclick = function() {
+            var lookAtObject = widget.dynamicObjectCollection.getObject('/Application/STK/Scenario/2012_DA14_CA/Satellite/2012_DA14');
+            if (typeof widget._viewFromTo === 'undefined' || widget._viewFromTo.dynamicObject !== lookAtObject) {
+                widget.centerCameraOnObject(lookAtObject);
+            } else {
+                widget.viewHome();
+            }
+        };
     });
 });
