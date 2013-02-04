@@ -1097,6 +1097,16 @@ define([
             var viewFromTo = this._viewFromTo;
             if (typeof viewFromTo !== 'undefined') {
                 viewFromTo.update(currentTime);
+            } else {
+                var mode = this.scene.mode;
+
+                var camera = this.scene.getCamera();
+                if (mode === SceneMode.SCENE3D) {
+                    this.icrfToFixed = Transforms.computeIcrfToFixedMatrix(currentTime, this.foo);
+                    if (typeof this.icrfToFixed !== 'undefined') {
+                        Matrix4.fromRotationTranslation(this.icrfToFixed, Cartesian3.ZERO, camera.transform);
+                    }
+                }
             }
         },
 
