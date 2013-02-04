@@ -160,6 +160,22 @@
     box-shadow: 0 0 5px rgba(255, 170, 42, 1);
 }
 
+.cw-agiLogo {
+    display: block;
+    position: absolute;
+    bottom: 65px;
+    left: 125px;
+    text-decoration: none;
+    background-image: url(../Images/AGILogo3_overlay.png);
+    background-size: 60px 30px;
+	width: 60px;
+	height: 30px;
+}
+
+.cw-agiLogo img {
+    border: none;
+}
+
 .cw-loading {
     display: none;
     position: absolute;
