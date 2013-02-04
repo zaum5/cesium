@@ -33,6 +33,7 @@ define([
             endUserOptions : endUserOptions,
             enableDragDrop : true
         });
+        widget.enableDragDrop = false;
         widget.fullscreenElement = document.body;
         widget.placeAt('cesiumContainer');
         widget.startup();

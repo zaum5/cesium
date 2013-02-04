@@ -29,12 +29,12 @@ if (window.location.host === "cesium.agi.com") {
 <script data-dojo-config="async:1,tlmSiblingOfDojo:0" src="../../ThirdParty/dojo-release-1.8.3-src/dojo/dojo.js"></script>
 <script src="CesiumViewerStartup.js"></script>
 </head>
-<body class="claro" style="background: #000;">
+<body class="tundra" style="background: #000;">
     <div id="cesiumContainer" class="fullWindow"></div>
     <div class="activeOverlay">Active satellites in GEO/MEO</div>
     <div class="altitudeOverlay">Altitude < 20,000 miles above the Earth</div>
     <div class="closeOverlay">Altitude at closest approach: ~17,225 miles</div>
     <div class="jplOverlay">Trajectory modeled using JPL data from Jan. 12, 2013</div>
-    <button id="zoomID" class="zoomButton" data-dojo-type="dijit.form.ToggleButton">Toggle Asteroid View</button>
+    <button id="zoomID" class="zoomButton" data-dojo-type="dijit.form.Button">Toggle Asteroid View</button>
 </body>
 </html>
