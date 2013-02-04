@@ -10,7 +10,12 @@ TODO
 * Added `DynamicModel` and `DynamicModelVisualizer` which use the new `Model` to implement 3D models in CZML.
 * Added `czm_inverseViewProjection` and `czm_inverseModelViewProjection` automatic GLSL uniform.
 
-### b13 - 2013-xx-xx
+### b14 - 2013-xx-xx
+
+* Added a line segment-ray intersection test to `IntersectionTests`.
+* Fixed an issue where a `PolylineCollection` with a model matrix other than the identity would be incorrectly rendered in 2D and Columbus view.
+
+### b13 - 2013-02-01
 
 * Breaking changes:
    * The combined `Cesium.js` file and other required files are now created in `Build/Cesium` and `Build/CesiumUnminified` folders.
