@@ -1101,12 +1101,8 @@ define([
             }
 
             modelCommandLists.colorList = this._colorCommands;
+            commandList.push(modelCommandLists);
         }
-        else {
-            modelCommandLists.colorList.length = 0;
-        }
-
-        commandList.push(modelCommandLists);
     };
 
     /**
