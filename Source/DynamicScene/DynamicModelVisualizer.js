@@ -4,6 +4,7 @@ define([
         '../Core/DeveloperError',
         '../Core/destroyObject',
         '../Core/Color',
+        '../Core/Quaternion',
         '../Core/Matrix3',
         '../Core/Matrix4',
         '../Scene/Model',
@@ -13,6 +14,7 @@ define([
          DeveloperError,
          destroyObject,
          Color,
+         Quaternion,
          Matrix3,
          Matrix4,
          Model,
@@ -194,11 +196,6 @@ define([
             return;
         }
 
-        var orientationProperty = dynamicObject.orientation;
-        if (typeof orientationProperty === 'undefined') {
-            return;
-        }
-
         var model;
         var showProperty = dynamicModel.show;
         var modelVisualizerIndex = dynamicObject._modelVisualizerIndex;
@@ -231,6 +228,7 @@ define([
             dynamicObject._modelVisualizerIndex = modelVisualizerIndex;
             model.dynamicObject = dynamicObject;
             model.scale = 1.0;
+            model._visualizerOrientation = Quaternion.IDENTITY.clone();
         } else {
             model = this._modelCollection[modelVisualizerIndex];
         }
@@ -244,12 +242,17 @@ define([
         }
 
         position = defaultValue(positionProperty.getValueCartesian(time, position), model._visualizerPosition);
-        orientation = defaultValue(orientationProperty.getValue(time, orientation), model._visualizerOrientation);
+        var orientationProperty = dynamicObject.orientation;
+        if (typeof orientationProperty !== 'undefined') {
+            orientation = defaultValue(orientationProperty.getValue(time, orientation), model._visualizerOrientation);
+        } else {
+            orientation = model._visualizerOrientation;
+        }
 
         if (typeof position !== 'undefined' && typeof orientation !== 'undefined' && (!position.equals(model._visualizerPosition) || !orientation.equals(model._visualizerOrientation))) {
             Matrix4.fromRotationTranslation(Matrix3.fromQuaternion(orientation.conjugate(orientation), matrix3Scratch), position, model.modelMatrix);
-            position.clone(model._visualizerPosition);
-            orientation.clone(model._visualizerOrientation);
+            model._visualizerPosition = position.clone(model._visualizerPosition);
+            model._visualizerOrientation = orientation.clone(model._visualizerOrientation);
         }
 
         var scaleProperty = dynamicModel.scale;
