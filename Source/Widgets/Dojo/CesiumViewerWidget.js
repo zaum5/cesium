@@ -949,7 +949,7 @@ define([
                 frustum.fovy = CesiumMath.toRadians(60.0);
                 frustum.aspectRatio = this.canvas.clientWidth / this.canvas.clientHeight;
 
-                camera.position = position;
+                camera.position = position.multiplyByScalar(5);
                 camera.direction = direction;
                 camera.up = up;
                 camera.right = right;

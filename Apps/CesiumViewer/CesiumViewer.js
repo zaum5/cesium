@@ -27,11 +27,13 @@ define([
         if (window.location.search) {
             endUserOptions = ioQuery.queryToObject(window.location.search.substring(1));
         }
+        endUserOptions.source = 'Gallery/DA14/2012_DA14_CA.czml';
 
         var widget = new CesiumViewerWidget({
             endUserOptions : endUserOptions,
             enableDragDrop : true
         });
+        widget.fullscreenElement = document.body;
         widget.placeAt('cesiumContainer');
         widget.startup();
 

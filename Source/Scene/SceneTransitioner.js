@@ -77,7 +77,7 @@ define([
         frustum.aspectRatio = canvas.clientWidth / canvas.clientHeight;
 
         this._cameraCV = {
-            position : position,
+            position : position.multiplyByScalar(5.0),
             direction : direction,
             up : up,
             frustum : frustum,
@@ -90,7 +90,7 @@ define([
         up = right.cross(direction);
 
         this._camera3D = {
-            position : position,
+            position : position.multiplyByScalar(10.0),
             direction : direction,
             up : up,
             frustum : frustum
