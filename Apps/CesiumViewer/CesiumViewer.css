@@ -1,4 +1,4 @@
-@import	url('../../ThirdParty/dojo-release-1.8.3-src/dijit/themes/tundra/tundra.css');
+@import url('../../ThirdParty/dojo-release-1.8.3-src/dijit/themes/tundra/tundra.css');
 @import url('../../Source/Widgets/Dojo/CesiumViewerWidget.css');
 
 .fullWindow {
@@ -20,9 +20,10 @@
     margin: 0;
     overflow: hidden;
     padding: 0;
-    color:cyan;
-    font: bold 16px Sans-Serif; 
+    color: cyan;
+    font: bold 16px Sans-Serif;
 }
+
 .altitudeOverlay {
     position: absolute;
     top: 26px;
@@ -30,9 +31,10 @@
     margin: 0;
     overflow: hidden;
     padding: 0;
-    color:magenta;
-    font: bold 16px Sans-Serif; 
+    color: magenta;
+    font: bold 16px Sans-Serif;
 }
+
 .closeOverlay {
     position: absolute;
     top: 46px;
@@ -40,19 +42,23 @@
     margin: 0;
     overflow: hidden;
     padding: 0;
-    color:white;
-    font: bold 16px Sans-Serif; 
+    color: white;
+    font: bold 16px Sans-Serif;
 }
+
 .jplOverlay {
     position: absolute;
-    bottom: 40px;
-    right: 275px;
+    bottom: 65px;
+    right: 10px;
     margin: 0;
     overflow: hidden;
-    padding: 0;
-    color:white;
-    font: 12px Sans-Serif; 
+    color: white;
+    background: rgba(42, 42, 42, 0.8);
+    font-size: 12px;
+    padding: 1px 2px;
+    border-radius: 4px;
 }
+
 .zoomButton {
     position: absolute;
     top: 50px;
@@ -61,4 +67,3 @@
     overflow: hidden;
     padding: 0;
 }
-

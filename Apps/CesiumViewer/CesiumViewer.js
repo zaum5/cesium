@@ -36,6 +36,7 @@ define([
         widget.enableDragDrop = false;
         widget.fullscreenElement = document.body;
         widget.placeAt('cesiumContainer');
+        widget.imagery.domNode.style.display = 'none';
         widget.startup();
 
         domClass.remove(win.body(), 'loading');
