@@ -37,6 +37,8 @@ define([
         widget.fullscreenElement = document.body;
         widget.placeAt('cesiumContainer');
         widget.imagery.domNode.style.display = 'none';
+        widget.onObjectSelected = function() {
+        };
         widget.startup();
 
         domClass.remove(win.body(), 'loading');
