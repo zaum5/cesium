@@ -47,6 +47,11 @@ define([
         WebGLTFLoader) {
     "use strict";
 
+    if (typeof Object.create === 'undefined') {
+        //IE8 workaround
+        return;
+    }
+
     // MODELS_TODO: This needs tests
     // MODELS_TODO: model cache?
 

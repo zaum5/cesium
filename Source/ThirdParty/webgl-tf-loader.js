@@ -99,6 +99,11 @@ var global = window;
         "scenes" : "scene"
     };
 
+    if (typeof Object.create === 'undefined') {
+        //IE8 workaround
+        return;
+    }
+
     var WebGLTFLoader = Object.create(Object.prototype, {
 
         MESH: { value: "mesh" },
