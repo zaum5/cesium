@@ -515,7 +515,7 @@ define([
             }
 
             clock.multiplier = 600;
-            clock.currentTime = JulianDate.fromIso8601("2013-02-15T18:41:56.205Z");
+            clock.currentTime = JulianDate.fromIso8601("2013-02-15T18:00:00Z");
             clock.tick(0);
             this.timelineControl.zoomTo(clock.startTime, clock.stopTime);
         },
