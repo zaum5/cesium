@@ -7,23 +7,27 @@
 <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
 
 <!-- Make the application take up the full browser screen and disable user scaling-->
-<meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+<meta name="viewport"
+    content="width=device-width, height=device-height, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
 
 <title>Cesium Viewer</title>
 <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
 <link rel="stylesheet" href="CesiumViewer.css" media="screen">
 
 <script type="text/javascript">
-if (window.location.host === "cesium.agi.com") {
-    var _gaq = _gaq || [];
-    _gaq.push(['_setAccount', 'UA-30040272-1']);
-    _gaq.push(['_trackPageview']);
-    (function() {
-    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
-    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
-    })();
-}
+    if (window.location.host === "cesium.agi.com") {
+        var _gaq = _gaq || [];
+        _gaq.push(['_setAccount', 'UA-30040272-1']);
+        _gaq.push(['_trackPageview']);
+        (function() {
+            var ga = document.createElement('script');
+            ga.type = 'text/javascript';
+            ga.async = true;
+            ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(ga, s);
+        })();
+    }
 </script>
 
 <script data-dojo-config="async:1,tlmSiblingOfDojo:0" src="../../ThirdParty/dojo-release-1.8.3-src/dojo/dojo.js"></script>
@@ -31,10 +35,39 @@ if (window.location.host === "cesium.agi.com") {
 </head>
 <body class="tundra" style="background: #000;">
     <div id="cesiumContainer" class="fullWindow"></div>
-    <div class="activeOverlay">Active satellites in GEO/MEO</div>
-    <div class="altitudeOverlay">Altitude < 20,000 miles above the Earth</div>
-    <div class="closeOverlay">Altitude at closest approach: ~17,225 miles</div>
-    <div class="jplOverlay">Trajectory modeled using JPL data from Jan. 12, 2013</div>
+    <div class="asteroidOverlay" id="asteroidOverlayId">
+        <div class="activeOverlay">Active satellites in GEO/MEO</div>
+        <div class="altitudeOverlay">Altitude < 20,000 miles above the Earth</div>
+        <div class="closeOverlay">Altitude at closest approach: ~17,225 miles</div>
+        <div class="jplOverlay">
+            Last Updated: 12 Feb 2013<br /> Trajectory Info:<br /> Solution date: 2013 Feb 12 01:50:19<br /> JPL#44
+        </div>
+    </div>
+
+    <div class="rbsp" id="rbspId">
+        <div class="rbspOverlay">
+            Trajectory Info:<br />Solution date: Feb 11 2013 01:50:14<br />JPL#43<br /> <br />RBSP ephemeris
+            provided by JHU/APL<br />Solution date: Feb 7, 2013
+        </div>
+
+        <div class="rbspaOverlay">
+            RBSP A Closest Approach:<br />15 Feb 2013 19:15:50 UTCG<br />Range: 22607.84 km
+        </div>
+
+        <div class="rbspbOverlay">
+            RBSP B Closest Approach:<br /> 15 Feb 2013 19:26:01 UTCG<br /> Range: 5599.83 km
+        </div>
+    </div>
+
     <button id="zoomID" class="zoomButton" data-dojo-type="dijit.form.Button">Toggle Asteroid View</button>
+
+    <div class="viewButton" id="viewButtonId">
+        View: <select>
+            <option value="Home">Home</option>
+            <option value="DA14">2012 DA14</option>
+            <option value="RBSP A">RBSP A</option>
+            <option value="RBSP B">RBSP B</option>
+        </select>
+    </div>
 </body>
 </html>

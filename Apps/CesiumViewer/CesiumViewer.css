@@ -24,6 +24,47 @@
     font: bold 16px Sans-Serif;
 }
 
+.asteroidOverlay {
+    display: none;
+}
+
+.rbsp {
+    display: none;
+}
+
+.rbspOverlay {
+    position: absolute;
+    top: 16px;
+    left: 6px;
+    margin: 0;
+    overflow: hidden;
+    padding: 0;
+    color: white;
+    font: 14px Sans-Serif;
+}
+
+.rbspaOverlay {
+    position: absolute;
+    bottom: 170px;
+    left: 6px;
+    margin: 0;
+    overflow: hidden;
+    padding: 0;
+    color: aqua;
+    font: 14px Sans-Serif;
+}
+
+.rbspbOverlay {
+    position: absolute;
+    bottom: 110px;
+    left: 6px;
+    margin: 0;
+    overflow: hidden;
+    padding: 0;
+    color: yellow;
+    font: 14px Sans-Serif;
+}
+
 .altitudeOverlay {
     position: absolute;
     top: 26px;
@@ -57,6 +98,16 @@
     font-size: 12px;
     padding: 1px 2px;
     border-radius: 4px;
+}
+
+.viewButton {
+    position: absolute;
+    top: 50px;
+    right: 6px;
+    margin: 0;
+    overflow: hidden;
+    padding: 0;
+    color: white;
 }
 
 .zoomButton {
