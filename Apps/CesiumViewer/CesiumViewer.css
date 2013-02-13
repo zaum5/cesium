@@ -100,6 +100,10 @@
     border-radius: 4px;
 }
 
+#viewButtonId {
+    display: none;
+}
+
 .viewButton {
     position: absolute;
     top: 50px;
@@ -108,6 +112,10 @@
     overflow: hidden;
     padding: 0;
     color: white;
+}
+
+#zoomID {
+    display: none;
 }
 
 .zoomButton {

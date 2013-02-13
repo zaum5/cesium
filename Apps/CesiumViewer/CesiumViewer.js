@@ -51,38 +51,26 @@ define([
         widget.onObjectSelected = doNothing;
         widget.startup();
 
-        var asteroidOverlay = document.getElementById('asteroidOverlayId');
-        asteroidOverlay.style.display = 'block';
-
-        var zoomButton = document.getElementById('zoomID');
-        var viewButton = document.getElementById('viewButtonId');
-
         if (rbsp) {
+            var viewButton = document.getElementById('viewButtonId');
             viewButton.style.display = 'block';
-            zoomButton.style.display = 'none';
+
             var rbspId = document.getElementById('rbspId');
+            rbspId.style.display = 'block';
 
             viewButton.onchange = function(e) {
                 if (e.srcElement.value === 'Home') {
-                    asteroidOverlay.style.display = 'block';
-                    rbspId.style.display = 'none';
                     widget.viewHome();
                     return;
                 }
                 var lookAtObject;
                 if (e.srcElement.value === 'DA14') {
-                    asteroidOverlay.style.display = 'block';
-                    rbspId.style.display = 'none';
                     lookAtObject = widget.dynamicObjectCollection.getObject('/Application/STK/Scenario/2012_DA14_CA/Satellite/2012_DA14');
                 }
                 else if (e.srcElement.value === 'RBSP A') {
-                    asteroidOverlay.style.display = 'none';
-                    rbspId.style.display = 'block';
                     lookAtObject = widget.dynamicObjectCollection.getObject('/Application/STK/Scenario/2012_DA14_CA/Satellite/RBSP_A');
                 }
                 else if (e.srcElement.value === 'RBSP B') {
-                    asteroidOverlay.style.display = 'none';
-                    rbspId.style.display = 'block';
                     lookAtObject = widget.dynamicObjectCollection.getObject('/Application/STK/Scenario/2012_DA14_CA/Satellite/RBSP_B');
                 }
 
@@ -91,7 +79,10 @@ define([
                 }
             };
         } else {
-            viewButton.style.display = 'none';
+            var asteroidOverlay = document.getElementById('asteroidOverlayId');
+            asteroidOverlay.style.display = 'block';
+
+            var zoomButton = document.getElementById('zoomID');
             zoomButton.style.display = 'block';
             zoomButton.onclick = function() {
                 var lookAtObject = widget.dynamicObjectCollection.getObject('/Application/STK/Scenario/2012_DA14_CA/Satellite/2012_DA14');
