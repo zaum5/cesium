@@ -59,18 +59,19 @@ define([
             rbspId.style.display = 'block';
 
             viewButton.onchange = function(e) {
-                if (e.srcElement.value === 'Home') {
+                var select = viewButton.children[0];
+                if (select.value === 'Home') {
                     widget.viewHome();
                     return;
                 }
                 var lookAtObject;
-                if (e.srcElement.value === 'DA14') {
+                if (select.value === 'DA14') {
                     lookAtObject = widget.dynamicObjectCollection.getObject('/Application/STK/Scenario/2012_DA14_CA/Satellite/2012_DA14');
                 }
-                else if (e.srcElement.value === 'RBSP A') {
+                else if (select.value === 'RBSP A') {
                     lookAtObject = widget.dynamicObjectCollection.getObject('/Application/STK/Scenario/2012_DA14_CA/Satellite/RBSP_A');
                 }
-                else if (e.srcElement.value === 'RBSP B') {
+                else if (select.value === 'RBSP B') {
                     lookAtObject = widget.dynamicObjectCollection.getObject('/Application/STK/Scenario/2012_DA14_CA/Satellite/RBSP_B');
                 }
 
