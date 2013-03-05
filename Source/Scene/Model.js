@@ -48,7 +48,7 @@ define([
     "use strict";
 
     // MODELS_TODO: This needs tests
-    // MODELS_TODO: model cache?
+    // MODELS_TODO: model cache?  Caching individual buffers and textures may be all that is needed.
 
     var ModelLoader = Object.create(WebGLTFLoader, {
         handleBuffer: {
