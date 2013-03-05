@@ -42,6 +42,7 @@ define([
         });
         widget.placeAt('cesiumContainer');
         widget.startup();
+        widget.fullscreen.viewModel.fullscreenElement(document.body);
 
         var scene = widget.scene;
 //        scene.getContext().setValidateShaderProgram(true);
