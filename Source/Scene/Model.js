@@ -985,7 +985,8 @@ define([
                                 var material = materials[va.materialID];
                                 var technique = material.technique;
 
-                                var command = new DrawCommand();
+                                var command = new DrawCommand(this);
+                                command.debugShowBoundingVolume = true;
                                 command.boundingVolume = new BoundingSphere(va.boundingSphere.center, va.boundingSphere.radius * scale);
                                 command.modelMatrix = new Matrix4();            // Computed in update()
                                 command.primitiveType = va.primitive;
