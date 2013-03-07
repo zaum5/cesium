@@ -13,6 +13,7 @@ define([
         '../Core/IndexDatatype',
         '../Core/PrimitiveType',
         '../Core/ComponentDatatype',
+        '../Core/BoundingSphere',
         '../Core/defaultValue',
         '../Core/destroyObject',
         '../Renderer/BufferUsage',
@@ -36,6 +37,7 @@ define([
         IndexDatatype,
         PrimitiveType,
         ComponentDatatype,
+        BoundingSphere,
         defaultValue,
         destroyObject,
         BufferUsage,
@@ -892,13 +894,13 @@ define([
             var attributeIndices = materials[primitive.material].technique.attributeIndices;
             var attributes = [];
 
+            var boundingSphere = undefined;
             var vertexAttributes = primitive.vertexAttributes;
             var vertexAttributesLen = vertexAttributes.length;
             for (var j = 0; j < vertexAttributesLen; ++j) {
                 var vertexAttribute = vertexAttributes[j];
                 var accessor = mesh.accessors[vertexAttribute.accessor];
 
-                // TODO: use accessor min and max for bounding volume
                 attributes.push({
                     index                  : attributeIndices[vertexAttribute.semantic],
                     enabled                : true,
@@ -908,12 +910,18 @@ define([
                     normalize              : false,
                     strideInBytes          : accessor.byteStride
                 });
+
+                // TODO: The spec is going to change VERTEX to POSITION
+                if ((vertexAttribute.semantic === 'VERTEX') && (accessor.elementsPerValue === 3)) {
+                    boundingSphere = BoundingSphere.fromCornerPoints(Cartesian3.fromArray(accessor.min), Cartesian3.fromArray(accessor.max));
+                }
             }
 
             vertexArrays.push({
                 materialID : primitive.material,
                 primitive : PrimitiveType[primitive.primitive],
-                vertexArray : context.createVertexArray(attributes, indexBuffers[JSON.stringify(primitive.indices)])
+                vertexArray : context.createVertexArray(attributes, indexBuffers[JSON.stringify(primitive.indices)]),
+                boundingSphere : boundingSphere
             });
         }
 
@@ -945,6 +953,7 @@ define([
         var materials = model._resources.materials;
         var colorCommands = model._colorCommands;
         var nodeStack = model._nodeStack;
+        var scale = model.scale;
 
         for (var property in scenes) {
             if (scenes.hasOwnProperty(property)) {
@@ -961,8 +970,8 @@ define([
 
                     // DDR commands for this node.  This is not part of the original model;
                     // it is the commands to render this node.
-                    n.commands = [];
-                    var commands = n.commands;
+                    n.commandContainers = [];
+                    var commandContainers = n.commandContainers;
 
                     if (typeof n.meshes !== 'undefined') {
                         var meshes = n.meshes;
@@ -977,8 +986,8 @@ define([
                                 var technique = material.technique;
 
                                 var command = new DrawCommand();
-                                command.boundingVolume = undefined;      // MODELS_TODO: set this
-                                command.modelMatrix = new Matrix4();     // Computed in update()
+                                command.boundingVolume = new BoundingSphere(va.boundingSphere.center, va.boundingSphere.radius * scale);
+                                command.modelMatrix = new Matrix4();            // Computed in update()
                                 command.primitiveType = va.primitive;
                                 command.vertexArray = va.vertexArray;
                                 command.shaderProgram = technique.program;
@@ -995,7 +1004,10 @@ define([
                                     }
                                 });
 
-                                commands.push(command);
+                                commandContainers.push({
+                                    command : command,
+                                    unscaledBoundingSphere : va.boundingSphere
+                                });
                                 colorCommands.push(command);
                             }
                         }
@@ -1047,17 +1059,6 @@ define([
         var modelCommandLists = this._commandLists;
 
         if (frameState.passes.color) {
-// MODELS_TODO:  IIS hack
-//
-// var rotate = new Matrix4(
-//     1.0, 0.0, 0.0, 0.0,
-//     0.0, Math.cos(-Math.PI / 2.0), -Math.sin(-Math.PI / 2.0), 0.0,
-//     0.0, Math.sin(-Math.PI / 2.0), Math.cos(-Math.PI / 2.0), 0.0,
-//     0.0, 0.0, 0.0, 1.0);
-// var rs = Matrix4.multiplyByUniformScale(rotate, this.scale);
-// this._computedModelMatrix = Matrix4.multiply(this.modelMatrix, rs);
-
-
             if (!Matrix4.equals(this._modelMatrix, this.modelMatrix) ||
                 (this._scale !== this.scale) ||
                 this._transformsDirty) {
@@ -1073,6 +1074,7 @@ define([
                 var scenes = this._scenes;
                 var nodes = this._nodes;
                 var nodeStack = this._nodeStack;
+                var scale = this.scale;
 
                 for (var property in scenes) {
                     if (scenes.hasOwnProperty(property)) {
@@ -1082,12 +1084,15 @@ define([
                         while (nodeStack.length > 0) {
                             var n = nodeStack.pop();
                             var transform = n.computedTransform;
-                            var commands = n.commands;
+                            var commandContainers = n.commandContainers;
 
-                            len = commands.length;
+                            len = commandContainers.length;
                             for (i = 0; i < len; ++i) {
-                                var command = commands[i];
+                                var container = commandContainers[i];
+                                var command = container.command;
+
                                 Matrix4.multiply(this._computedModelMatrix, transform, command.modelMatrix);
+                                command.boundingVolume.radius = container.unscaledBoundingSphere.radius * scale;
                             }
 
                             var children = n.children;
