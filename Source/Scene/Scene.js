@@ -29,7 +29,8 @@ define([
         './FrameState',
         './OrthographicFrustum',
         './PerspectiveOffCenterFrustum',
-        './FrustumCommands'
+        './FrustumCommands',
+        './EllipsoidPrimitive'
     ], function(
         CesiumMath,
         Color,
@@ -60,7 +61,8 @@ define([
         FrameState,
         OrthographicFrustum,
         PerspectiveOffCenterFrustum,
-        FrustumCommands) {
+        FrustumCommands,
+        EllipsoidPrimitive) {
     "use strict";
 
     /**
@@ -87,15 +89,13 @@ define([
         this._commandList = [];
         this._frustumCommandsList = [];
 
-        this._clearColorCommand = new ClearCommand();
-        this._clearColorCommand.clearState = context.createClearState({
-            color : new Color()
-        });
-        this._clearDepthStencilCommand = new ClearCommand();
-        this._clearDepthStencilCommand.clearState = context.createClearState({
-            depth : 1.0,
-            stencil : 0.0
-        });
+        this._clearColorCommand = new ClearCommand(context.createClearState({
+                color : new Color()
+            }), this);
+        this._clearDepthStencilCommand = new ClearCommand(context.createClearState({
+                depth : 1.0,
+                stencil : 0.0
+            }), this);
 
         /**
          * The {@link SkyBox} used to draw the stars.
@@ -156,6 +156,13 @@ define([
          * @type Number
          */
         this.farToNearRatio = 1000.0;
+
+        /**
+         * TODO
+         *
+         * @type Function
+         */
+        this.debugCommandFilter = undefined;
 
         // initial guess at frustums.
         var near = this._camera.frustum.near;
@@ -394,6 +401,30 @@ define([
         }
     }
 
+    function executeCommand(command, scene, context, framebuffer) {
+        if (scene.debugCommandFilter && !scene.debugCommandFilter(command)) {
+            return;
+        }
+
+        command.execute(context, framebuffer);
+
+        // TODO: not when picking
+        if (command.debugShowBoundingVolume && typeof command.boundingVolume !== 'undefined') {
+            // Debug code to draw bounding volume for command.  Not optimized!
+            var sphere = new EllipsoidPrimitive();
+
+            var r = command.boundingVolume.radius;
+            var m = Matrix4.multiplyByTranslation(defaultValue(command.modelMatrix, Matrix4.IDENTITY), command.boundingVolume.center);
+            sphere.modelMatrix = Matrix4.fromTranslation(new Cartesian3(m[12], m[13], m[14]));
+            sphere.radii = new Cartesian3(r, r, r);
+
+            var commandList = [];
+            sphere.update(context, scene._frameState, commandList);
+            commandList[0].colorList[0].execute(context, framebuffer);
+            sphere.destroy();
+        }
+    }
+
     function executeCommands(scene, framebuffer) {
         var camera = scene._camera;
         var frustum = camera.frustum.clone();
@@ -413,11 +444,11 @@ define([
         us.updateFrustum(frustum);
 
         if (typeof skyBoxCommand !== 'undefined') {
-            skyBoxCommand.execute(context, framebuffer);
+            executeCommand(skyBoxCommand, scene, context, framebuffer);
         }
 
         if (typeof skyAtmosphereCommand !== 'undefined') {
-            skyAtmosphereCommand.execute(context, framebuffer);
+            executeCommand(skyAtmosphereCommand, scene, context, framebuffer);
         }
 
         var clearDepthStencil = scene._clearDepthStencilCommand;
@@ -437,7 +468,7 @@ define([
             var commands = frustumCommands.commands;
             var length = commands.length;
             for (var j = 0; j < length; ++j) {
-                commands[j].execute(context, framebuffer);
+                executeCommand(commands[j], scene, context, framebuffer);
             }
         }
     }
@@ -450,7 +481,7 @@ define([
             var commandList = commandLists[i].overlayList;
             var commandListLength = commandList.length;
             for (var j = 0; j < commandListLength; ++j) {
-                commandList[j].execute(context);
+                executeCommand(commandList[j], scene, context);
             }
         }
     }
