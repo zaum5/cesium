@@ -89,13 +89,13 @@ define([
         this._commandList = [];
         this._frustumCommandsList = [];
 
-        this._clearColorCommand = new ClearCommand(context.createClearState({
-                color : new Color()
-            }), this);
-        this._clearDepthStencilCommand = new ClearCommand(context.createClearState({
-                depth : 1.0,
-                stencil : 0.0
-            }), this);
+        this._clearColorCommand = new ClearCommand(this, context.createClearState({
+            color : new Color()
+        }));
+        this._clearDepthStencilCommand = new ClearCommand(this, context.createClearState({
+            depth : 1.0,
+            stencil : 0.0
+        }));
 
         /**
          * The {@link SkyBox} used to draw the stars.
@@ -158,9 +158,33 @@ define([
         this.farToNearRatio = 1000.0;
 
         /**
-         * TODO
+         * A function that determines what commands are executed for debugging.  As shown in the examples below,
+         * the function receives the command's owner as an argument, and returns a boolean indicating if the
+         * command should be executed.
+         * <p>
+         * The default is <code>undefined</code>, indicating that all commands get executed.
+         * </p>
+         * <p>
+         * This property is for debugging only; it is not for production use.
+         * </p>
          *
          * @type Function
+         * @default undefined
+         *
+         * @see DrawCommand
+         * @see ClearCommand
+         *
+         * @example
+         * // Do not execute any commands.
+         * scene.debugCommandFilter = function(command) {
+         *     return false;
+         * };
+         *
+         * // Execute only the billboard's commands.  That is, only draw the billboard.
+         * var billboards = new BillboardCollection();
+         * scene.debugCommandFilter = function(command) {
+         *     return command.owner === billboards;
+         * };
          */
         this.debugCommandFilter = undefined;
 
@@ -408,14 +432,17 @@ define([
 
         command.execute(context, framebuffer);
 
-        // TODO: not when picking
-        if (command.debugShowBoundingVolume && typeof command.boundingVolume !== 'undefined') {
-            // Debug code to draw bounding volume for command.  Not optimized!
-            var sphere = new EllipsoidPrimitive();
+        if (command.debugShowBoundingVolume &&
+            typeof command.boundingVolume !== 'undefined' &&
+            typeof command.framebuffer === 'undefined') {       // Only for color pass; not pick, shadows, etc.
 
+            // Debug code to draw bounding volume for command.  Not optimized!
+            // Assumes bounding volume is a bounding sphere.
             var r = command.boundingVolume.radius;
             var m = Matrix4.multiplyByTranslation(defaultValue(command.modelMatrix, Matrix4.IDENTITY), command.boundingVolume.center);
-            sphere.modelMatrix = Matrix4.fromTranslation(new Cartesian3(m[12], m[13], m[14]));
+
+            var sphere = new EllipsoidPrimitive();
+            sphere.modelMatrix = Matrix4.fromTranslation(Cartesian3.fromArray(m, 12));
             sphere.radii = new Cartesian3(r, r, r);
 
             var commandList = [];
