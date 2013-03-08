@@ -62,12 +62,12 @@ define([
 //        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/_Ford_Contour_Sedan/model0.json');   // OK
 //        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/_RQ-1_Predator/model0.json');        // OK
 
-        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/duck/duck.json');                     // OK
+//        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/duck/duck.json');                     // OK
 //        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/rambler/Rambler.json');               // Can't invert matrix
-//        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/SuperMurdoch/SuperMurdoch.json');     // OK. scale = 9000.0.
+        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/SuperMurdoch/SuperMurdoch.json');     // OK. scale = 9000.0.
 //        var m = new Model('../../../Apps/CesiumViewer/Gallery/Models/wine/wine.json');                     // OK.
 
-        m.scale = 900000.0;
+        m.scale = 9000.0;
 //        m.modelMatrix = Matrix4.fromTranslation(new Cartesian3(8000000.0, 0.0, 0.0));
         primitives.add(m);
         scene.getPrimitives().setCentralBody(undefined);
