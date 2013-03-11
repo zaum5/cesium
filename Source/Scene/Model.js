@@ -757,6 +757,7 @@ define([
 
 // TODO: This will fail if "main" is part of the name of a called library function.
                 var renamedFS = fs.replace(new RegExp('main', 'g'), 'czm_glTF_old_main');
+// TODO: glTF needs translucent flag so we know if we need its fragment shader.
                 var pickMain =
                     'uniform vec4 czm_glTF_pickColor; \n' +
                     'void main() \n' +
@@ -943,8 +944,9 @@ define([
     function createNodes(context, model) {
         var i;
         var len;
-        var scenes = model._root.scenes;
-        var nodes = model._root.nodes;
+        var root = model._root;
+        var scenes = root.scenes;
+        var nodes = root.nodes;
         var vertexArrays = model._resources.vertexArrays;
         var materials = model._resources.materials;
         var pickIds = model._resources.pickIds;
@@ -960,7 +962,7 @@ define([
                 var n = nodes[scene.node];
                 // Computed transform from the root to this node.  This is
                 // not part of the original model; is used for rendering.
-                n.computedTransform = defaultValue(n.matrix, Matrix4.IDENTITY);
+                n._computedTransform = defaultValue(n.matrix, Matrix4.IDENTITY);
                 nodeStack.push(n);
 
                 while (nodeStack.length > 0) {
@@ -968,15 +970,22 @@ define([
 
                     // DDR commands for this node.  This is not part of the original model;
                     // it is the commands to render this node.
-                    n.commandContainers = [];
-                    var commandContainers = n.commandContainers;
+                    n._commandContainers = [];
+                    var commandContainers = n._commandContainers;
 
                     if (typeof n.meshes !== 'undefined') {
                         var meshes = n.meshes;
                         len = meshes.length;
                         for (i = 0; i < len; ++i) {
                             var mesh = meshes[i];
-                            var pickId = context.createPickId(mesh);  // TODO: model, then mesh.
+
+// TODO: Create type for pick owner?  Use for all primitives.
+                            var owner = {
+                                instance : model,
+                                node : n
+                            };
+
+                            var pickId = context.createPickId(owner);
                             pickIds.push(pickId);
 
                             var pickColorFunction = (function(color) {
@@ -1004,11 +1013,6 @@ define([
                                     }
                                 });
 
-                                var owner = {
-                                    model : model,
-                                    mesh : mesh
-                                };
-
                                 var colorCommand = new DrawCommand(owner);
 //                                colorCommand.debugShowBoundingVolume = true;
                                 colorCommand.boundingVolume = boundingSphere;
@@ -1019,7 +1023,6 @@ define([
                                 colorCommand.uniformMap = material.uniformMap;
                                 colorCommand.renderState = renderState;
 
-// TODO: glTF needs translucent flag so we know if we need its fragment shader.
                                 var pickCommand = new DrawCommand(owner);
                                 pickCommand.boundingVolume = boundingSphere;
                                 pickCommand.modelMatrix = new Matrix4();            // Computed in update()
@@ -1028,7 +1031,7 @@ define([
                                 pickCommand.shaderProgram = technique.pickProgram;
                                 pickCommand.uniformMap = combine([
                                     material.uniformMap, {
-                                    czm_glTF_pickColor : pickColorFunction
+                                        czm_glTF_pickColor : pickColorFunction
                                     }], false, false);
                                 pickCommand.renderState = renderState;
 
@@ -1048,7 +1051,7 @@ define([
                     len = children.length;
                     for (i = 0; i < len; ++i) {
                         var child = nodes[children[i]];
-                        child.computedTransform = Matrix4.multiply(n.computedTransform, defaultValue(child.matrix, Matrix4.IDENTITY));
+                        child._computedTransform = Matrix4.multiply(n._computedTransform, defaultValue(child.matrix, Matrix4.IDENTITY));
                         nodeStack.push(child);
                     }
                 }
@@ -1120,8 +1123,8 @@ define([
 
                         while (nodeStack.length > 0) {
                             var n = nodeStack.pop();
-                            var transform = n.computedTransform;
-                            var commandContainers = n.commandContainers;
+                            var transform = n._computedTransform;
+                            var commandContainers = n._commandContainers;
 
                             len = commandContainers.length;
                             for (i = 0; i < len; ++i) {
