@@ -403,17 +403,19 @@ define([
     };
 
     function createAttributeIndices(technique) {
-        var indices = {};
+        var indices = {
+            bySymbol : {
+            },
+            bySemantic : {
+            }
+        };
 
         var attributes = technique.attributes;
-        var j = 0;
 
-        for (var property in attributes) {
-            if (attributes.hasOwnProperty(property)) {
-// ************ MODELS_TODO: This is a hack that assumes symbol and semantic never have the same name for all attributes.  Break into separate data structures.
-                indices[attributes[property].symbol] = j;
-                indices[attributes[property].semantic] = j++;
-            }
+        for (var i = 0; i < attributes.length; ++i) {
+            var attribute = attributes[i];
+            indices.bySymbol[attribute.symbol] = i;
+            indices.bySemantic[attribute.semantic] = i;
         }
 
         return indices;
@@ -779,8 +781,8 @@ define([
                 var pickFS = renamedFS + '\n' + pickMain;
 
                 var loadedTechnique = {
-                    program : context.getShaderCache().getShaderProgram(vs, fs, attributeIndices),
-                    pickProgram : context.getShaderCache().getShaderProgram(vs, pickFS, attributeIndices),
+                    program : context.getShaderCache().getShaderProgram(vs, fs, attributeIndices.bySymbol),
+                    pickProgram : context.getShaderCache().getShaderProgram(vs, pickFS, attributeIndices.bySymbol),
                     attributeIndices : attributeIndices,
                     uniforms : technique.uniforms,
                     states : technique.states
@@ -907,7 +909,7 @@ define([
                 var accessor = mesh.accessors[vertexAttribute.accessor];
 
                 attributes.push({
-                    index                  : attributeIndices[vertexAttribute.semantic],
+                    index                  : attributeIndices.bySemantic[vertexAttribute.semantic],
                     enabled                : true,
                     vertexBuffer           : vertexBuffers[JSON.stringify(accessor)],
                     componentsPerAttribute : accessor.elementsPerValue,
