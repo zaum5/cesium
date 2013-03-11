@@ -187,14 +187,6 @@ define([
 
         handleMesh: {
             value: function(entryID, description, userInfo) {
-                var meshes = userInfo._resourcesToCreate.meshes;
-
-                if (typeof meshes[entryID] !== 'undefined') {
-                    throw new RuntimeError('Duplicate mesh entryID, ' + entryID);
-                }
-
-                meshes[entryID] = clone(description);
-
                 return true;
             }
         },
@@ -226,7 +218,6 @@ define([
         resourcesToCreate.shaders = {};
         resourcesToCreate.techniques = {};
         resourcesToCreate.materials = {};
-        resourcesToCreate.meshes = {};
         resourcesToCreate.jsonReady = false;
         resourcesToCreate.pendingRequests = 0;
     }
@@ -347,8 +338,6 @@ define([
             techniques : {
             },
             materials : {
-            },
-            meshes : {
             },
             jsonReady : false,
             pendingRequests : 0
@@ -936,7 +925,7 @@ define([
     }
 
     function createMeshes(context, model) {
-        var meshes = model._resourcesToCreate.meshes;
+        var meshes = model._root.meshes;
 
         for (var property in meshes) {
             if (meshes.hasOwnProperty(property)) {
