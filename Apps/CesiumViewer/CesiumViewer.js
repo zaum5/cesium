@@ -9,7 +9,9 @@ define([
         'Widgets/Dojo/CesiumViewerWidget',
         'Core/Matrix4',
         'Core/Cartesian3',
-        'Scene/Model'
+        'Scene/Model',
+        'Core/ScreenSpaceEventHandler',
+        'Core/ScreenSpaceEventType'
     ], function(
         win,
         domClass,
@@ -20,7 +22,9 @@ define([
         CesiumViewerWidget,
         Matrix4,
         Cartesian3,
-        Model
+        Model,
+        ScreenSpaceEventHandler,
+        ScreenSpaceEventType
 ) {
 
     "use strict";
@@ -71,6 +75,15 @@ define([
 //        m.modelMatrix = Matrix4.fromTranslation(new Cartesian3(8000000.0, 0.0, 0.0));
         primitives.add(m);
         scene.getPrimitives().setCentralBody(undefined);
+
+        var handler = new ScreenSpaceEventHandler(scene.getCanvas());
+        handler.setInputAction(
+            function (movement) {
+                var pickedObject = scene.pick(movement.endPosition);
+                console.log(pickedObject);
+            },
+            ScreenSpaceEventType.MOUSE_MOVE
+        );
 
         domClass.remove(win.body(), 'loading');
     });

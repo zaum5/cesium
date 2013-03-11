@@ -16,6 +16,7 @@ define([
         '../Core/BoundingSphere',
         '../Core/defaultValue',
         '../Core/destroyObject',
+        '../Core/combine',
         '../Renderer/BufferUsage',
         '../Renderer/CommandLists',
         '../Renderer/CullFace',
@@ -40,6 +41,7 @@ define([
         BoundingSphere,
         defaultValue,
         destroyObject,
+        combine,
         BufferUsage,
         CommandLists,
         CullFace,
@@ -206,29 +208,13 @@ define([
 
         handleScene: {
             value: function(entryID, description, userInfo) {
-                var scenes = userInfo._resourcesToCreate.scenes;
-
-                if (typeof scenes[entryID] !== 'undefined') {
-                    throw new RuntimeError('Duplicate scene entryID, ' + entryID);
-                }
-
-                scenes[entryID] = clone(description);
                 userInfo._resourcesToCreate.jsonReady = true;
-
                 return true;
             }
         },
 
         handleNode: {
             value: function(entryID, description, userInfo) {
-                var nodes = userInfo._resourcesToCreate.nodes;
-
-                if (typeof nodes[entryID] !== 'undefined') {
-                    throw new RuntimeError('Duplicate node entryID, ' + entryID);
-                }
-
-                nodes[entryID] = clone(description);
-
                 return true;
             }
         }
@@ -241,8 +227,6 @@ define([
         resourcesToCreate.techniques = {};
         resourcesToCreate.materials = {};
         resourcesToCreate.meshes = {};
-        resourcesToCreate.nodes = {};
-        resourcesToCreate.scenes = {};
         resourcesToCreate.jsonReady = false;
         resourcesToCreate.pendingRequests = 0;
     }
@@ -252,6 +236,7 @@ define([
         for (var shader in techniques) {
             if (techniques.hasOwnProperty(shader)) {
                 techniques[shader].program.release();
+                techniques[shader].pickProgram.release();
             }
         }
 
@@ -276,12 +261,18 @@ define([
             }
         }
 
+        var pickIds = resources.pickIds;
+        for (var i = 0; i < pickIds.length; ++i) {
+            pickIds.destroy();
+        }
+
         resources.techniques = {};
         resources.materials = {};
         resources.textures = {};
         resources.vertexBuffers = {};
         resources.indexBuffers = {};
         resources.vertexArrays = {};
+        resources.pickIds = [];
     }
 
     /**
@@ -343,6 +334,7 @@ define([
         this.show = true;
 
         this._colorCommands = [];
+        this._pickCommands = [];
         this._commandLists = new CommandLists(); // To reduce allocations in update()
 
         this._resourcesToCreate = {
@@ -357,10 +349,6 @@ define([
             materials : {
             },
             meshes : {
-            },
-            nodes : {
-            },
-            scenes : {
             },
             jsonReady : false,
             pendingRequests : 0
@@ -378,11 +366,12 @@ define([
             indexBuffers : {
             },
             vertexArrays : {
-            }
+            },
+            pickIds : []
         };
 
-        this._scenes = {};
-        this._nodes = {};
+        this._modelLoader = undefined;
+        this._root = undefined;
         this._nodeStack = []; // To reduce allocations in update()
 
         if (typeof url !== 'undefined') {
@@ -401,15 +390,16 @@ define([
         }
 
         this._colorCommands = [];
+        this._pickCommands = [];
         destroyResourcesToCreate(this._resourcesToCreate);
         destroyResources(this._resources);
-        this._scenes = {};
-        this._nodes = {};
+        this._root = undefined;
         this._nodeStack = [];
 
         var modelLoader = Object.create(ModelLoader);
         modelLoader.initWithPath(url);
         modelLoader.load(this);
+        this._modelLoader = modelLoader;
     };
 
     function createAttributeIndices(technique) {
@@ -774,8 +764,23 @@ define([
 
                 var attributeIndices = createAttributeIndices(technique);
 
+// TODO: This will fail if "main" is part of the name of a called library function.
+                var renamedFS = fs.replace(new RegExp('main', 'g'), 'czm_glTF_old_main');
+                var pickMain =
+                    'uniform vec4 czm_glTF_pickColor; \n' +
+                    'void main() \n' +
+                    '{ \n' +
+                    '    czm_glTF_old_main(); \n' +
+                    '    if (gl_FragColor.a == 0.0) { \n' +
+                    '        discard; \n' +
+                    '    } \n' +
+                    '    gl_FragColor = czm_glTF_pickColor; \n' +
+                    '}';
+                var pickFS = renamedFS + '\n' + pickMain;
+
                 var loadedTechnique = {
                     program : context.getShaderCache().getShaderProgram(vs, fs, attributeIndices),
+                    pickProgram : context.getShaderCache().getShaderProgram(vs, pickFS, attributeIndices),
                     attributeIndices : attributeIndices,
                     uniforms : technique.uniforms,
                     states : technique.states
@@ -947,11 +952,13 @@ define([
     function createNodes(context, model) {
         var i;
         var len;
-        var scenes = model._resourcesToCreate.scenes;
-        var nodes = model._resourcesToCreate.nodes;
+        var scenes = model._root.scenes;
+        var nodes = model._root.nodes;
         var vertexArrays = model._resources.vertexArrays;
         var materials = model._resources.materials;
+        var pickIds = model._resources.pickIds;
         var colorCommands = model._colorCommands;
+        var pickCommands = model._pickCommands;
         var nodeStack = model._nodeStack;
         var scale = model.scale;
 
@@ -977,24 +984,25 @@ define([
                         var meshes = n.meshes;
                         len = meshes.length;
                         for (i = 0; i < len; ++i) {
-                            var vas = vertexArrays[meshes[i]];
+                            var mesh = meshes[i];
+                            var pickId = context.createPickId(mesh);  // TODO: model, then mesh.
+                            pickIds.push(pickId);
 
+                            var pickColorFunction = (function(color) {
+                                return function() {
+                                    return color;
+                                };
+                            }(pickId.normalizedRgba));
+
+                            var vas = vertexArrays[mesh];
                             var vasLen = vas.length;
                             for (var j = 0; j < vasLen; ++j) {
                                 var va = vas[j];
                                 var material = materials[va.materialID];
                                 var technique = material.technique;
 
-                                var command = new DrawCommand(this);
-                                command.debugShowBoundingVolume = true;
-                                command.boundingVolume = new BoundingSphere(va.boundingSphere.center, va.boundingSphere.radius * scale);
-                                command.modelMatrix = new Matrix4();            // Computed in update()
-                                command.primitiveType = va.primitive;
-                                command.vertexArray = va.vertexArray;
-                                command.shaderProgram = technique.program;
-                                command.uniformMap = material.uniformMap;
-                                // MODELS_TODO: Complete render state support
-                                command.renderState = context.createRenderState({
+                                var boundingSphere = new BoundingSphere(va.boundingSphere.center, va.boundingSphere.radius * scale);
+                                var renderState = context.createRenderState({    // MODELS_TODO: Complete render state support
                                     depthTest : {
                                         enabled : true
                                     },
@@ -1005,11 +1013,41 @@ define([
                                     }
                                 });
 
+                                var owner = {
+                                    model : model,
+                                    mesh : mesh
+                                };
+
+                                var colorCommand = new DrawCommand(owner);
+//                                colorCommand.debugShowBoundingVolume = true;
+                                colorCommand.boundingVolume = boundingSphere;
+                                colorCommand.modelMatrix = new Matrix4();            // Computed in update()
+                                colorCommand.primitiveType = va.primitive;
+                                colorCommand.vertexArray = va.vertexArray;
+                                colorCommand.shaderProgram = technique.program;
+                                colorCommand.uniformMap = material.uniformMap;
+                                colorCommand.renderState = renderState;
+
+// TODO: glTF needs translucent flag so we know if we need its fragment shader.
+                                var pickCommand = new DrawCommand(owner);
+                                pickCommand.boundingVolume = boundingSphere;
+                                pickCommand.modelMatrix = new Matrix4();            // Computed in update()
+                                pickCommand.primitiveType = va.primitive;
+                                pickCommand.vertexArray = va.vertexArray;
+                                pickCommand.shaderProgram = technique.pickProgram;
+                                pickCommand.uniformMap = combine([
+                                    material.uniformMap, {
+                                    czm_glTF_pickColor : pickColorFunction
+                                    }], false, false);
+                                pickCommand.renderState = renderState;
+
                                 commandContainers.push({
-                                    command : command,
+                                    colorCommand : colorCommand,
+                                    pickCommand : pickCommand,
                                     unscaledBoundingSphere : va.boundingSphere
                                 });
-                                colorCommands.push(command);
+                                colorCommands.push(colorCommand);
+                                pickCommands.push(pickCommand);
                             }
                         }
                     }
@@ -1032,17 +1070,25 @@ define([
 
         // MODELS_TODO: Progressively load; this is embarrassing.
         if (resourcesToCreate.jsonReady && resourcesToCreate.pendingRequests === 0) {
+
+            // TODO: if data URIs are used, we do not want to keep the buffers or images.
+            model._root = model._modelLoader.rootDescription;
+            model._transformsDirty = true;
+            model._modelLoader = undefined;
+
             createTechniques(context, model);
             createMaterials(context, model);
             createMeshes(context, model);
             createNodes(context, model);
-            model._scenes = model._resourcesToCreate.scenes;
-            model._nodes = model._resourcesToCreate.nodes;
-            model._transformsDirty = true;
 
             destroyResourcesToCreate(resourcesToCreate);
         }
+
+        // Return true if resources are loaded.
+        return (typeof model._root !== 'undefined');
     }
+
+    var emptyArray = [];
 
     /**
      * @private
@@ -1051,15 +1097,14 @@ define([
      */
     Model.prototype.update = function(context, frameState, commandList) {
         if (!this.show ||
+            !createResources(context, this) ||
             (frameState.mode !== SceneMode.SCENE3D)) {
             return;
         }
 
-        createResources(context, this);
-
         var modelCommandLists = this._commandLists;
 
-        if (frameState.passes.color) {
+        if (frameState.passes.color || frameState.passes.pick) {
             if (!Matrix4.equals(this._modelMatrix, this.modelMatrix) ||
                 (this._scale !== this.scale) ||
                 this._transformsDirty) {
@@ -1072,8 +1117,8 @@ define([
 
                 var i;
                 var len;
-                var scenes = this._scenes;
-                var nodes = this._nodes;
+                var scenes = this._root.scenes;
+                var nodes = this._root.nodes;
                 var nodeStack = this._nodeStack;
                 var scale = this.scale;
 
@@ -1090,10 +1135,15 @@ define([
                             len = commandContainers.length;
                             for (i = 0; i < len; ++i) {
                                 var container = commandContainers[i];
-                                var command = container.command;
+                                var colorCommand = container.colorCommand;
+                                var pickCommand = container.pickCommand;
+                                var radius = container.unscaledBoundingSphere.radius * scale;
 
-                                Matrix4.multiply(this._computedModelMatrix, transform, command.modelMatrix);
-                                command.boundingVolume.radius = container.unscaledBoundingSphere.radius * scale;
+                                Matrix4.multiply(this._computedModelMatrix, transform, colorCommand.modelMatrix);
+                                colorCommand.boundingVolume.radius = radius;
+
+                                Matrix4.clone(colorCommand.modelMatrix, pickCommand.modelMatrix);
+                                pickCommand.boundingVolume.radius = radius;
                             }
 
                             var children = n.children;
@@ -1106,7 +1156,9 @@ define([
                 }
             }
 
-            modelCommandLists.colorList = this._colorCommands;
+            modelCommandLists.colorList = frameState.passes.color ? this._colorCommands : emptyArray;
+            modelCommandLists.pickList = frameState.passes.pick ? this._pickCommands : emptyArray;
+
             commandList.push(modelCommandLists);
         }
     };
