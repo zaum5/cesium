@@ -755,8 +755,7 @@ define([
 
                 var attributeIndices = createAttributeIndices(technique);
 
-// TODO: This will fail if "main" is part of the name of a called library function.
-                var renamedFS = fs.replace(new RegExp('main', 'g'), 'czm_glTF_old_main');
+                var renamedFS = fs.replace(/void\s+main\s*\(\s*(?:void)?\s*\)/g, 'void czm_glTF_old_main()');
 // TODO: glTF needs translucent flag so we know if we need its fragment shader.
                 var pickMain =
                     'uniform vec4 czm_glTF_pickColor; \n' +
