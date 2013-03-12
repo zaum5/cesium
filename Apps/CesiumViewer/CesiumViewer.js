@@ -80,7 +80,9 @@ define([
         handler.setInputAction(
             function (movement) {
                 var pickedObject = scene.pick(movement.endPosition);
-                console.log(pickedObject);
+                if (typeof pickedObject !== 'undefined') {
+                    console.log("Node " + pickedObject.node.name + ", Mesh " + pickedObject.mesh.name);
+                }
             },
             ScreenSpaceEventType.MOUSE_MOVE
         );

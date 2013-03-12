@@ -945,6 +945,7 @@ define([
         var len;
         var root = model._root;
         var scenes = root.scenes;
+        var rootMeshes = root.meshes;
         var nodes = root.nodes;
         var vertexArrays = model._resources.vertexArrays;
         var materials = model._resources.materials;
@@ -981,7 +982,8 @@ define([
 // TODO: Create type for pick owner?  Use for all primitives.
                             var owner = {
                                 instance : model,
-                                node : n
+                                node : n,
+                                mesh : rootMeshes[mesh]
                             };
 
                             var pickId = context.createPickId(owner);
