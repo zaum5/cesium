@@ -44,12 +44,10 @@ define([
         });
 
         widget.enableDragDrop = false;
-        widget.fullscreenElement = document.body;
         widget.placeAt('cesiumContainer');
-        widget.imagery.domNode.style.display = 'none';
-        widget.viewHomeButton.domNode.style.display = 'none';
         widget.onObjectSelected = doNothing;
         widget.startup();
+        widget.fullscreen.viewModel.fullscreenElement(document.body);
 
         if (rbsp) {
             var viewButton = document.getElementById('viewButtonId');

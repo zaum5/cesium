@@ -71,7 +71,7 @@
 }
 
 .cesium-viewerWidget-home {
-    display: inline-block;
+    display: none;
 	width: 32px;
 	height: 32px;
 	vertical-align: middle;
@@ -110,7 +110,7 @@
 }
 
 .cesium-viewerWidget-baseLayerPickerContainer {
-	display: inline-block;
+	display: none;
 	width: 32px;
 	height: 32px;
 	vertical-align: middle;
@@ -141,39 +141,40 @@
     background-size: 60px 30px;
 	width: 60px;
 	height: 30px;
-@media only screen and (min-width: 600px) and (max-width: 900px) {
-	.cesium-viewerWidget-animationContainer {
-		width: 136px;
-		height: 90px;
-	}
-	.cesium-viewerWidget-timelineContainer {
-		left: 137px;
-	}
-	.cesium-viewerWidget-cesiumLogo {
-		left: 146px;
-	}
 }
 
 .cw-agiLogo img {
     border: none;
 }
 
-	.cw-agiLogo {
-		left: 272px;
-	}
+.cw-agiLogo {
+    left: 272px;
 }
 
-@media only screen and (max-width: 599px) {
-	.cesium-viewerWidget-animationContainer {
-		width: 106px;
-		height: 70px;
-	}
-	.cesium-viewerWidget-timelineContainer {
-		left: 107px;
-	}
-	.cesium-viewerWidget-cesiumLogo {
-		left: 116px;
-	}
+@media only screen and (min-width: 0) and (max-width: 599px) {
+    .cesium-viewerWidget-animationContainer {
+        width: 106px;
+        height: 70px;
+    }
+    .cesium-viewerWidget-timelineContainer {
+        left: 107px;
+    }
+    .cesium-viewerWidget-cesiumLogo {
+        left: 116px;
+    }
+}
+
+@media only screen and (min-width: 600px) and (max-width: 900px) {
+    .cesium-viewerWidget-animationContainer {
+        width: 136px;
+        height: 90px;
+    }
+    .cesium-viewerWidget-timelineContainer {
+        left: 137px;
+    }
+    .cesium-viewerWidget-cesiumLogo {
+        left: 146px;
+    }
 }
 
 @media only screen and (max-height: 300px) {
@@ -192,7 +193,7 @@
     .cesium-baseLayerPicker-dropDown {
         max-height: 325px;
     }
-	.cw-agiLogo {
-		left: 242px;
-	}
+    .cw-agiLogo {
+        left: 242px;
+    }
 }

@@ -42,6 +42,7 @@ define([
         '../../Core/Color',
         '../../Core/Matrix4',
         '../../Core/Math',
+        '../../Core/Transforms',
         '../../Scene/PerspectiveFrustum',
         '../../Scene/Material',
         '../../Scene/Scene',
@@ -106,6 +107,7 @@ define([
         Color,
         Matrix4,
         CesiumMath,
+        Transforms,
         PerspectiveFrustum,
         Material,
         Scene,
@@ -1254,10 +1256,7 @@ Earth at night as seen by NASA/NOAA\'s Suomi NPP satellite.',
             var widget = this;
             function updateAndRender() {
                 widget.scene.getCamera().frustum.far = 10000000000;
-                var currentTime = animationController.update();
-                widget.initializeFrame();
-                widget.update(currentTime);
-                widget.render(currentTime);
+                widget.updateAndRender();
                 requestAnimationFrame(updateAndRender);
             }
             requestAnimationFrame(updateAndRender);
