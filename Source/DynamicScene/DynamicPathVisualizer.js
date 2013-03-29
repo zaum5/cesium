@@ -144,7 +144,14 @@ define([
         }
 
         polyline.setShow(true);
-        polyline.setPositions(positionProperty._getValueRangeInReferenceFrame(sampleStart, sampleStop, time, this._referenceFrame, 60.0, polyline.getPositions()));
+
+        var resolution = 60.0;
+        property = dynamicPath.resolution;
+        if (typeof property !== 'undefined') {
+            resolution = property.getValue(time);
+        }
+
+        polyline.setPositions(positionProperty._getValueRangeInReferenceFrame(sampleStart, sampleStop, time, this._referenceFrame, resolution, polyline.getPositions()));
 
         property = dynamicPath.color;
         if (typeof property !== 'undefined') {
@@ -252,7 +259,7 @@ define([
         var oldCollection = this._dynamicObjectCollection;
         if (oldCollection !== dynamicObjectCollection) {
             if (typeof oldCollection !== 'undefined') {
-                oldCollection.objectsRemoved.removeEventListener(DynamicPathVisualizer.prototype._onObjectsRemoved);
+                oldCollection.objectsRemoved.removeEventListener(DynamicPathVisualizer.prototype._onObjectsRemoved, this);
                 this.removeAllPrimitives();
             }
             this._dynamicObjectCollection = dynamicObjectCollection;
