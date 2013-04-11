@@ -6,6 +6,7 @@ define([
         '../Core/Iso8601',
         './DynamicColorMaterial',
         './DynamicImageMaterial',
+        './DynamicVideoMaterial',
         './DynamicVideoMaterial'
     ], function(
         JulianDate,
@@ -14,10 +15,11 @@ define([
         Iso8601,
         DynamicColorMaterial,
         DynamicImageMaterial,
+        DynamicGridMaterial,
         DynamicVideoMaterial) {
     "use strict";
 
-    var potentialMaterials = [DynamicColorMaterial, DynamicImageMaterial, DynamicVideoMaterial];
+    var potentialMaterials = [DynamicColorMaterial, DynamicImageMaterial, DynamicGridMaterial, DynamicVideoMaterial];
 
     /**
      * A dynamic property which stores data for multiple types of materials
