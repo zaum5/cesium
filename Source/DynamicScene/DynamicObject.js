@@ -104,6 +104,12 @@ define([
         this.ellipsoid = undefined;
 
         /**
+        * Gets or sets the ellipse.
+        * @type DynamicEllipse
+        */
+        this.ellipse = undefined;
+
+        /**
          * Gets or sets the label.
          * @type DynamicLabel
          */
@@ -180,9 +186,8 @@ define([
         }
 
         var availabilityValue = availability.contains(time);
-
         this._cachedAvailabilityDate = JulianDate.clone(time, this._cachedAvailabilityDate);
-        this._cachedAvailabilityValue = availability.contains(time);
+        this._cachedAvailabilityValue = availabilityValue;
 
         return availabilityValue;
     };
