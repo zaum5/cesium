@@ -8,6 +8,7 @@ define([
         '../Core/DeveloperError',
         '../Core/Intersect',
         '../Core/Matrix4',
+        './ComplexConicSensorVolume',
         './CustomSensorVolume',
         './RectangularPyramidSensorVolume',
         './SceneMode'
@@ -20,6 +21,7 @@ define([
         DeveloperError,
         Intersect,
         Matrix4,
+        ComplexConicSensorVolume,
         CustomSensorVolume,
         RectangularPyramidSensorVolume,
         SceneMode) {
@@ -47,6 +49,20 @@ define([
      */
     SensorVolumeCollection.prototype.addRectangularPyramid = function(template) {
         var sensor = new RectangularPyramidSensorVolume(template);
+        this._sensors.push(sensor);
+        return sensor;
+    };
+
+    /**
+     * DOC_TBA
+     *
+     * @memberof SensorVolumeCollection
+     *
+     * @see SensorVolumeCollection#addRectangularPyramid
+     * @see SensorVolumeCollection#addCustom
+     */
+    SensorVolumeCollection.prototype.addComplexConic = function(template) {
+        var sensor = new ComplexConicSensorVolume(template);
         this._sensors.push(sensor);
         return sensor;
     };
