@@ -131,7 +131,8 @@ define([
         this._rsColor = undefined;
         this._rsColorWithoutDepthTest = undefined;
 
-        this._clearDepthCommand = new ClearCommand(this);
+        this._clearDepthCommand = new ClearCommand();
+        this._clearDepthCommand.owner = this;
 
         this._depthCommand = new DrawCommand(this);
         this._depthCommand.primitiveType = PrimitiveType.TRIANGLES;
@@ -614,7 +615,7 @@ define([
             this._lastOceanNormalMapUrl = this.oceanNormalMapUrl;
 
             var that = this;
-            when(loadImage(this.oceanNormalMapUrl, true), function(image) {
+            when(loadImage(this.oceanNormalMapUrl), function(image) {
                 that._oceanNormalMap = that._oceanNormalMap && that._oceanNormalMap.destroy();
                 that._oceanNormalMap = context.createTexture2D({
                     source : image

@@ -21,7 +21,7 @@ define([
     };
 
     /**
-     * Returns a shader program from the cache, or a creates and caches a new shader program,
+     * Returns a shader program from the cache, or creates and caches a new shader program,
      * given the GLSL vertex and fragment shader source and attribute locations.
      * <p>
      * The difference between this and {@link ShaderCache#getShaderProgram}, is this is used to
@@ -30,7 +30,7 @@ define([
      *
      * @memberof ShaderCache
      *
-     * @param {ShaderProgram} shaderProgram The shader program that it being reassigned.  This can be <code>undefined</code>.
+     * @param {ShaderProgram} shaderProgram The shader program that is being reassigned.  This can be <code>undefined</code>.
      * @param {String} vertexShaderSource The GLSL source for the vertex shader.
      * @param {String} fragmentShaderSource The GLSL source for the fragment shader.
      * @param {Object} attributeLocations Indices for the attribute inputs to the vertex shader.
@@ -123,7 +123,7 @@ define([
             }
         }
 
-        return null;
+        return undefined;
     };
 
     /**

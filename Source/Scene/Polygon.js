@@ -156,7 +156,6 @@ define([
         this._rs = undefined;
 
         this._spPick = undefined;
-        this._rsPick = undefined;
 
         this._vertices = new PositionVertices();
         this._pickId = undefined;
@@ -278,7 +277,7 @@ define([
 
         this._pickColorUniform = {
             czm_pickColor : function() {
-                return that._pickId.normalizedRgba;
+                return that._pickId.color;
             }
         };
 
@@ -794,16 +793,6 @@ define([
                 this._pickId = context.createPickId(this);
             }
 
-            if (typeof this._rsPick === 'undefined') {
-                this._rsPick = context.createRenderState({
-                    // TODO: Should not need this in 2D/columbus view, but is hiding a triangulation issue.
-                    cull : {
-                        enabled : true,
-                        face : CullFace.BACK
-                    }
-                });
-            }
-
             // Recompile shader when material changes
             if (materialChanged || typeof this._spPick === 'undefined') {
                 var pickFS = createPickFragmentShaderSource(
@@ -830,7 +819,7 @@ define([
                 command.shaderProgram = this._spPick,
                 command.uniformMap = this._pickUniforms;
                 command.vertexArray = vas[j];
-                command.renderState = this._rsPick;
+                command.renderState = this._rs;
             }
         }
 

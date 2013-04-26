@@ -1,5 +1,6 @@
 /*global define*/
 define([
+        '../Core/defaultValue',
         '../Core/DeveloperError',
         '../Core/Color',
         '../Core/combine',
@@ -22,6 +23,7 @@ define([
         '../Shaders/CustomSensorVolumeFS',
         './SceneMode'
     ], function(
+        defaultValue,
         DeveloperError,
         Color,
         combine,
@@ -59,10 +61,10 @@ define([
      * @see SensorVolumeCollection#addCustom
      */
     var CustomSensorVolume = function(template) {
-        var t = template || {};
+        var t = defaultValue(template, {});
 
         this._pickId = undefined;
-        this._pickIdThis = t._pickIdThis || this;
+        this._pickIdThis = defaultValue(t._pickIdThis, this);
 
         this._colorCommand = new DrawCommand(this);
         this._pickCommand = new DrawCommand(this);
@@ -123,15 +125,15 @@ define([
          * var center = ellipsoid.cartographicToCartesian(Cartographic.fromDegrees(-75.59777, 40.03883));
          * sensor.modelMatrix = Transforms.eastNorthUpToFixedFrame(center);
          */
-        this.modelMatrix = t.modelMatrix || Matrix4.IDENTITY.clone();
+        this.modelMatrix = (typeof t.modelMatrix === 'undefined' ) ? Matrix4.IDENTITY.clone() : t.modelMatrix;
 
         /**
          * DOC_TBA
          *
          * @type BufferUsage
          */
-        this.bufferUsage = t.bufferUsage || BufferUsage.STATIC_DRAW;
-        this._bufferUsage = t.bufferUsage || BufferUsage.STATIC_DRAW;
+        this.bufferUsage = (typeof t.bufferUsage === 'undefined') ? BufferUsage.STATIC_DRAW : t.bufferUsage;
+        this._bufferUsage = this.bufferUsage;
 
         /**
          * DOC_TBA
@@ -327,13 +329,16 @@ define([
 
         // Initial render state creation
         if (typeof this._colorCommand.renderState === 'undefined') {
-            this._colorCommand.renderState = this._pickCommand.renderState = context.createRenderState({
+            var rs = context.createRenderState({
                 depthTest : {
                     enabled : true
                 },
                 depthMask : false,
                 blending : BlendingState.ALPHA_BLEND
             });
+
+            this._colorCommand.renderState = rs;
+            this._pickCommand.renderState = rs;
         }
         // This would be better served by depth testing with a depth buffer that does not
         // include the ellipsoid depth - or a g-buffer containing an ellipsoid mask
@@ -367,7 +372,7 @@ define([
             var colorCommand = this._colorCommand;
 
             // Recompile shader when material changes
-            if (materialChanged) {
+            if (materialChanged || typeof colorCommand.shaderProgram === 'undefined') {
                 var fsSource =
                     '#line 0\n' +
                     ShadersSensorVolume +
@@ -392,7 +397,7 @@ define([
             }
 
             // Recompile shader when material changes
-            if (materialChanged || typeof this._pickCommand.shaderProgram === 'undefined') {
+            if (materialChanged || typeof pickCommand.shaderProgram === 'undefined') {
                 var pickFS = createPickFragmentShaderSource(
                     '#line 0\n' +
                     ShadersSensorVolume +
@@ -407,7 +412,7 @@ define([
                 var that = this;
                 pickCommand.uniformMap = combine([this._uniforms, this._material._uniforms, {
                     czm_pickColor : function() {
-                        return that._pickId.normalizedRgba;
+                        return that._pickId.color;
                     }
                 }], false, false);
             }

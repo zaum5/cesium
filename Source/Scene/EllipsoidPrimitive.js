@@ -190,7 +190,7 @@ define([
 
         this._pickUniforms = {
             czm_pickColor : function() {
-                return that._pickId.normalizedRgba;
+                return that._pickId.color;
             }
         };
     };
