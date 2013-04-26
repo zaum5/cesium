@@ -49,45 +49,64 @@ vec3 gammaVignetteFilter(vec3 rgb, float amount, float gamma)
 vec3 rgbFromTemperature(float temperatureKelvin)
 {
     // Clamp the supported Kelvin temperature range
-    if (temperatureKelvin < 1000.0){ temperatureKelvin = 1000.0; }
-    if (temperatureKelvin > 40000.0){ temperatureKelvin = 40000.0; } 
+    if (temperatureKelvin < 1000.0)
+    {
+        temperatureKelvin = 1000.0;
+    }
+
+    if (temperatureKelvin > 40000.0)
+    {
+        temperatureKelvin = 40000.0;
+    }
     
     temperatureKelvin /= 100.0;
     
-    float r, g, b, tmpCalc;
+    vec3 rgb;
+    float tmpCalc;
     
     // Red
-    if (temperatureKelvin <= 66.0){
-        r = 1.0;
-    } else {
+    if (temperatureKelvin <= 66.0)
+    {
+        rgb.r = 1.0;
+    }
+    else
+    {
         tmpCalc = temperatureKelvin - 60.0;
         tmpCalc = 329.698727446 * pow(tmpCalc, -0.1332047592);
-        r = tmpCalc / 255.0;
+        rgb.r = tmpCalc / 255.0;
     }
     
     // Green
-    if (temperatureKelvin <= 66.0){
+    if (temperatureKelvin <= 66.0)
+    {
         tmpCalc = temperatureKelvin;
         tmpCalc = 99.4708025861 * log(tmpCalc) - 161.1195681661;
-        g = tmpCalc / 255.0;
-    } else {
+        rgb.g = tmpCalc / 255.0;
+    }
+    else
+    {
         tmpCalc = temperatureKelvin - 60.0;
         tmpCalc = 288.1221695283 * pow(tmpCalc, -0.0755148492);
-        g = tmpCalc / 255.0;
+        rgb.g = tmpCalc / 255.0;
     }
     
     // Blue
-    if (temperatureKelvin >= 66.0){
-        b = 1.0;
-    } else if (temperatureKelvin <= 19.0){
-        b = 0.0;
-    } else {
+    if (temperatureKelvin >= 66.0)
+    {
+        rgb.b = 1.0;
+    }
+    else if (temperatureKelvin <= 19.0)
+    {
+        rgb.b = 0.0;
+    }
+    else
+    {
         tmpCalc = temperatureKelvin - 10.0;
         tmpCalc = 138.5177312231 * log(tmpCalc) - 305.0447927307;
-        b = tmpCalc / 255.0;
+        rgb.b = tmpCalc / 255.0;
     }
     
-    return clamp(vec3(r, g, b), vec3(0.0), vec3(1.0));
+    return clamp(rgb, vec3(0.0), vec3(1.0));
 }
 
 // Apply color temperature as a blend
@@ -113,7 +132,8 @@ vec3 applyTemperatureB(vec3 rgb, vec3 temperatureRgb)
 {
     float oldLuminance = czm_luminance(rgb);
     
-    if( oldLuminance < czm_epsilon6){
+    if (oldLuminance < czm_epsilon6)
+    {
         return vec3(0.0);
     }
         

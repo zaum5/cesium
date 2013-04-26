@@ -10,6 +10,7 @@ define([
         'Shaders/PostProcessFilters/BlackAndWhite',
         'Shaders/PostProcessFilters/NightVision',
         'Shaders/PostProcessFilters/Toon',
+        'Shaders/PostProcessFilters/Lomo',
         'Widgets/Dojo/checkForChromeFrame',
         'Widgets/Dojo/CesiumViewerWidget'
     ], function(
@@ -23,6 +24,7 @@ define([
         BlackAndWhite,
         NightVision,
         Toon,
+        Lomo,
         checkForChromeFrame,
         CesiumViewerWidget) {
     "use strict";
@@ -55,8 +57,9 @@ define([
 //        var filter = new PostProcessFilter({ source : 'void main(void) { gl_FragColor = vec4(1.0); }'});
 //        var filter = new PostProcessFilter({ source : 'varying vec2 v_textureCoordinates; uniform sampler2D czm_color; void main(void) { gl_FragColor = texture2D(czm_color, v_textureCoordinates); }'});
 //        var filter = new PostProcessFilter({ source : BlackAndWhite });
-        var filter = new PostProcessFilter({ source : NightVision });
+//        var filter = new PostProcessFilter({ source : NightVision });
 //        var filter = new PostProcessFilter({ source : Toon });
+        var filter = new PostProcessFilter({ source : Lomo });
 
         scene.postProcessFilters = [filter];
 
