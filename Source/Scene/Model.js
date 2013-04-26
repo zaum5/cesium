@@ -984,7 +984,7 @@ define([
                                 return function() {
                                     return color;
                                 };
-                            }(pickId.normalizedRgba));
+                            }(pickId.color));
 
                             var vas = vertexArrays[mesh];
                             var vasLen = vas.length;
