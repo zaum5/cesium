@@ -28,7 +28,11 @@ define([
      */
     var PostProcessEngine = function() {
         this.framebuffer = undefined;
+        this.glowFramebuffer = undefined;
+
         this._colorTexture = undefined;
+// TODO: does the post-process engine need to know about explicit passes?  Or can the scene just configure it?
+        this._glowTexture = undefined;
         this._depthTexture = undefined;
         this._depthRenderbuffer = undefined;
 
@@ -103,30 +107,50 @@ define([
                     width : width,
                     height : height
                 });
+// TODO: only create the glow texture and framebuffer if we know there will be a glow pass
+                var glowTexture = context.createTexture2D({
+                    pixelFormat : PixelFormat.LUMINANCE,
+                    width : width,
+                    height : height
+                });
+
+                var depthTexture = undefined;
+                var depthRenderbuffer = undefined;
 
                 if (context.getDepthTexture()) {
-                    fb = context.createFramebuffer({
-                        colorTexture : colorTexture,
-                        depthTexture : context.createTexture2D({
-                            width : width,
-                            height : height,
-                            pixelFormat : PixelFormat.DEPTH_COMPONENT,
-                            pixelDatatype : PixelDatatype.UNSIGNED_SHORT
-                        })
+                    depthTexture = context.createTexture2D({
+                        width : width,
+                        height : height,
+                        pixelFormat : PixelFormat.DEPTH_COMPONENT,
+                        pixelDatatype : PixelDatatype.UNSIGNED_SHORT
                     });
                 } else {
-                    fb = context.createFramebuffer({
-                        colorTexture : colorTexture,
-                        depthRenderbuffer : context.createRenderbuffer({
-                            format : RenderbufferFormat.DEPTH_COMPONENT16
-                        })
+                    depthRenderbuffer = context.createRenderbuffer({
+                        format : RenderbufferFormat.DEPTH_COMPONENT16
                     });
                 }
 
-                fb.destroyAttachments = false;
-                this.framebuffer = fb;
-                this._colorStep.x = 1.0 / fb.getColorTexture().getWidth();
-                this._colorStep.y = 1.0 / fb.getColorTexture().getHeight();
+                // Only depthTexture or depthRenderbuffer will be defined
+                this.framebuffer = context.createFramebuffer({
+                    colorTexture : colorTexture,
+                    depthTexture : depthTexture,
+                    depthRenderbuffer : depthRenderbuffer,
+                    destroyAttachments : false
+                });
+                this.glowFramebuffer = context.createFramebuffer({
+                    colorTexture : glowTexture,
+                    depthTexture : depthTexture,
+                    depthRenderbuffer : depthRenderbuffer,
+                    destroyAttachments : false
+                });
+
+                this._colorTexture = colorTexture;
+                this._glowTexture = glowTexture;
+                this._depthTexture = depthTexture;
+                this._depthRenderbuffer = depthRenderbuffer;
+                this._colorStep.x = 1.0 / colorTexture.getWidth();
+                this._colorStep.y = 1.0 / colorTexture.getHeight();
+// TODO: need glow step?
             }
 
             var command = this._command;
@@ -145,9 +169,11 @@ define([
                 command.uniformMap = {
 // TODO: use semantics in Touch Up to access color/depth textures
                     czm_color : function() {
-                        return that.framebuffer.getColorTexture();
+                        return that._colorTexture;
                     },
-
+                    czm_glow : function() {
+                        return that._glowTexture;
+                    },
                     u_postprocessColorStep : function() {
                         return that._colorStep;
                     }
@@ -177,9 +203,12 @@ define([
 // TODO: expose this through scene
     PostProcessEngine.prototype.freeResources = function() {
         this._colorTexture = this._colorTexture && this._colorTexture.destroy();
+        this._glowTexture = this._glowTexture && this._glowTexture.destroy();
         this._depthTexture = this._depthTexture && this._depthTexture.destroy();
         this._depthRenderbuffer = this._depthRenderbuffer && this._depthRenderbuffer.destroy();
+
         this.framebuffer = this.framebuffer && this.framebuffer.destroy();
+        this.glowFramebuffer = this.glowFramebuffer && this.glowFramebuffer.destroy();
     };
 
     PostProcessEngine.prototype.isDestroyed = function() {

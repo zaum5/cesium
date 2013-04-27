@@ -105,6 +105,8 @@ define([
             if (description.depthStencilRenderbuffer) {
                 this.setDepthStencilRenderbuffer(description.depthStencilRenderbuffer);
             }
+
+            this.destroyAttachments = defaultValue(description.destroyAttachments, true);
         }
     };
 
