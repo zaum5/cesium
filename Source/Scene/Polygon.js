@@ -28,6 +28,7 @@ define([
         '../Renderer/CullFace',
         '../Renderer/DrawCommand',
         '../Renderer/VertexLayout',
+        '../Renderer/createGlowFragmentShaderSource',
         '../Renderer/createPickFragmentShaderSource',
         './Material',
         './SceneMode',
@@ -62,6 +63,7 @@ define([
         CullFace,
         DrawCommand,
         VertexLayout,
+        createGlowFragmentShaderSource,
         createPickFragmentShaderSource,
         Material,
         SceneMode,
@@ -155,6 +157,7 @@ define([
         this._sp = undefined;
         this._rs = undefined;
 
+        this._spGlow = undefined;
         this._spPick = undefined;
 
         this._vertices = new PositionVertices();
@@ -788,6 +791,36 @@ define([
             }
         }
 
+        if (pass.glow) {
+            // Recompile shader when material changes
+            if (materialChanged || typeof this._spGlow === 'undefined') {
+                var glowFS = createGlowFragmentShaderSource(
+                    '#line 0\n' +
+                    this.material.shaderSource +
+                    '#line 0\n' +
+                    PolygonFS);
+
+                this._spGlow = context.getShaderCache().replaceShaderProgram(this._spGlow, PolygonVS, glowFS, attributeIndices);
+            }
+
+            commands = this._commandLists.glowList;
+            commands.length = length;
+
+            for (var j = 0; j < length; ++j) {
+                command = commands[j];
+                if (typeof command === 'undefined') {
+                    command = commands[j] = new DrawCommand();
+                }
+
+                command.boundingVolume = boundingVolume;
+                command.primitiveType = PrimitiveType.TRIANGLES;
+                command.shaderProgram = this._spGlow,
+                command.uniformMap = this._drawUniforms;
+                command.vertexArray = vas[j];
+                command.renderState = this._rs;
+            }
+        }
+
         if (pass.pick) {
             if (typeof this._pickId === 'undefined') {
                 this._pickId = context.createPickId(this);
@@ -865,6 +898,7 @@ define([
      */
     Polygon.prototype.destroy = function() {
         this._sp = this._sp && this._sp.release();
+        this._spGlow = this._spGlow && this._spGlow.release();
         this._spPick = this._spPick && this._spPick.release();
         this._vertices = this._vertices.destroy();
         this._pickId = this._pickId && this._pickId.destroy();

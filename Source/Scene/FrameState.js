@@ -71,17 +71,31 @@ define(['../Core/Cartesian2'], function(Cartesian2) {
 
         this.passes = {
                 /**
-                 * <code>true</code> if the primitive should update for a color pass, <code>false</code> otherwise.
+                 * <code>true</code> if the primitive should update for the color pass, <code>false</code> otherwise.
+                 *
                  * @type Boolean
                  */
                 color : false,
+
                 /**
-                 * <code>true</code> if the primitive should update for a picking pass, <code>false</code> otherwise.
+                 * <code>true</code> if the primitive should update for the glow pass, <code>false</code> otherwise.
+                 * The flow pass creates a glow texture indicating which parts of the screen should glow, which is
+                 * used in a glow post-process effect.
+                 *
+                 * @type Boolean
+                 */
+                glow : false,
+
+                /**
+                 * <code>true</code> if the primitive should update for the picking pass, <code>false</code> otherwise.
+                 *
                  * @type Boolean
                  */
                 pick : false,
+
                 /**
-                 * <code>true</code> if the primitive should update for an overlay pass, <code>false</code> otherwise.
+                 * <code>true</code> if the primitive should update for the overlay pass, <code>false</code> otherwise.
+                 *
                  * @type Boolean
                  */
                 overlay : false

@@ -1,9 +1,11 @@
 /*global define*/
 define([
+        '../Core/defaultValue',
         '../Core/DeveloperError',
         '../Core/destroyObject',
         './PixelFormat'
     ], function(
+        defaultValue,
         DeveloperError,
         destroyObject,
         PixelFormat) {

@@ -497,6 +497,8 @@ define([
         var frameNumber = CesiumMath.incrementWrap(us.getFrameNumber(), 15000000.0, 1.0);
         updateFrameState(this, frameNumber, time);
         frameState.passes.color = true;
+// TODO: the user should have to turn this on?
+        frameState.passes.glow = true;
         frameState.passes.overlay = true;
 
         us.update(frameState);

@@ -5,6 +5,9 @@ define([
         'dojo/io-query',
         'dojo/parser',
         'dojo/ready',
+        'Core/Math',
+        'Core/Extent',
+        'Scene/Polygon',
         'Scene/CesiumTerrainProvider',
         'Scene/PostProcessFilter',
         'Shaders/PostProcessFilters/BlackAndWhite',
@@ -19,6 +22,9 @@ define([
         ioQuery,
         parser,
         ready,
+        CesiumMath,
+        Extent,
+        Polygon,
         CesiumTerrainProvider,
         PostProcessFilter,
         BlackAndWhite,
@@ -54,12 +60,21 @@ define([
         });
 
         var scene = widget.scene;
+//        var filter = new PostProcessFilter({ source : 'vec4 czm_getFilter(czm_FilterInput filterInput) { return texture2D(czm_color, filterInput.st).rrra; }' });
 //        var filter = new PostProcessFilter({ source : BlackAndWhite });
 //        var filter = new PostProcessFilter({ source : NightVision });
 //        var filter = new PostProcessFilter({ source : Toon });
         var filter = new PostProcessFilter({ source : Lomo });
-
         scene.postProcessFilters = [filter];
+
+        var polygon = new Polygon();
+        polygon.configureExtent(
+            new Extent(
+                CesiumMath.toRadians(-140.0),
+                CesiumMath.toRadians(50.0),
+                CesiumMath.toRadians(-100.0),
+                CesiumMath.toRadians(70.0)));
+        scene.getPrimitives().add(polygon);
 
         domClass.remove(win.body(), 'loading');
     });
