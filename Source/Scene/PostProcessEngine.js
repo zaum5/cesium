@@ -102,7 +102,6 @@ define([
                 });
 
                 if (context.getDepthTexture()) {
-// TODO: test this in Canary
                     fb = context.createFramebuffer({
                         colorTexture : colorTexture,
                         depthTexture : context.createTexture2D({
@@ -121,6 +120,7 @@ define([
                     });
                 }
 
+                this.framebuffer = fb;
                 this._colorStep.x = 1.0 / fb.getColorTexture().getWidth();
                 this._colorStep.y = 1.0 / fb.getColorTexture().getHeight();
             }
@@ -130,6 +130,7 @@ define([
                 var that = this;
 
 // TODO: allow custom scissor test.  Custom viewport?
+// TODO: allow stencil, e.g., to run toon shader on a particular model?
 // TODO: render to framebuffer and ping-pong
                 command = new DrawCommand();
                 command.primitiveType = PrimitiveType.TRIANGLE_FAN;
@@ -155,11 +156,7 @@ define([
             for (var i = 0; i < length; ++i) {
                 filters[i].update(context);
             }
-        } else  {
-            fb = fb && fb.destroy();
         }
-
-        this.framebuffer = fb;
     };
 
     PostProcessEngine.prototype.executeCommands = function(context, passState, filters) {
@@ -171,6 +168,11 @@ define([
             command.shaderProgram = filter.shaderProgram;
             command.execute(context, passState);
         }
+    };
+
+// TODO: expose this through scene
+    PostProcessEngine.prototype.freeResources = function() {
+        this.framebuffer = this.framebuffer && this.framebuffer.destroy();
     };
 
     PostProcessEngine.prototype.isDestroyed = function() {
