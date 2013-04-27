@@ -28,6 +28,10 @@ define([
      */
     var PostProcessEngine = function() {
         this.framebuffer = undefined;
+        this._colorTexture = undefined;
+        this._depthTexture = undefined;
+        this._depthRenderbuffer = undefined;
+
         this._colorStep = new Cartesian2();
         this._command = undefined;
     };
@@ -83,9 +87,8 @@ define([
     }
 
     PostProcessEngine.prototype.update = function(context, filters) {
-        var fb = this.framebuffer;
-
         if ((typeof filters !== 'undefined') && (filters.length > 0)) {
+            var fb = this.framebuffer;
             var width = context.getCanvas().clientWidth;
             var height = context.getCanvas().clientHeight;
 
@@ -94,7 +97,7 @@ define([
                 (fb.getColorTexture().getWidth() !== width) ||
                 (fb.getColorTexture().getHeight() !== height)) {
 
-                fb = fb && fb.destroy();
+                this.freeResources();
 
                 var colorTexture = context.createTexture2D({
                     width : width,
@@ -120,6 +123,7 @@ define([
                     });
                 }
 
+                fb.destroyAttachments = false;
                 this.framebuffer = fb;
                 this._colorStep.x = 1.0 / fb.getColorTexture().getWidth();
                 this._colorStep.y = 1.0 / fb.getColorTexture().getHeight();
@@ -172,6 +176,9 @@ define([
 
 // TODO: expose this through scene
     PostProcessEngine.prototype.freeResources = function() {
+        this._colorTexture = this._colorTexture && this._colorTexture.destroy();
+        this._depthTexture = this._depthTexture && this._depthTexture.destroy();
+        this._depthRenderbuffer = this._depthRenderbuffer && this._depthRenderbuffer.destroy();
         this.framebuffer = this.framebuffer && this.framebuffer.destroy();
     };
 
@@ -180,8 +187,7 @@ define([
     };
 
     PostProcessEngine.prototype.destroy = function() {
-        this.framebuffer = this.framebuffer && this.framebuffer.destroy();
-
+        this.freeResources();
         return destroyObject(this);
     };
 
