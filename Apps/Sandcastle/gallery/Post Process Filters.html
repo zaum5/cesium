@@ -20,7 +20,7 @@
 var widget = new Cesium.CesiumWidget('cesiumContainer');
 var scene = widget.scene;
 
-var filter = new Cesium.PostProcessFilter({ source : 'void main(void) { gl_FragColor = vec4(1.0); }'});
+var filter = new Cesium.PostProcessFilter({ source : 'vec4 czm_getFilter(czm_FilterInput filterInput) { return texture2D(czm_color, filterInput.st).rrra; }'});
 scene.postProcessFilters = [filter];
 
 </script>

@@ -1,15 +1,11 @@
-uniform sampler2D czm_color;
-
-varying vec2 v_textureCoordinates;
-
-void main(void)
+vec4 czm_getFilter(czm_FilterInput filterInput)
 {
     float gradations = 5.0;
-    vec3 rgb = texture2D(czm_color, v_textureCoordinates).rgb;
+    vec3 rgb = texture2D(czm_color, filterInput.st).rgb;
     float luminance = czm_luminance(rgb);
 
     float darkness = luminance * gradations;
     darkness = (darkness - fract(darkness)) / gradations;
 
-    gl_FragColor = vec4(vec3(darkness), 1.0);
+    return vec4(vec3(darkness), 1.0);
 }

@@ -351,6 +351,17 @@ mat3 czm_eastNorthUpToEyeCoordinates(vec3 positionMC, vec3 normalEC)
 ///////////////////////////////////////////////////////////////////////////////
 
 /**
+ * DOC_TBA
+ */
+struct czm_FilterInput
+{
+  vec2 colorStep; // 1.0 / (width, height)
+  vec2 st;
+};
+
+///////////////////////////////////////////////////////////////////////////////
+
+/**
  * Used as input to every material's czm_getMaterial function. 
  *
  * @name czm_materialInput

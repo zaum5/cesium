@@ -1,7 +1,3 @@
-uniform sampler2D czm_color;
-
-varying vec2 v_textureCoordinates;
-
 // TODO: expose as uniforms
 const float vignetteAmount = 1.0;
 const float vignetteGamma = 4.0;
@@ -19,9 +15,9 @@ vec3 gammaCorrect(vec3 rgb, float gamma)
 }
 
 // A vignette function based on gamma (i.e. rather than smoothstep)
-float gammaVignette(float amount, float gamma)
+float gammaVignette(float amount, float gamma, vec2 st)
 {
-    vec2 normalizedTextureCoordinates = 2.0 * v_textureCoordinates - vec2(1.0);
+    vec2 normalizedTextureCoordinates = 2.0 * st - vec2(1.0);
     float grad = length(normalizedTextureCoordinates) / square_root_two;
     grad = pow(grad, gamma);
     return 1.0 - amount * grad;
@@ -38,9 +34,9 @@ vec3 luminanceGamma(vec3 rgb, float gamma)
 }
 
 // Apply a vignette image filter
-vec3 gammaVignetteFilter(vec3 rgb, float amount, float gamma)
+vec3 gammaVignetteFilter(vec3 rgb, float amount, float gamma, vec2 st)
 {
-    float v = gammaVignette(amount, gamma); 
+    float v = gammaVignette(amount, gamma, st); 
     
     return luminanceGamma(rgb, v);
 }
@@ -178,16 +174,16 @@ vec3 lomoGradeFilter(vec3 rgb, float saturation, float colorTemperature, float f
     return rgb;
 }
 
-void main(void)
+vec4 czm_getFilter(czm_FilterInput filterInput)
 {
     // Assume incoming render is largely sRGB aerial imagery.
-    vec3 sRGB = texture2D(czm_color, v_textureCoordinates).rgb;
+    vec3 sRGB = texture2D(czm_color, filterInput.st).rgb;
 
     // Approximate sRGB -> linear
     vec3 rgb = gammaCorrect(sRGB, 1.0 / 2.2);
     
     // Non-perfect lens
-    rgb = gammaVignetteFilter(rgb, vignetteAmount, vignetteGamma);
+    rgb = gammaVignetteFilter(rgb, vignetteAmount, vignetteGamma, filterInput.st);
        
     // Film processing / color grading
     rgb = lomoGradeFilter(rgb, lomoSaturation, lomoColorTemperature, lomoFinalMultiplier);
@@ -195,5 +191,5 @@ void main(void)
     // Approximate linear -> sRGB
     sRGB = gammaCorrect(rgb, 2.2);
     
-    gl_FragColor = vec4(sRGB, 1.0);
+    return vec4(sRGB, 1.0);
 }

@@ -1,12 +1,7 @@
-uniform sampler2D czm_color;
-uniform vec2 czm_colorStep;
-
-varying vec2 v_textureCoordinates;
-
 const int KERNEL_WIDTH = 3; // Odd
 const float offset = 1.0;
 
-void main(void)
+vec4 czm_getFilter(czm_FilterInput filterInput)
 {
     float weightsH[9];  // Row major, bottom to top
     weightsH[0] = 1.0;
@@ -42,8 +37,8 @@ void main(void)
         for (int i = 0; i < KERNEL_WIDTH; ++i)
         {
             vec2 coord = vec2(
-                v_textureCoordinates.s + ((float(i) - offset) * czm_colorStep.s), 
-                v_textureCoordinates.t + ((float(j) - offset) * czm_colorStep.t));
+                filterInput.st.s + ((float(i) - offset) * filterInput.colorStep.s), 
+                filterInput.st.t + ((float(j) - offset) * filterInput.colorStep.t));
             vec3 rgb = texture2D(czm_color, coord).rgb;
             float luminance = czm_luminance(rgb);
 
@@ -54,18 +49,17 @@ void main(void)
 
     if (length(vec2(accumH, accumV)) > 0.1)
     {
-        gl_FragColor = vec4(vec3(0.0), 1.0);
+        return vec4(vec3(0.0), 1.0);
     }
-    else
-    {
-        float quantize = 4.0;
-        
-        vec3 rgb = texture2D(czm_color, v_textureCoordinates).rgb;
-        rgb *= quantize;
-        rgb += vec3(0.5);
-        ivec3 irgb = ivec3(rgb);
-        rgb = vec3(irgb) / quantize;
+    
 
-        gl_FragColor = vec4(rgb, 1.0);
-    }
+    float quantize = 4.0;
+    
+    vec3 rgb = texture2D(czm_color, filterInput.st).rgb;
+    rgb *= quantize;
+    rgb += vec3(0.5);
+    ivec3 irgb = ivec3(rgb);
+    rgb = vec3(irgb) / quantize;
+
+    return vec4(rgb, 1.0);
 }

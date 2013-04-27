@@ -143,7 +143,7 @@ define([
                         return that.framebuffer.getColorTexture();
                     },
 
-                    czm_colorStep : function() {
+                    u_postprocessColorStep : function() {
                         return that._colorStep;
                     }
                 };
