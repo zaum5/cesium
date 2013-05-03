@@ -20,6 +20,7 @@ define([
         '../Core/TaskProcessor',
         '../Core/WebMercatorProjection',
         '../Renderer/DrawCommand',
+        '../Renderer/PassCommand',
         '../Renderer/PixelDatatype',
         '../Renderer/PixelFormat',
         '../Renderer/TextureMagnificationFilter',
@@ -56,6 +57,7 @@ define([
         TaskProcessor,
         WebMercatorProjection,
         DrawCommand,
+        PassCommand,
         PixelDatatype,
         PixelFormat,
         TextureMagnificationFilter,
@@ -757,11 +759,10 @@ define([
             uniformMap2.dayTextureAlpha[0] = 1.0;
 
             var boundingSphereCommand = new DrawCommand();
-            boundingSphereCommand.shaderProgram = shaderSet.getShaderProgram(context, 0);
             boundingSphereCommand.renderState = renderState;
             boundingSphereCommand.primitiveType = PrimitiveType.LINES;
             boundingSphereCommand.vertexArray = surface._debug.boundingSphereVA;
-            boundingSphereCommand.uniformMap = uniformMap2;
+            boundingSphereCommand.pass.color = new PassCommand(shaderSet.getShaderProgram(context, 0), uniformMap2);
 
             colorCommandList.push(boundingSphereCommand);
         }
@@ -1051,11 +1052,12 @@ define([
 
                     colorCommandList.push(command);
 
-                    command.shaderProgram = shaderSet.getShaderProgram(context, tileSetIndex, applyBrightness, applyContrast, applyHue, applySaturation, applyGamma, applyAlpha);
                     command.renderState = renderState;
                     command.primitiveType = TerrainProvider.wireframe ? PrimitiveType.LINES : PrimitiveType.TRIANGLES;
                     command.vertexArray = tile.vertexArray;
-                    command.uniformMap = uniformMap;
+                    command.passes.color = new PassCommand(
+                            shaderSet.getShaderProgram(context, tileSetIndex, applyBrightness, applyContrast, applyHue, applySaturation, applyGamma, applyAlpha),
+                            uniformMap);
 
                     var boundingVolume = tile.boundingSphere3D;
 

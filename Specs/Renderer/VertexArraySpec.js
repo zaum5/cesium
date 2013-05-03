@@ -240,7 +240,7 @@ defineSuite([
 
         context.draw({
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va,
             count : 1
         });
@@ -280,7 +280,7 @@ defineSuite([
 
         context.draw({
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va,
             count : 1
         });
@@ -320,7 +320,7 @@ defineSuite([
 
         context.draw({
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va,
             count : 1
         });
@@ -360,7 +360,7 @@ defineSuite([
 
         context.draw({
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va,
             count : 1
         });

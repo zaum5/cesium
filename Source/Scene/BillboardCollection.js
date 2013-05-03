@@ -1097,8 +1097,8 @@ define([
                 command.modelMatrix = modelMatrix;
                 command.primitiveType = PrimitiveType.TRIANGLES;
                 command.count = va[j].indicesCount;
-                command.shaderProgram = this._sp;
-                command.uniformMap = this._uniforms;
+                command.passCommand.shaderProgram = this._sp;
+                command.passCommand.uniformMap = this._uniforms;
                 command.vertexArray = va[j].va;
                 command.renderState = this._rs;
             }
@@ -1128,8 +1128,8 @@ define([
                 command.modelMatrix = modelMatrix;
                 command.primitiveType = PrimitiveType.TRIANGLES;
                 command.count = va[j].indicesCount;
-                command.shaderProgram = this._spPick;
-                command.uniformMap = this._uniforms;
+                command.passCommand.shaderProgram = this._spPick;
+                command.passCommand.uniformMap = this._uniforms;
                 command.vertexArray = va[j].va;
                 command.renderState = this._rs;
             }

@@ -158,6 +158,10 @@ define([
      * @exception {DeveloperError} this.rectangle must be defined.
      */
     ViewportQuad.prototype.update = function(context, frameState, commandList) {
+
+// TODO:
+return;
+
         if (!this.show) {
             return;
         }
@@ -194,11 +198,11 @@ define([
                     '#line 0\n' +
                     ViewportQuadFS;
 
-                this._overlayCommand.shaderProgram = context.getShaderCache().replaceShaderProgram(
-                    this._overlayCommand.shaderProgram, ViewportQuadVS, fsSource, attributeIndices);
+                this._overlayCommand.passCommand.shaderProgram = context.getShaderCache().replaceShaderProgram(
+                    this._overlayCommand.passCommand.shaderProgram, ViewportQuadVS, fsSource, attributeIndices);
             }
 
-            this._overlayCommand.uniformMap = this._material._uniforms;
+            this._overlayCommand.passCommand.uniformMap = this._material._uniforms;
             commandList.push(this._commandLists);
         }
     };
@@ -239,7 +243,7 @@ define([
      * quad = quad && quad.destroy();
      */
     ViewportQuad.prototype.destroy = function() {
-        this._overlayCommand.shaderProgram = this._overlayCommand.shaderProgram && this._overlayCommand.shaderProgram.release();
+        this._overlayCommand.passCommand.shaderProgram = this._overlayCommand.passCommand.shaderProgram && this._overlayCommand.passCommand.shaderProgram.release();
 
         return destroyObject(this);
     };

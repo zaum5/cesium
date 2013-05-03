@@ -323,8 +323,8 @@ define([
 
     var scratchCullingVolume = new CullingVolume();
     var distances = new Interval();
-    function createPotentiallyVisibleSet(scene, listName) {
-        var commandLists = scene._commandList;
+    function createPotentiallyVisibleSet(scene) {
+        var commandList = scene._commandList;
         var cullingVolume = scene._frameState.cullingVolume;
         var camera = scene._camera;
 
@@ -353,34 +353,30 @@ define([
         }
         cullingVolume = scratchCullingVolume;
 
-        var length = commandLists.length;
-        for (var i = 0; i < length; ++i) {
-            var commandList = commandLists[i][listName];
-            var commandListLength = commandList.length;
-            for (var j = 0; j < commandListLength; ++j) {
-                var command = commandList[j];
-                var boundingVolume = command.boundingVolume;
-                if (typeof boundingVolume !== 'undefined') {
-                    var modelMatrix = defaultValue(command.modelMatrix, Matrix4.IDENTITY);
-                    var transformedBV = boundingVolume.transform(modelMatrix);               //TODO: Remove this allocation.
-                    if (command.cull &&
-                            ((cullingVolume.getVisibility(transformedBV) === Intersect.OUTSIDE) ||
-                             (typeof occluder !== 'undefined' && !occluder.isBoundingSphereVisible(transformedBV)))) {
-                        continue;
-                    }
-
-                    distances = transformedBV.getPlaneDistances(position, direction, distances);
-                    near = Math.min(near, distances.start);
-                    far = Math.max(far, distances.stop);
-
-                    insertIntoBin(scene, command, distances);
-                } else {
-                    // Clear commands don't need a bounding volume - just add the clear to all frustums.
-                    // If another command has no bounding volume, though, we need to use the camera's
-                    // worst-case near and far planes to avoid clipping something important.
-                    undefBV = !(command instanceof ClearCommand);
-                    insertIntoBin(scene, command);
+        var commandListLength = commandList.length;
+        for (var j = 0; j < commandListLength; ++j) {
+            var command = commandList[j];
+            var boundingVolume = command.boundingVolume;
+            if (typeof boundingVolume !== 'undefined') {
+                var modelMatrix = defaultValue(command.modelMatrix, Matrix4.IDENTITY);
+                var transformedBV = boundingVolume.transform(modelMatrix);               //TODO: Remove this allocation.
+                if (command.cull &&
+                        ((cullingVolume.getVisibility(transformedBV) === Intersect.OUTSIDE) ||
+                         (typeof occluder !== 'undefined' && !occluder.isBoundingSphereVisible(transformedBV)))) {
+                    continue;
                 }
+
+                distances = transformedBV.getPlaneDistances(position, direction, distances);
+                near = Math.min(near, distances.start);
+                far = Math.max(far, distances.stop);
+
+                insertIntoBin(scene, command, distances);
+            } else {
+                // Clear commands don't need a bounding volume - just add the clear to all frustums.
+                // If another command has no bounding volume, though, we need to use the camera's
+                // worst-case near and far planes to avoid clipping something important.
+                undefBV = !(command instanceof ClearCommand);
+                insertIntoBin(scene, command);
             }
         }
 
@@ -402,7 +398,7 @@ define([
         if (near !== Number.MAX_VALUE && (numFrustums !== frustumsLength || (frustumCommandsList.length !== 0 &&
                 (near < frustumCommandsList[0].near || far > frustumCommandsList[frustumsLength - 1].far)))) {
             updateFrustums(near, far, farToNearRatio, numFrustums, frustumCommandsList);
-            createPotentiallyVisibleSet(scene, listName);
+            createPotentiallyVisibleSet(scene);
         }
     }
 
@@ -455,6 +451,8 @@ define([
     }
 
     function executeOverlayCommands(scene, passState) {
+// TODO
+/*
         var context = scene._context;
         var commandLists = scene._commandList;
         var length = commandLists.length;
@@ -465,6 +463,7 @@ define([
                 commandList[j].execute(context, passState);
             }
         }
+ */
     }
 
     /**
@@ -506,10 +505,11 @@ define([
 
         this._commandList.length = 0;
         this._primitives.update(this._context, frameState, this._commandList);
-        createPotentiallyVisibleSet(this, 'colorList');
+        createPotentiallyVisibleSet(this);
         this._postProcessEngine.update(this._context, this.postProcessFilters);
 
         var passState = this._passState;
+        passState.name = 'color';
         passState.framebuffer = this._postProcessEngine.framebuffer;
         executeCommands(this, passState);
 
@@ -619,7 +619,7 @@ define([
         var commandLists = this._commandList;
         commandLists.length = 0;
         primitives.update(context, frameState, commandLists);
-        createPotentiallyVisibleSet(this, 'pickList');
+        createPotentiallyVisibleSet(this);
 
         scratchRectangle.x = windowPosition.x - ((rectangleWidth - 1.0) * 0.5);
         scratchRectangle.y = (this._canvas.clientHeight - windowPosition.y) - ((rectangleHeight - 1.0) * 0.5);

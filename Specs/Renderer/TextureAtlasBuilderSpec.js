@@ -95,7 +95,7 @@ defineSuite([
 
         context.draw({
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va
         });
 

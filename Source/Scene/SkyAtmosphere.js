@@ -8,6 +8,7 @@ define([
         '../Core/Ellipsoid',
         '../Renderer/BufferUsage',
         '../Renderer/DrawCommand',
+        '../Renderer/PassCommand',
         '../Renderer/CullFace',
         '../Renderer/BlendingState',
         '../Scene/SceneMode',
@@ -22,6 +23,7 @@ define([
         Ellipsoid,
         BufferUsage,
         DrawCommand,
+        PassCommand,
         CullFace,
         BlendingState,
         SceneMode,
@@ -73,7 +75,7 @@ define([
 
         var that = this;
 
-        this._command.uniformMap = {
+        this._command.passes.color = new PassCommand(undefined, {
             fCameraHeight : function() {
                 return that._fCameraHeight;
             },
@@ -98,7 +100,7 @@ define([
             fScaleOverScaleDepth : function() {
                 return (1.0 / (that._outerRadius - innerRadius)) / rayleighScaleDepth;
             }
-        };
+        });
     };
 
     /**
@@ -172,10 +174,10 @@ define([
 
         if (this._fCameraHeight > this._outerRadius) {
             // Camera in space
-            command.shaderProgram = this._spSkyFromSpace;
+            command.passes.color.shaderProgram = this._spSkyFromSpace;
         } else {
             // Camera in atmosphere
-            command.shaderProgram = this._spSkyFromAtmosphere;
+            command.passes.color.shaderProgram = this._spSkyFromAtmosphere;
         }
 
         return command;

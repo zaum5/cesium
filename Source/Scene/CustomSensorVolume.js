@@ -374,7 +374,7 @@ define([
             var colorCommand = this._colorCommand;
 
             // Recompile shader when material changes
-            if (materialChanged || typeof colorCommand.shaderProgram === 'undefined') {
+            if (materialChanged || typeof colorCommand.passCommand.shaderProgram === 'undefined') {
                 var fsSource =
                     '#line 0\n' +
                     ShadersSensorVolume +
@@ -383,9 +383,9 @@ define([
                     '#line 0\n' +
                     CustomSensorVolumeFS;
 
-                colorCommand.shaderProgram = context.getShaderCache().replaceShaderProgram(
-                    colorCommand.shaderProgram, CustomSensorVolumeVS, fsSource, attributeIndices);
-                colorCommand.uniformMap = combine([this._uniforms, this._material._uniforms], false, false);
+                colorCommand.passCommand.shaderProgram = context.getShaderCache().replaceShaderProgram(
+                    colorCommand.passCommand.shaderProgram, CustomSensorVolumeVS, fsSource, attributeIndices);
+                colorCommand.passCommand.uniformMap = combine([this._uniforms, this._material._uniforms], false, false);
             }
 
             this._commandLists.colorList.push(colorCommand);
@@ -399,7 +399,7 @@ define([
             }
 
             // Recompile shader when material changes
-            if (materialChanged || typeof pickCommand.shaderProgram === 'undefined') {
+            if (materialChanged || typeof pickCommand.passCommand.shaderProgram === 'undefined') {
                 var pickFS = createPickFragmentShaderSource(
                     '#line 0\n' +
                     ShadersSensorVolume +
@@ -408,11 +408,11 @@ define([
                     '#line 0\n' +
                     CustomSensorVolumeFS, 'uniform');
 
-                pickCommand.shaderProgram = context.getShaderCache().replaceShaderProgram(
-                    pickCommand.shaderProgram, CustomSensorVolumeVS, pickFS, attributeIndices);
+                pickCommand.passCommand.shaderProgram = context.getShaderCache().replaceShaderProgram(
+                    pickCommand.passCommand.shaderProgram, CustomSensorVolumeVS, pickFS, attributeIndices);
 
                 var that = this;
-                pickCommand.uniformMap = combine([this._uniforms, this._material._uniforms, {
+                pickCommand.passCommand.uniformMap = combine([this._uniforms, this._material._uniforms, {
                     czm_pickColor : function() {
                         return that._pickId.color;
                     }
@@ -441,8 +441,8 @@ define([
      */
     CustomSensorVolume.prototype.destroy = function() {
         this._colorCommand.vertexArray = this._colorCommand.vertexArray && this._colorCommand.vertexArray.destroy();
-        this._colorCommand.shaderProgram = this._colorCommand.shaderProgram && this._colorCommand.shaderProgram.release();
-        this._pickCommand.shaderProgram = this._pickCommand.shaderProgram && this._pickCommand.shaderProgram.release();
+        this._colorCommand.passCommand.shaderProgram = this._colorCommand.passCommand.shaderProgram && this._colorCommand.passCommand.shaderProgram.release();
+        this._pickCommand.passCommand.shaderProgram = this._pickCommand.passCommand.shaderProgram && this._pickCommand.passCommand.shaderProgram.release();
         this._pickId = this._pickId && this._pickId.destroy();
         return destroyObject(this);
     };

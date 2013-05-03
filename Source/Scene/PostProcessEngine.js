@@ -166,7 +166,7 @@ define([
                 command.renderState = context.createRenderState({
                     blending : BlendingState.ALPHA_BLEND,
                 });
-                command.uniformMap = {
+                command.passCommand.uniformMap = {
 // TODO: use semantics in Touch Up to access color/depth textures
                     czm_color : function() {
                         return that._colorTexture;
@@ -195,7 +195,7 @@ define([
         var length = filters.length;
         for (var i = 0; i < length; ++i) {
             var filter = filters[i];
-            command.shaderProgram = filter.shaderProgram;
+            command.passCommand.shaderProgram = filter.shaderProgram;
             command.execute(context, passState);
         }
     };

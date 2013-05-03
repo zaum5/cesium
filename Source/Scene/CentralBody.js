@@ -26,10 +26,10 @@ define([
         './Material',
         '../Renderer/BufferUsage',
         '../Renderer/ClearCommand',
-        '../Renderer/CommandLists',
         '../Renderer/CullFace',
         '../Renderer/DepthFunction',
         '../Renderer/DrawCommand',
+        '../Renderer/PassCommand',
         '../Renderer/PixelFormat',
         '../Renderer/BlendingState',
         '../Renderer/Texture',
@@ -74,10 +74,10 @@ define([
         Material,
         BufferUsage,
         ClearCommand,
-        CommandLists,
         CullFace,
         DepthFunction,
         DrawCommand,
+        PassCommand,
         PixelFormat,
         BlendingState,
         Texture,
@@ -136,19 +136,20 @@ define([
         clearDepthCommand.stencil = 0;
         this._clearDepthCommand = clearDepthCommand;
 
+        this._depthCommandSP = undefined;
         this._depthCommand = new DrawCommand();
         this._depthCommand.primitiveType = PrimitiveType.TRIANGLES;
         this._depthCommand.boundingVolume = new BoundingSphere(Cartesian3.ZERO, ellipsoid.getMaximumRadius());
 
         this._northPoleCommand = new DrawCommand();
         this._northPoleCommand.primitiveType = PrimitiveType.TRIANGLE_FAN;
+        this._northPoleCommand.passes.color = new PassCommand();
         this._southPoleCommand = new DrawCommand();
         this._southPoleCommand.primitiveType = PrimitiveType.TRIANGLE_FAN;
+        this._southPoleCommand.passes.color = new PassCommand();
 
         this._drawNorthPole = false;
         this._drawSouthPole = false;
-
-        this._commandLists = new CommandLists();
 
         /**
          * Determines the color of the north pole. If the day tile provider imagery does not
@@ -459,22 +460,22 @@ define([
         };
 
         var that = centralBody;
-        if (typeof centralBody._northPoleCommand.uniformMap === 'undefined') {
+        if (typeof centralBody._northPoleCommand.passes.color.uniformMap === 'undefined') {
             var northPoleUniforms = combine([drawUniforms, {
                 u_color : function() {
                     return that.northPoleColor;
                 }
             }], false, false);
-            centralBody._northPoleCommand.uniformMap = combine([northPoleUniforms, centralBody._drawUniforms], false, false);
+            centralBody._northPoleCommand.passes.color.uniformMap = combine([northPoleUniforms, centralBody._drawUniforms], false, false);
         }
 
-        if (typeof centralBody._southPoleCommand.uniformMap === 'undefined') {
+        if (typeof centralBody._southPoleCommand.passes.color.uniformMap === 'undefined') {
             var southPoleUniforms = combine([drawUniforms, {
                 u_color : function() {
                     return that.southPoleColor;
                 }
             }], false, false);
-            centralBody._southPoleCommand.uniformMap = combine([southPoleUniforms, centralBody._drawUniforms], false, false);
+            centralBody._southPoleCommand.passes.color.uniformMap = combine([southPoleUniforms, centralBody._drawUniforms], false, false);
         }
     }
 
@@ -582,13 +583,18 @@ define([
 
         var shaderCache = context.getShaderCache();
 
-        if (typeof this._depthCommand.shaderProgram === 'undefined') {
-            this._depthCommand.shaderProgram = shaderCache.getShaderProgram(
+        if (typeof this._depthCommandSP === 'undefined') {
+            this._depthCommandSP = shaderCache.getShaderProgram(
                     CentralBodyVSDepth,
                     '#line 0\n' +
                     CentralBodyFSDepth, {
                         position : 0
                     });
+            this._depthCommand.passes.color = new PassCommand(this._depthCommandSP);
+
+            // Not actually pickable, but render depth-only so primitives on the backface
+            // of the globe are not picked.
+            this._depthCommand.passes.pick = new PassCommand(this._depthCommandSP);
         }
 
         if (this._surface._terrainProvider.hasWaterMask() &&
@@ -611,8 +617,8 @@ define([
         var hasWaterMaskChanged = this._hasWaterMask !== hasWaterMask;
 
         if (typeof this._surfaceShaderSet === 'undefined' ||
-            typeof this._northPoleCommand.shaderProgram === 'undefined' ||
-            typeof this._southPoleCommand.shaderProgram === 'undefined' ||
+            typeof this._northPoleCommand.passes.color.shaderProgram === 'undefined' ||
+            typeof this._southPoleCommand.passes.color.shaderProgram === 'undefined' ||
             modeChanged ||
             projectionChanged ||
             hasWaterMaskChanged ||
@@ -665,11 +671,11 @@ define([
                 CentralBodyFS;
             this._surfaceShaderSet.invalidateShaders();
 
-            var poleShaderProgram = shaderCache.replaceShaderProgram(this._northPoleCommand.shaderProgram,
+            var poleShaderProgram = shaderCache.replaceShaderProgram(this._northPoleCommand.passes.color.shaderProgram,
                 CentralBodyVSPole, CentralBodyFSPole, TerrainProvider.attributeIndices);
 
-            this._northPoleCommand.shaderProgram = poleShaderProgram;
-            this._southPoleCommand.shaderProgram = poleShaderProgram;
+            this._northPoleCommand.passes.color.shaderProgram = poleShaderProgram;
+            this._southPoleCommand.passes.color.shaderProgram = poleShaderProgram;
 
             this._showingPrettyOcean = typeof this._oceanNormalMap !== 'undefined';
             this._hasWaterMask = hasWaterMask;
@@ -684,62 +690,44 @@ define([
         this._mode = mode;
         this._projection = projection;
 
-        var pass = frameState.passes;
-        var commandLists = this._commandLists;
-        commandLists.removeAll();
-
-        if (pass.color) {
-            var colorCommandList = commandLists.colorList;
-
-            // render quads to fill the poles
-            if (mode === SceneMode.SCENE3D) {
-                if (this._drawNorthPole) {
-                    colorCommandList.push(this._northPoleCommand);
-                }
-
-                if (this._drawSouthPole) {
-                    colorCommandList.push(this._southPoleCommand);
-                }
+        // render quads to fill the poles
+        if (mode === SceneMode.SCENE3D) {
+            if (this._drawNorthPole) {
+                commandList.push(this._northPoleCommand);
             }
 
-            var drawUniforms = this._drawUniforms;
-
-            // Don't show the ocean specular highlights when zoomed out in 2D and Columbus View.
-            if (mode === SceneMode.SCENE3D) {
-                this._zoomedOutOceanSpecularIntensity = 0.5;
-            } else {
-                this._zoomedOutOceanSpecularIntensity = 0.0;
-            }
-
-            this._surface._tileCacheSize = this.tileCacheSize;
-            this._surface.setTerrainProvider(this.terrainProvider);
-            this._surface.update(context,
-                    frameState,
-                    colorCommandList,
-                    drawUniforms,
-                    this._surfaceShaderSet,
-                    this._rsColor,
-                    this._projection);
-
-            updateLogos(this, context, frameState, commandList);
-
-            // render depth plane
-            if (mode === SceneMode.SCENE3D) {
-                if (!this.depthTestAgainstTerrain) {
-                    colorCommandList.push(this._clearDepthCommand);
-                    colorCommandList.push(this._depthCommand);
-                }
+            if (this._drawSouthPole) {
+                commandList.push(this._southPoleCommand);
             }
         }
 
-        if (pass.pick) {
-            // Not actually pickable, but render depth-only so primitives on the backface
-            // of the globe are not picked.
-            commandLists.pickList.push(this._depthCommand);
+        var drawUniforms = this._drawUniforms;
+
+        // Don't show the ocean specular highlights when zoomed out in 2D and Columbus View.
+        if (mode === SceneMode.SCENE3D) {
+            this._zoomedOutOceanSpecularIntensity = 0.5;
+        } else {
+            this._zoomedOutOceanSpecularIntensity = 0.0;
         }
 
-        if (!commandLists.empty()) {
-            commandList.push(commandLists);
+        this._surface._tileCacheSize = this.tileCacheSize;
+        this._surface.setTerrainProvider(this.terrainProvider);
+        this._surface.update(context,
+                frameState,
+                commandList,
+                drawUniforms,
+                this._surfaceShaderSet,
+                this._rsColor,
+                this._projection);
+
+        updateLogos(this, context, frameState, commandList);
+
+        // render depth plane
+        if (mode === SceneMode.SCENE3D) {
+            if (!this.depthTestAgainstTerrain) {
+                commandList.push(this._clearDepthCommand);
+                commandList.push(this._depthCommand);
+            }
         }
     };
 
@@ -784,10 +772,10 @@ define([
 
         this._surfaceShaderSet = this._surfaceShaderSet && this._surfaceShaderSet.destroy();
 
-        this._northPoleCommand.shaderProgram = this._northPoleCommand.shaderProgram && this._northPoleCommand.shaderProgram.release();
-        this._southPoleCommand.shaderProgram = this._northPoleCommand.shaderProgram;
+        this._northPoleCommand.passes.color.shaderProgram = this._northPoleCommand.passes.color.shaderProgram && this._northPoleCommand.passes.color.shaderProgram.release();
+        this._southPoleCommand.passes.color.shaderProgram = this._northPoleCommand.passes.color.shaderProgram;
 
-        this._depthCommand.shaderProgram = this._depthCommand.shaderProgram && this._depthCommand.shaderProgram.release();
+        this._depthCommandSP = this._depthCommandSP && this._depthCommandSP.release();
         this._depthCommand.vertexArray = this._depthCommand.vertexArray && this._depthCommand.vertexArray.destroy();
 
         this._surface = this._surface && this._surface.destroy();

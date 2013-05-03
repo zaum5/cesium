@@ -70,7 +70,7 @@ defineSuite([
 
         context.draw({
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va
         });
         expect(context.readPixels()).toEqual([255, 255, 255, 255]);
@@ -97,7 +97,7 @@ defineSuite([
 
         context.draw({
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va
         });
         expect(context.readPixels()).toEqual([255, 255, 255, 255]);
@@ -133,7 +133,7 @@ defineSuite([
 
         context.draw({
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va
         });
         expect(context.readPixels()).toEqual([255, 0, 0, 255]);
@@ -176,7 +176,7 @@ defineSuite([
 
         context.draw({
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va
         });
         expect(context.readPixels()).toEqual([255, 0, 0, 255]);
@@ -201,7 +201,7 @@ defineSuite([
         // 2 of 3:  Render point - fails scissor test
         context.draw({
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va,
             renderState : context.createRenderState({
                 scissorTest : {
@@ -215,7 +215,7 @@ defineSuite([
         // 3 of 3:  Render point - passes scissor test
         context.draw({
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va,
             renderState : context.createRenderState({
                 scissorTest : {
@@ -246,7 +246,7 @@ defineSuite([
         // 2 of 3:  Render point - blue color mask
         context.draw({
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va,
             renderState : context.createRenderState({
                 colorMask : {
@@ -262,7 +262,7 @@ defineSuite([
         // 3 of 3:  Render point - red color mask (blue channel not touched)
         context.draw({
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va,
             renderState : context.createRenderState({
                 colorMask : {
@@ -294,7 +294,7 @@ defineSuite([
 
         var da = {
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va,
             renderState : context.createRenderState({
                 blending : {
@@ -336,7 +336,7 @@ defineSuite([
 
         var da = {
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va,
             renderState : context.createRenderState({
                 blending : {
@@ -377,7 +377,7 @@ defineSuite([
 
         var da = {
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va,
             renderState : context.createRenderState({
                 blending : {
@@ -423,7 +423,7 @@ defineSuite([
         // 2 of 3:  Cull front faces - nothing is drawn
         context.draw({
             primitiveType : PrimitiveType.TRIANGLE_FAN,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va,
             renderState : context.createRenderState({
                 cull : {
@@ -437,7 +437,7 @@ defineSuite([
         // 3 of 3:  Cull back faces - nothing is culled
         context.draw({
             primitiveType : PrimitiveType.TRIANGLE_FAN,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va,
             renderState : context.createRenderState({
                 cull : {
@@ -468,7 +468,7 @@ defineSuite([
         // 2 of 3:  Cull back faces with opposite winding order - nothing is drawn
         context.draw({
             primitiveType : PrimitiveType.TRIANGLE_FAN,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va,
             renderState : context.createRenderState({
                 frontFace : WindingOrder.CLOCKWISE,
@@ -483,7 +483,7 @@ defineSuite([
         // 3 of 3:  Cull back faces with correct winding order - nothing is culled
         context.draw({
             primitiveType : PrimitiveType.TRIANGLE_FAN,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va,
             renderState : context.createRenderState({
                 frontFace : WindingOrder.COUNTER_CLOCKWISE,
@@ -510,7 +510,7 @@ defineSuite([
 
         var da = {
             primitiveType : PrimitiveType.TRIANGLE_FAN,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va,
             renderState : context.createRenderState({
                 depthTest : {
@@ -559,7 +559,7 @@ defineSuite([
 
         context.draw({
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va,
             renderState : context.createRenderState({
                 depthRange : {
@@ -588,7 +588,7 @@ defineSuite([
 
         context.draw({
             primitiveType : PrimitiveType.LINES,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va,
             renderState : context.createRenderState({
                 lineWidth : context.getMaximumAliasedLineWidth()
@@ -619,7 +619,7 @@ defineSuite([
 
         context.draw({
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va,
             renderState : context.createRenderState({
                 polygonOffset : {
@@ -649,7 +649,7 @@ defineSuite([
 
         context.draw({
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va,
             renderState : context.createRenderState({
                 sampleCoverage : {
@@ -663,7 +663,7 @@ defineSuite([
 
         context.draw({
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va,
             renderState : context.createRenderState({
                 sampleCoverage : {
@@ -702,7 +702,7 @@ defineSuite([
         // 2 of 4.  Render where stencil is set - nothing is drawn
         context.draw({
             primitiveType : PrimitiveType.TRIANGLE_FAN,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va,
             renderState : rs
         });
@@ -711,7 +711,7 @@ defineSuite([
         // 3 of 4.  Render to stencil only, increment
         context.draw({
             primitiveType : PrimitiveType.TRIANGLE_FAN,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va,
             renderState : context.createRenderState({
                 colorMask : {
@@ -733,7 +733,7 @@ defineSuite([
         // 4 of 4.  Render where stencil is set
         context.draw({
             primitiveType : PrimitiveType.TRIANGLE_FAN,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va,
             renderState : rs
         });
@@ -768,7 +768,7 @@ defineSuite([
         // 2 of 4.  Render where stencil is set - nothing is drawn
         context.draw({
             primitiveType : PrimitiveType.TRIANGLE_FAN,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va,
             renderState : rs
         });
@@ -777,7 +777,7 @@ defineSuite([
         // 3 of 4.  Render to stencil only, increment
         context.draw({
             primitiveType : PrimitiveType.TRIANGLE_FAN,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va,
             renderState : context.createRenderState({
                 frontFace : WindingOrder.CLOCKWISE,
@@ -800,7 +800,7 @@ defineSuite([
         // 4 of 4.  Render where stencil is set
         context.draw({
             primitiveType : PrimitiveType.TRIANGLE_FAN,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va,
             renderState : rs
         });
@@ -828,7 +828,7 @@ defineSuite([
             primitiveType : PrimitiveType.POINTS,
             offset : 0,
             count : 1,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va
         });
         expect(context.readPixels()).toEqual([0, 0, 0, 0]);
@@ -837,7 +837,7 @@ defineSuite([
             primitiveType : PrimitiveType.POINTS,
             offset : 1,
             count : 1,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va
         });
         expect(context.readPixels()).toEqual([255, 255, 255, 255]);
@@ -903,7 +903,7 @@ defineSuite([
         expect(function() {
             context.draw({
                 primitiveType : PrimitiveType.POINTS,
-                shaderProgram : sp,
+                _shaderProgram : sp,
                 vertexArray : context.createVertexArray(),
                 offset : -1,
                 count : 1

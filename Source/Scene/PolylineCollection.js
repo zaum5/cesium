@@ -526,11 +526,11 @@ define([
                             command.boundingVolume = boundingVolume;
                             command.modelMatrix = modelMatrix;
                             command.primitiveType = PrimitiveType.TRIANGLES;
-                            command.shaderProgram = sp;
+                            command.passCommand.shaderProgram = sp;
                             command.vertexArray = va.va;
                             command.renderState = renderState;
 
-                            command.uniformMap = currentMaterial._uniforms;
+                            command.passCommand.uniformMap = currentMaterial._uniforms;
                             command.count = count;
                             command.offset = offset;
 
@@ -565,11 +565,11 @@ define([
                     command.boundingVolume = boundingVolume;
                     command.modelMatrix = modelMatrix;
                     command.primitiveType = PrimitiveType.TRIANGLES;
-                    command.shaderProgram = sp;
+                    command.passCommand.shaderProgram = sp;
                     command.vertexArray = va.va;
                     command.renderState = renderState;
 
-                    command.uniformMap = currentMaterial._uniforms;
+                    command.passCommand.uniformMap = currentMaterial._uniforms;
                     command.count = count;
                     command.offset = offset;
                 }

@@ -21,6 +21,11 @@ define(function() {
         this.context = context;
 
         /**
+         * DOC_TBA
+         */
+        this.name = undefined;
+
+        /**
          * The framebuffer to render to.  This framebuffer is used unless a {@link DrawCommand}
          * or {@link ClearCommand} explicitly define a framebuffer, which is used for off-screen
          * rendering.

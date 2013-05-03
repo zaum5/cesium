@@ -297,8 +297,8 @@ define([
                 colorCommand.primitiveType = PrimitiveType.TRIANGLES;
                 colorCommand.vertexArray = this._va;
                 colorCommand.renderState = this._rs;
-                colorCommand.shaderProgram = this._sp;
-                colorCommand.uniformMap = combine([this._uniforms, this.material._uniforms], false, false);
+                colorCommand.passCommand.shaderProgram = this._sp;
+                colorCommand.passCommand.uniformMap = combine([this._uniforms, this.material._uniforms], false, false);
                 colorCommand.executeInClosestFrustum = true;
             }
 
@@ -328,8 +328,8 @@ define([
                 pickCommand.primitiveType = PrimitiveType.TRIANGLES;
                 pickCommand.vertexArray = this._va;
                 pickCommand.renderState = this._rs;
-                pickCommand.shaderProgram = this._pickSP;
-                pickCommand.uniformMap = combine([this._uniforms, this._pickUniforms, this.material._uniforms], false, false);
+                pickCommand.passCommand.shaderProgram = this._pickSP;
+                pickCommand.passCommand.uniformMap = combine([this._uniforms, this._pickUniforms, this.material._uniforms], false, false);
                 pickCommand.executeInClosestFrustum = true;
             }
 

@@ -58,9 +58,9 @@ defineSuite([
 
         context.draw({
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
             vertexArray : va,
-            uniformMap : uniformMap
+            _shaderProgram : sp,
+            _uniformMap : uniformMap
         });
         expect(context.readPixels()).toEqual([255, 255, 255, 255]);
 

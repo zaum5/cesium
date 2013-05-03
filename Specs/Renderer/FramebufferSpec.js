@@ -183,7 +183,7 @@ defineSuite([
 
         context.draw({
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va
         });
         expect(context.readPixels()).toEqual([0, 255, 0, 255]);
@@ -231,7 +231,7 @@ defineSuite([
 
         context.draw({
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va
         });
         expect(context.readPixels()).toEqual([0, 255, 0, 255]);
@@ -266,7 +266,7 @@ defineSuite([
 
         context.draw({
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va,
             framebuffer : framebuffer
         });
@@ -284,7 +284,7 @@ defineSuite([
 
         context.draw({
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp2,
+            _shaderProgram : sp2,
             vertexArray : va
         });
         expect(context.readPixels()).toEqual([0, 255, 0, 255]);
@@ -309,7 +309,7 @@ defineSuite([
 
         context.draw({
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va,
             framebuffer : framebuffer,
             renderState : context.createRenderState({
@@ -332,7 +332,7 @@ defineSuite([
 
         context.draw({
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp2,
+            _shaderProgram : sp2,
             vertexArray : va
         });
 
@@ -416,7 +416,7 @@ defineSuite([
         // 2 of 3.  Does not pass depth test
         context.draw({
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va,
             framebuffer : framebuffer,
             renderState : context.createRenderState({
@@ -433,7 +433,7 @@ defineSuite([
         // 3 of 3.  Passes depth test
         context.draw({
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va,
             framebuffer : framebuffer,
             renderState : context.createRenderState({
@@ -566,7 +566,7 @@ defineSuite([
         expect(function() {
             context.draw({
                 primitiveType : PrimitiveType.POINTS,
-                shaderProgram : sp,
+                _shaderProgram : sp,
                 vertexArray : va,
                 framebuffer : framebuffer,
                 renderState : context.createRenderState({

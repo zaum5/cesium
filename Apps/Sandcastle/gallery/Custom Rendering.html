@@ -47,21 +47,19 @@ require([
     var Box = function(position) {
         this._pickId = undefined;
 
-        this._colorCommand = new Cesium.DrawCommand();
-        this._pickCommand = new Cesium.DrawCommand();
-        this._colorCommand.primitiveType = this._pickCommand.primitiveType = Cesium.PrimitiveType.LINES;
-        this._colorCommand.boundingVolume = this._pickCommand.boundingVolume = new Cesium.BoundingSphere();
-        this._colorCommand.modelMatrix = this._pickCommand.modelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(position);
-
-        this._commandLists = new Cesium.CommandLists();
+        this._command = new Cesium.DrawCommand();
+        this._command.primitiveType = Cesium.PrimitiveType.LINES;
+        this._command.boundingVolume = new Cesium.BoundingSphere();
+        this._command.modelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(position);
+        this._sp = undefined;
 
         var that = this;
-        this._colorCommand.uniformMap = {
+        this._colorUniformMap = {
             u_color : function() {
                 return Cesium.Color.YELLOW;
             }
         };
-        this._pickCommand.uniformMap = {
+        this._pickUniformMap = {
             u_color : function() {
                 return that._pickId.color;
             }
@@ -74,10 +72,9 @@ require([
             return;
         }
 
-        var colorCommand = this._colorCommand;
-        var pickCommand = this._pickCommand;
+        var command = this._command;
 
-        if (typeof colorCommand.vertexArray === 'undefined') {
+        if (typeof this._sp === 'undefined') {
             var vs = '';
             vs += 'attribute vec4 position;';
             vs += 'void main()';
@@ -95,7 +92,7 @@ require([
             var dimensions = new Cesium.Cartesian3(500000.0, 500000.0, 500000.0);
             var maximumCorner = dimensions.multiplyByScalar(0.5);
             var minimumCorner = maximumCorner.negate();
-            Cesium.BoundingSphere.fromPoints([minimumCorner, maximumCorner], colorCommand.boundingVolume);
+            Cesium.BoundingSphere.fromPoints([minimumCorner, maximumCorner], command.boundingVolume);
 
             var mesh = Cesium.MeshFilters.toWireframeInPlace(Cesium.BoxTessellator.compute({
                 minimumCorner : minimumCorner,
@@ -103,32 +100,31 @@ require([
             }));
             var attributeIndices = Cesium.MeshFilters.createAttributeIndices(mesh);
 
-            colorCommand.vertexArray = pickCommand.vertexArray = context.createVertexArrayFromMesh({
+            command.vertexArray = context.createVertexArrayFromMesh({
                 mesh : mesh,
                 attributeIndices : attributeIndices,
                 bufferUsage : Cesium.BufferUsage.STATIC_DRAW
             });
-
-            colorCommand.shaderProgram = pickCommand.shaderProgram = context.getShaderCache().getShaderProgram(vs, fs, attributeIndices);
-            colorCommand.renderState = pickCommand.renderState = context.createRenderState({
+            command.renderState = context.createRenderState({
                 depthTest : {
                     enabled : true
                 }
             });
 
+            this._sp = context.getShaderCache().getShaderProgram(vs, fs, attributeIndices);
             this._pickId = context.createPickId(this);
         }
 
         var pass = frameState.passes;
-        this._commandLists.removeAll();
-        if (pass.color) {
-            this._commandLists.colorList.push(colorCommand);
-        }
-        if (pass.pick) {
-            this._commandLists.pickList.push(pickCommand);
-        }
 
-        commandList.push(this._commandLists);
+        if (pass.color && (typeof command.passes.color === 'undefined')) {
+            command.passes.color = new Cesium.PassCommand(this._sp, this._colorUniformMap);
+        }
+        if (pass.pick && (typeof command.passes.pick === 'undefined')) {
+            command.passes.pick = new Cesium.PassCommand(this._sp, this._pickUniformMap);
+        }
+        
+        commandList.push(command);
     };
 
     Box.prototype.isDestroyed = function() {
@@ -136,9 +132,9 @@ require([
     };
 
     Box.prototype.destroy = function() {
-        var colorCommand = this._colorCommand;
-        colorCommand.vertexArray = colorCommand.vertexArray && colorCommand.vertexArray.destroy();
-        colorCommand.shaderProgram = colorCommand.shaderProgram && colorCommand.shaderProgram.release();
+        var command = this._command;
+        command.vertexArray = command.vertexArray && command.vertexArray.destroy();
+        this._sp = this._sp && this._sp.release();
         this._pickId = this._pickId && this._pickId.destroy();
         return Cesium.destroyObject(this);
     };
@@ -153,12 +149,10 @@ require([
         this._ellipsoid = ellipsoid;
         this._pickId = undefined;
 
-        this._colorCommand = new Cesium.DrawCommand();
-        this._pickCommand = new Cesium.DrawCommand();
-        this._colorCommand.primitiveType = this._pickCommand.primitiveType = Cesium.PrimitiveType.LINES;
-        this._colorCommand.boundingVolume = this._pickCommand.boundingVolume = new Cesium.BoundingSphere();
-
-        this._commandLists = new Cesium.CommandLists();
+        this._command = new Cesium.DrawCommand();
+        this._command.primitiveType = Cesium.PrimitiveType.LINES;
+        this._command.boundingVolume = new Cesium.BoundingSphere();
+        this._sp = undefined;
 
         this._mode = undefined;
         this._projection = undefined;
@@ -172,12 +166,12 @@ require([
         this._modelMatrix = undefined;
 
         var that = this;
-        this._colorCommand.uniformMap = {
+        this._colorUniformMap = {
             u_color : function() {
                 return Cesium.Color.LIME;
             }
         };
-        this._pickCommand.uniformMap = {
+        this._pickUniformMap = {
             u_color : function() {
                 return that._pickId.color;
             }
@@ -187,8 +181,7 @@ require([
     Box2.prototype.update = function(context, frameState, commandList) {
         var mode = frameState.mode;
         var projection = frameState.scene2D.projection;
-        var colorCommand = this._colorCommand;
-        var pickCommand = this._pickCommand;
+        var command = this._command;
 
         if (mode !== this._mode || projection !== this._projection) {
             this._mode = mode;
@@ -221,7 +214,7 @@ require([
                                                   new Cesium.Cartesian3(-x, -y, -z),
                                                   new Cesium.Cartesian3(x, y, z)
                                                  ],
-                                                 colorCommand.boundingVolume);
+                                                 command.boundingVolume);
             } else {
                 var positions = mesh.attributes.position3D.values;
                 var projectedPositions = [];
@@ -241,8 +234,8 @@ require([
                 }
 
                 if (mode === Cesium.SceneMode.SCENE2D || mode === Cesium.SceneMode.COLUMBUS_VIEW) {
-                    Cesium.BoundingSphere.fromPoints(projectedPositions, colorCommand.boundingVolume);
-                    colorCommand.boundingVolume.center = new Cesium.Cartesian3(colorCommand.boundingVolume.center.z, colorCommand.boundingVolume.center.x, colorCommand.boundingVolume.center.y);
+                    Cesium.BoundingSphere.fromPoints(projectedPositions, command.boundingVolume);
+                    command.boundingVolume.center = new Cesium.Cartesian3(command.boundingVolume.center.z, command.boundingVolume.center.x, command.boundingVolume.center.y);
                 } else {
                     var bv3D = Cesium.BoundingSphere.fromPoints([
                                                                  minimumCorner,
@@ -251,7 +244,7 @@ require([
                     var bv2D = Cesium.BoundingSphere.fromPoints(projectedPositions);
                     bv2D.center = new Cesium.Cartesian3(bv2D.center.z, bv2D.center.x, bv2D.center.y);
 
-                    bv3D.union(bv2D, colorCommand.boundingVolume);
+                    bv3D.union(bv2D, command.boundingVolume);
                 }
 
                 mesh.attributes.position2D = {
@@ -261,15 +254,15 @@ require([
                 };
             }
 
-            colorCommand.vertexArray = colorCommand.vertexArray && colorCommand.vertexArray.destroy();
-            colorCommand.vertexArray = pickCommand.vertexArray = context.createVertexArrayFromMesh({
+            command.vertexArray = command.vertexArray && command.vertexArray.destroy();
+            command.vertexArray = context.createVertexArrayFromMesh({
                 mesh : mesh,
                 attributeIndices : this._attributeIndices,
                 bufferUsage : Cesium.BufferUsage.STATIC_DRAW
             });
         }
 
-        if (typeof colorCommand.shaderProgram === 'undefined') {
+        if (typeof this._sp === 'undefined') {
             var vs = '';
             vs += 'attribute vec3 position2D;';
             vs += 'attribute vec3 position3D;';
@@ -286,8 +279,8 @@ require([
             fs += '    gl_FragColor = u_color;';
             fs += '}';
 
-            colorCommand.shaderProgram = pickCommand.shaderProgram = context.getShaderCache().getShaderProgram(vs, fs, this._attributeIndices);
-            colorCommand.renderState = pickCommand.renderState = context.createRenderState({
+            this._sp = context.getShaderCache().getShaderProgram(vs, fs, this._attributeIndices);
+            command.renderState = context.createRenderState({
                 depthTest : {
                     enabled : true
                 }
@@ -303,18 +296,16 @@ require([
         if (mode === Cesium.SceneMode.SCENE3D) {
             modelMatrix = this._modelMatrix;
         }
+        command.modelMatrix = modelMatrix;
 
-        this._commandLists.removeAll();
-        if (pass.color) {
-            colorCommand.modelMatrix = modelMatrix;
-            this._commandLists.colorList.push(colorCommand);
+        if (pass.color && (typeof command.passes.color === 'undefined')) {
+            command.passes.color = new Cesium.PassCommand(this._sp, this._colorUniformMap);
         }
-        if (pass.pick) {
-            pickCommand.modelMatrix = modelMatrix;
-            this._commandLists.pickList.push(pickCommand);
+        if (pass.pick && (typeof command.passes.pick === 'undefined')) {
+            command.passes.pick = new Cesium.PassCommand(this._sp, this._pickUniformMap);
         }
-
-        commandList.push(this._commandLists);
+        
+        commandList.push(command);
     };
 
     // These functions are the same as before.

@@ -10,6 +10,7 @@ defineSuite([
         var context = {};
         var passState = new PassState(context);
         expect(passState.context).toBe(context);
+        expect(passState.name).not.toBeDefined();
         expect(passState.framebuffer).not.toBeDefined();
         expect(passState.blendingEnabled).not.toBeDefined();
         expect(passState.scissorTest).not.toBeDefined();

@@ -1928,22 +1928,22 @@ define([
      * @example
      * // Example 1.  Draw a single triangle specifying only required arguments
      * context.draw({
-     *     primitiveType : PrimitiveType.TRIANGLES,
-     *     shaderProgram : sp,
-     *     vertexArray   : va,
+     *     primitiveType  : PrimitiveType.TRIANGLES,
+     *     _shaderProgram : sp,
+     *     vertexArray    : va,
      * });
      *
      * ////////////////////////////////////////////////////////////////////////////////
      *
      * // Example 2.  Draw a single triangle specifying every argument
      * context.draw({
-     *     primitiveType : PrimitiveType.TRIANGLES,
-     *     offset        : 0,
-     *     count         : 3,
-     *     framebuffer   : fb,
-     *     shaderProgram : sp,
-     *     vertexArray   : va,
-     *     renderState   : rs
+     *     primitiveType  : PrimitiveType.TRIANGLES,
+     *     offset         : 0,
+     *     count          : 3,
+     *     framebuffer    : fb,
+     *     _shaderProgram : sp,
+     *     vertexArray    : va,
+     *     renderState    : rs
      * });
      *
      * @see Context#createShaderProgram
@@ -1968,13 +1968,13 @@ define([
             throw new DeveloperError('command is required.');
         }
 
-        if (typeof command.shaderProgram === 'undefined') {
-            throw new DeveloperError('command.shaderProgram is required.');
+        if (typeof command._shaderProgram === 'undefined') {
+            throw new DeveloperError('command._shaderProgram is required.');
         }
 
         // The command's framebuffer takes presidence over the pass' framebuffer, e.g., for off-screen rendering.
         var framebuffer = defaultValue(command.framebuffer, passState.framebuffer);
-        var sp = command.shaderProgram;
+        var sp = command._shaderProgram;
         var rs = (typeof command.renderState !== 'undefined') ? command.renderState : this._defaultRenderState;
 
         if ((typeof framebuffer !== 'undefined') && rs.depthTest) {
@@ -2041,7 +2041,7 @@ define([
 
         if (count > 0) {
             this._us.setModel(defaultValue(command.modelMatrix, Matrix4.IDENTITY));
-            sp._setUniforms(command.uniformMap, this._us, this._validateSP);
+            sp._setUniforms(command._uniformMap, this._us, this._validateSP);
 
             va._bind();
 

@@ -1,5 +1,10 @@
 /*global define*/
-define(['../Core/DeveloperError'], function(DeveloperError) {
+define([
+        '../Core/DeveloperError',
+        './PassCommand'
+    ], function(
+        DeveloperError,
+        PassCommand) {
     "use strict";
 
     /**
@@ -58,17 +63,31 @@ define(['../Core/DeveloperError'], function(DeveloperError) {
         this.offset = undefined;
 
         /**
-         * The shader program to apply.
-         * @type ShaderProgram
+         * DOC_TBA
          */
-        this.shaderProgram = undefined;
+        this.passCommand = undefined;
 
-        /**
-         * An object with functions whose names match the uniforms in the shader program
-         * and return values to set those uniforms.
-         * @type Object
-         */
-        this.uniformMap = undefined;
+        this.passes = {
+            /**
+             * DOC_TBA
+             */
+            color : undefined,
+            /**
+             * DOC_TBA
+             */
+            glow : undefined,
+            /**
+             * DOC_TBA
+             */
+            pick : undefined,
+            /**
+             * DOC_TBA
+             */
+            overlay : undefined
+        };
+
+        this._shaderProgram = undefined;
+        this._uniformMap = undefined;
 
         /**
          * The render state.
@@ -101,7 +120,14 @@ define(['../Core/DeveloperError'], function(DeveloperError) {
      * @param {PassState} [passState] TBA.
      */
     DrawCommand.prototype.execute = function(context, passState) {
-        context.draw(this, passState);
+
+// TODO: pass passCommand to draw(); instead of this hack.
+        var passCommand = this.passes[passState.name];
+        if (typeof passCommand !== 'undefined') {
+            this._shaderProgram = passCommand.shaderProgram;
+            this._uniformMap = passCommand.uniformMap;
+            context.draw(this, passState);
+        }
     };
 
     return DrawCommand;

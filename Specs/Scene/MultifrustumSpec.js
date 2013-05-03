@@ -232,9 +232,9 @@ defineSuite([
             var command = new DrawCommand();
             command.primitiveType = PrimitiveType.TRIANGLES;
             command.renderState = this._rs;
-            command.shaderProgram = this._sp;
+            command.passCommand.shaderProgram = this._sp;
             command.vertexArray = this._va;
-            command.uniformMap = this._um;
+            command.passCommand.uniformMap = this._um;
             command.modelMatrix = this._modelMatrix;
             command.executeInClosestFrustum = closestFrustum;
             command.boundingVolume = bounded ? new BoundingSphere(Cartesian3.ZERO.clone(), 500000.0) : undefined;

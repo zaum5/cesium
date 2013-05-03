@@ -893,11 +893,11 @@ define([
 
         context.draw({
             framebuffer : reproject.framebuffer,
-            shaderProgram : reproject.shaderProgram,
             renderState : reproject.renderState,
             primitiveType : PrimitiveType.TRIANGLES,
             vertexArray : reproject.vertexArray,
-            uniformMap : uniformMap
+            _shaderProgram : reproject.shaderProgram,
+            _uniformMap : uniformMap
         });
 
         return outputTexture;

@@ -10,6 +10,7 @@ define([
         '../Renderer/loadCubeMap',
         '../Renderer/BufferUsage',
         '../Renderer/DrawCommand',
+        '../Renderer/PassCommand',
         '../Renderer/BlendingState',
         '../Scene/SceneMode',
         '../Shaders/SkyBoxVS',
@@ -25,6 +26,7 @@ define([
         loadCubeMap,
         BufferUsage,
         DrawCommand,
+        PassCommand,
         BlendingState,
         SceneMode,
         SkyBoxVS,
@@ -78,6 +80,7 @@ define([
         }
 
         this._command = new DrawCommand();
+        this._sp = undefined;
         this._cubeMap = undefined;
         this._sources = sources;
 
@@ -142,16 +145,17 @@ define([
                 });
             }
 
-            command.uniformMap = {
-                u_cubeMap: function() {
-                    return that._cubeMap;
-                }
-            };
-
             var mesh = BoxTessellator.compute({
                 dimensions : new Cartesian3(2.0, 2.0, 2.0)
             });
             var attributeIndices = MeshFilters.createAttributeIndices(mesh);
+
+            this._sp = context.getShaderCache().getShaderProgram(SkyBoxVS, SkyBoxFS, attributeIndices);
+            var uniformMap = {
+                u_cubeMap: function() {
+                    return that._cubeMap;
+                }
+            };
 
             command.primitiveType = PrimitiveType.TRIANGLES;
             command.modelMatrix = Matrix4.IDENTITY.clone();
@@ -160,10 +164,10 @@ define([
                 attributeIndices: attributeIndices,
                 bufferUsage: BufferUsage.STATIC_DRAW
             });
-            command.shaderProgram = context.getShaderCache().getShaderProgram(SkyBoxVS, SkyBoxFS, attributeIndices);
             command.renderState = context.createRenderState({
                 blending : BlendingState.ALPHA_BLEND
             });
+            command.passes.color = new PassCommand(this._sp, uniformMap);
         }
 
         if (typeof this._cubeMap === 'undefined') {
@@ -211,7 +215,7 @@ define([
     SkyBox.prototype.destroy = function() {
         var command = this._command;
         command.vertexArray = command.vertexArray && command.vertexArray.destroy();
-        command.shaderProgram = command.shaderProgram && command.shaderProgram.release();
+        this._sp = this._sp && this._sp.release();
         this._cubeMap = this._cubeMap && this._cubeMap.destroy();
         return destroyObject(this);
     };

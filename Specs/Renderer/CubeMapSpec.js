@@ -178,7 +178,7 @@ defineSuite([
 
         var da = {
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va
         };
 
@@ -245,7 +245,7 @@ defineSuite([
 
         var da = {
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va
         };
 
@@ -299,7 +299,7 @@ defineSuite([
 
         var da = {
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va
         };
 
@@ -382,7 +382,7 @@ defineSuite([
 
         var da = {
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va
         };
 
@@ -457,7 +457,7 @@ defineSuite([
 
         var da = {
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va
         };
 
@@ -516,7 +516,7 @@ defineSuite([
 
         var da = {
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va
         };
 
@@ -605,7 +605,7 @@ defineSuite([
 
         var da = {
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va
         };
 
@@ -658,7 +658,7 @@ defineSuite([
 
         var da = {
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va
         };
 
@@ -717,7 +717,7 @@ defineSuite([
 
         context.draw({
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va
         });
         expect(context.readPixels()).toEqual([0, 255, 255, 255]);
@@ -759,7 +759,7 @@ defineSuite([
 
         context.draw({
             primitiveType : PrimitiveType.POINTS,
-            shaderProgram : sp,
+            _shaderProgram : sp,
             vertexArray : va
         });
         expect(context.readPixels()).toEqual([0, 0, 255, 255]);

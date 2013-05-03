@@ -25,6 +25,7 @@ define([
     var PickFramebuffer = function(context) {
         // Override per-command states
         var passState = new PassState(context);
+        passState.name = 'pick';
         passState.blendingEnabled = false;
         passState.scissorTest = {
             enabled : true,

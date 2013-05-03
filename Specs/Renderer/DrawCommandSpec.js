@@ -15,8 +15,8 @@ defineSuite([
         expect(c.count).toBeUndefined();
         expect(c.primitiveType).toBeUndefined();
         expect(c.renderState).toBeUndefined();
-        expect(c.shaderProgram).toBeUndefined();
-        expect(c.uniformMap).toBeUndefined();
+        expect(c.passCommand.shaderProgram).toBeUndefined();
+        expect(c.passCommand.uniformMap).toBeUndefined();
         expect(c.vertexArray).toBeUndefined();
     });
 

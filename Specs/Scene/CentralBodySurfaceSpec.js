@@ -396,7 +396,7 @@ defineSuite([
                 for (var j = 0; j < commandListLength; ++j) {
                     var command = commandList[j];
 
-                    var uniforms = command.uniformMap;
+                    var uniforms = (typeof command.passCommand !== 'undefined') ? command.passCommand.uniformMap : undefined;
                     if (typeof uniforms === 'undefined' || typeof uniforms.u_dayTextureAlpha === 'undefined') {
                         continue;
                     }
@@ -455,7 +455,7 @@ defineSuite([
                 for (var j = 0; j < commandListLength; ++j) {
                     var command = commandList[j];
 
-                    var uniforms = command.uniformMap;
+                    var uniforms = (typeof command.passCommand !== 'undefined') ? command.passCommand.uniformMap : undefined;
                     if (typeof uniforms === 'undefined' || typeof uniforms.u_dayTextureAlpha === 'undefined') {
                         continue;
                     }
@@ -498,7 +498,7 @@ defineSuite([
                 for (var j = 0; j < commandListLength; ++j) {
                     var command = commandList[j];
 
-                    var uniforms = command.uniformMap;
+                    var uniforms = (typeof command.passCommand !== 'undefined') ? command.passCommand.uniformMap : undefined;
                     if (typeof uniforms === 'undefined' || typeof uniforms.u_dayTextureAlpha === 'undefined') {
                         continue;
                     }
