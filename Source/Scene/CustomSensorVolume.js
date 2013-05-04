@@ -423,7 +423,7 @@ define([
      * @memberof CustomSensorVolume
      */
     CustomSensorVolume.prototype.destroy = function() {
-        this._colorCommand.vertexArray = this._colorCommand.vertexArray && this._colorCommand.vertexArray.destroy();
+        this._command.vertexArray = this._command.vertexArray && this._command.vertexArray.destroy();
         this._sp = this._sp && this._sp.release();
         this._spPick = this._spPick && this._spPick.release();
         this._pickId = this._pickId && this._pickId.destroy();

@@ -15,8 +15,8 @@ define([
         '../Core/Intersect',
         '../Renderer/BlendingState',
         '../Renderer/BufferUsage',
-        '../Renderer/CommandLists',
         '../Renderer/DrawCommand',
+        '../Renderer/PassCommand',
         '../Renderer/createPickFragmentShaderSource',
         './Material',
         './SceneMode',
@@ -39,8 +39,8 @@ define([
         Intersect,
         BlendingState,
         BufferUsage,
-        CommandLists,
         DrawCommand,
+        PassCommand,
         createPickFragmentShaderSource,
         Material,
         SceneMode,
@@ -142,9 +142,7 @@ define([
         this._boundingVolume = undefined;
         this._boundingVolume2D = undefined;
 
-        this._commandLists = new CommandLists();
-        this._colorCommands = [];
-        this._pickCommands = [];
+        this._commands = [];
 
         this._polylinesUpdated = false;
         this._polylinesRemoved = false;
@@ -364,7 +362,6 @@ define([
         return this._polylines.length;
     };
 
-    var emptyArray = [];
     var scracthBoundingSphere = new BoundingSphere();
 
     /**
@@ -452,9 +449,6 @@ define([
 
         var pass = frameState.passes;
         var useDepthTest = (frameState.morphTime !== 0.0);
-        var commandLists = this._commandLists;
-        commandLists.colorList = emptyArray;
-        commandLists.pickList = emptyArray;
 
         if ((typeof this._rs === 'undefined') || (this._rs.depthTest.enabled !== useDepthTest)) {
             this._rs = context.createRenderState({
@@ -466,26 +460,10 @@ define([
             });
         }
 
-        if (pass.color) {
-            var colorList = this._colorCommands;
-            commandLists.colorList = colorList;
-
-            createCommandLists(colorList, boundingVolume, modelMatrix, this._vertexArrays, this._rs, true);
-        }
-
-        if (pass.pick) {
-            var pickList = this._pickCommands;
-            commandLists.pickList = pickList;
-
-            createCommandLists(pickList, boundingVolume, modelMatrix, this._vertexArrays, this._rs, false);
-        }
-
-        if (!this._commandLists.empty()) {
-            commandList.push(this._commandLists);
-        }
+        createCommandLists(this._commands, boundingVolume, modelMatrix, this._vertexArrays, this._rs, pass, commandList);
     };
 
-    function createCommandLists(commands, boundingVolume, modelMatrix, vertexArrays, renderState, colorPass) {
+    function createCommandLists(commands, boundingVolume, modelMatrix, vertexArrays, renderState, pass, commandList) {
         var length = vertexArrays.length;
 
         var commandsLength = commands.length;
@@ -500,7 +478,6 @@ define([
                 var bucketLocator = buckets[n];
 
                 var offset = bucketLocator.offset;
-                var sp = colorPass ? bucketLocator.bucket.shaderProgram : bucketLocator.bucket.pickShaderProgram;
 
                 var polylines = bucketLocator.bucket.polylines;
                 var polylineLength = polylines.length;
@@ -516,6 +493,8 @@ define([
                         if (typeof currentId !== 'undefined') {
                             if (commandIndex >= commandsLength) {
                                 command = new DrawCommand();
+                                command.passes.color = new PassCommand();
+                                command.passes.pick = new PassCommand();
                                 commands.push(command);
                             } else {
                                 command = commands[commandIndex];
@@ -526,13 +505,22 @@ define([
                             command.boundingVolume = boundingVolume;
                             command.modelMatrix = modelMatrix;
                             command.primitiveType = PrimitiveType.TRIANGLES;
-                            command.passCommand.shaderProgram = sp;
                             command.vertexArray = va.va;
                             command.renderState = renderState;
-
-                            command.passCommand.uniformMap = currentMaterial._uniforms;
                             command.count = count;
                             command.offset = offset;
+
+                            if (pass.color) {
+                                command.passes.color.shaderProgram = bucketLocator.bucket.shaderProgram;
+                                command.passes.color.uniformMap = currentMaterial._uniforms;
+                            }
+
+                            if (pass.pick) {
+                                command.passes.pick.shaderProgram = bucketLocator.bucket.pickShaderProgram;
+                                command.passes.pick.uniformMap = currentMaterial._uniforms;
+                            }
+
+                            commandList.push(command);
 
                             offset += count;
                             count = 0;
@@ -555,6 +543,8 @@ define([
                 if (typeof currentId !== 'undefined' && count > 0) {
                     if (commandIndex >= commandsLength) {
                         command = new DrawCommand();
+                        command.passes.color = new PassCommand();
+                        command.passes.pick = new PassCommand();
                         commands.push(command);
                     } else {
                         command = commands[commandIndex];
@@ -565,13 +555,22 @@ define([
                     command.boundingVolume = boundingVolume;
                     command.modelMatrix = modelMatrix;
                     command.primitiveType = PrimitiveType.TRIANGLES;
-                    command.passCommand.shaderProgram = sp;
                     command.vertexArray = va.va;
                     command.renderState = renderState;
-
-                    command.passCommand.uniformMap = currentMaterial._uniforms;
                     command.count = count;
                     command.offset = offset;
+
+                    if (pass.color) {
+                        command.passes.color.shaderProgram = bucketLocator.bucket.shaderProgram;
+                        command.passes.color.uniformMap = currentMaterial._uniforms;
+                    }
+
+                    if (pass.pick) {
+                        command.passes.pick.shaderProgram = bucketLocator.bucket.pickShaderProgram;
+                        command.passes.pick.uniformMap = currentMaterial._uniforms;
+                    }
+
+                    commandList.push(command);
                 }
 
                 currentId = undefined;

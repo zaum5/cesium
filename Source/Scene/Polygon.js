@@ -788,6 +788,10 @@ define([
             command = commands[i];
             if (typeof command === 'undefined') {
                 command = commands[i] = new DrawCommand();
+                command.passes.color = new PassCommand();
+// TODO: user turn glow on/off
+                command.passes.glow = new PassCommand();
+                command.passes.pick = new PassCommand();
             }
 
             command.boundingVolume = boundingVolume;
@@ -796,25 +800,16 @@ define([
             command.renderState = this._rs;
 
             if (pass.color) {
-                if (typeof command.passes.color === 'undefined') {
-                    command.passes.color = new PassCommand();
-                }
                 command.passes.color.shaderProgram = this._sp;
                 command.passes.color.uniformMap = this._drawUniforms;
             }
 
             if (pass.glow) {
-                if (typeof command.passes.glow === 'undefined') {
-                    command.passes.glow = new PassCommand();
-                }
                 command.passes.glow.shaderProgram = this._spGlow;
                 command.passes.glow.uniformMap = this._drawUniforms;
             }
 
             if (pass.pick) {
-                if (typeof command.passes.pick === 'undefined') {
-                    command.passes.pick = new PassCommand();
-                }
                 command.passes.pick.shaderProgram = this._spPick;
                 command.passes.pick.uniformMap = this._pickUniforms;
             }

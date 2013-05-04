@@ -1102,7 +1102,6 @@ define([
         }
         if (picking) {
             var pickList = this._pickCommands;
-            commandLists.pickList = pickList;
 
             if (typeof this._spPick === 'undefined') {
                 this._spPick = context.getShaderCache().getShaderProgram(
