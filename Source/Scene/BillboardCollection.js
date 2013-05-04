@@ -16,8 +16,8 @@ define([
         '../Core/BoundingSphere',
         '../Renderer/BlendingState',
         '../Renderer/BufferUsage',
-        '../Renderer/CommandLists',
         '../Renderer/DrawCommand',
+        '../Renderer/PassCommand',
         '../Renderer/VertexArrayFacade',
         './SceneMode',
         './Billboard',
@@ -41,8 +41,8 @@ define([
         BoundingSphere,
         BlendingState,
         BufferUsage,
-        CommandLists,
         DrawCommand,
+        PassCommand,
         VertexArrayFacade,
         SceneMode,
         Billboard,
@@ -81,7 +81,6 @@ define([
     var allPassPurpose = 'all';
     var colorPassPurpose = 'color';
     var pickPassPurpose = 'pick';
-    var emptyArray = [];
 
     /**
      * A renderable collection of billboards.  Billboards are viewport-aligned
@@ -157,7 +156,6 @@ define([
 
         this._colorCommands = [];
         this._pickCommands = [];
-        this._commandLists = new CommandLists();
 
         /**
          * The 4x4 transformation matrix that transforms each billboard in this collection from model to world coordinates.
@@ -1065,12 +1063,9 @@ define([
         var vaLength;
         var command;
         var j;
-        var commandLists = this._commandLists;
-        commandLists.colorList = emptyArray;
-        commandLists.pickList = emptyArray;
+
         if (pass.color) {
             var colorList = this._colorCommands;
-            commandLists.colorList = colorList;
 
             if (typeof this._sp === 'undefined') {
                 this._rs = context.createRenderState({
@@ -1091,16 +1086,18 @@ define([
                 command = colorList[j];
                 if (typeof command === 'undefined') {
                     command = colorList[j] = new DrawCommand();
+                    command.passes.color = new PassCommand();
                 }
 
                 command.boundingVolume = boundingVolume;
                 command.modelMatrix = modelMatrix;
                 command.primitiveType = PrimitiveType.TRIANGLES;
                 command.count = va[j].indicesCount;
-                command.passCommand.shaderProgram = this._sp;
-                command.passCommand.uniformMap = this._uniforms;
                 command.vertexArray = va[j].va;
                 command.renderState = this._rs;
+                command.passes.color.shaderProgram = this._sp;
+                command.passes.color.uniformMap = this._uniforms;
+                commandList.push(command);
             }
         }
         if (picking) {
@@ -1114,6 +1111,7 @@ define([
                         attributeIndices);
             }
 
+// TODO: get rid of this and use same commands for picking
             va = this._vaf.vaByPurpose[pickPassPurpose];
             vaLength = va.length;
 
@@ -1122,21 +1120,19 @@ define([
                 command = pickList[j];
                 if (typeof command === 'undefined') {
                     command = pickList[j] = new DrawCommand();
+                    command.passes.pick = new PassCommand();
                 }
 
                 command.boundingVolume = boundingVolume;
                 command.modelMatrix = modelMatrix;
                 command.primitiveType = PrimitiveType.TRIANGLES;
                 command.count = va[j].indicesCount;
-                command.passCommand.shaderProgram = this._spPick;
-                command.passCommand.uniformMap = this._uniforms;
                 command.vertexArray = va[j].va;
                 command.renderState = this._rs;
+                command.passes.pick.shaderProgram = this._spPick;
+                command.passes.pick.uniformMap = this._uniforms;
+                commandList.push(command);
             }
-        }
-
-        if (!commandLists.empty()) {
-            commandList.push(commandLists);
         }
     };
 

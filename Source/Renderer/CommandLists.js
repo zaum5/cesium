@@ -2,6 +2,8 @@
 define(function() {
     "use strict";
 
+// TODO: delete this files and its specs
+
     /**
      * Represents lists of commands for drawing for each render pass.
      *

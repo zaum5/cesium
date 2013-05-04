@@ -24,9 +24,9 @@ define([
         '../Core/Quaternion',
         '../Renderer/BlendingState',
         '../Renderer/BufferUsage',
-        '../Renderer/CommandLists',
         '../Renderer/CullFace',
         '../Renderer/DrawCommand',
+        '../Renderer/PassCommand',
         '../Renderer/VertexLayout',
         '../Renderer/createGlowFragmentShaderSource',
         '../Renderer/createPickFragmentShaderSource',
@@ -59,9 +59,9 @@ define([
         Quaternion,
         BlendingState,
         BufferUsage,
-        CommandLists,
         CullFace,
         DrawCommand,
+        PassCommand,
         VertexLayout,
         createGlowFragmentShaderSource,
         createPickFragmentShaderSource,
@@ -166,7 +166,7 @@ define([
         this._boundingVolume = new BoundingSphere();
         this._boundingVolume2D = new BoundingSphere();
 
-        this._commandLists = new CommandLists();
+        this._commands = [];
 
         /**
          * DOC_TBA
@@ -729,89 +729,42 @@ define([
         var command;
 
         var materialChanged = this._material !== this.material;
+        this._material = this.material;
 
-        this._commandLists.removeAll();
-        if (pass.color) {
-            if (typeof this._rs === 'undefined') {
-                // TODO: Should not need this in 2D/columbus view, but is hiding a triangulation issue.
-                this._rs = context.createRenderState({
-                    cull : {
-                        enabled : true,
-                        face : CullFace.BACK
-                    },
-                    blending : BlendingState.ALPHA_BLEND
-                });
-            }
-
-            // Recompile shader when material changes
-            if (materialChanged) {
-                this._material = this.material;
-
-                var fsSource =
-                    '#line 0\n' +
-                    this.material.shaderSource +
-                    '#line 0\n' +
-                    PolygonFS;
-
-                this._sp = context.getShaderCache().replaceShaderProgram(this._sp, PolygonVS, fsSource, attributeIndices);
-
-                this._drawUniforms = combine([this._uniforms, this.material._uniforms], false, false);
-            }
-
-            commands = this._commandLists.colorList;
-            commands.length = length;
-
-            for (var i = 0; i < length; ++i) {
-                command = commands[i];
-                if (typeof command === 'undefined') {
-                    command = commands[i] = new DrawCommand();
-                }
-
-                command.boundingVolume = boundingVolume;
-                command.primitiveType = PrimitiveType.TRIANGLES;
-                command.passCommand.shaderProgram = this._sp,
-                command.passCommand.uniformMap = this._drawUniforms;
-                command.vertexArray = vas[i];
-                command.renderState = this._rs;
-            }
+        if (typeof this._rs === 'undefined') {
+            // TODO: Should not need this in 2D/columbus view, but is hiding a triangulation issue.
+            this._rs = context.createRenderState({
+                cull : {
+                    enabled : true,
+                    face : CullFace.BACK
+                },
+                blending : BlendingState.ALPHA_BLEND
+            });
         }
 
-        if (pass.glow) {
-            // Recompile shader when material changes
-            if (materialChanged || typeof this._spGlow === 'undefined') {
-                var glowFS = createGlowFragmentShaderSource(
-                    '#line 0\n' +
-                    this.material.shaderSource +
-                    '#line 0\n' +
-                    PolygonFS);
+        // Recompile shader when material changes
+        if (pass.color && (materialChanged || typeof this._sp === 'undefined')) {
+            var fsSource =
+                '#line 0\n' +
+                this.material.shaderSource +
+                '#line 0\n' +
+                PolygonFS;
 
-                this._spGlow = context.getShaderCache().replaceShaderProgram(this._spGlow, PolygonVS, glowFS, attributeIndices);
-            }
+            this._sp = context.getShaderCache().replaceShaderProgram(this._sp, PolygonVS, fsSource, attributeIndices);
+            this._drawUniforms = combine([this._uniforms, this.material._uniforms], false, false);
+        }
 
-            commands = this._commandLists.glowList;
-            commands.length = length;
+        if (pass.glow && (materialChanged || typeof this._spGlow === 'undefined')) {
+            var glowFS = createGlowFragmentShaderSource(
+                '#line 0\n' +
+                this.material.shaderSource +
+                '#line 0\n' +
+                PolygonFS);
 
-            for (var j = 0; j < length; ++j) {
-                command = commands[j];
-                if (typeof command === 'undefined') {
-                    command = commands[j] = new DrawCommand();
-                }
-
-                command.boundingVolume = boundingVolume;
-                command.primitiveType = PrimitiveType.TRIANGLES;
-                command.passCommand.shaderProgram = this._spGlow,
-                command.passCommand.uniformMap = this._drawUniforms;
-                command.vertexArray = vas[j];
-                command.renderState = this._rs;
-            }
+            this._spGlow = context.getShaderCache().replaceShaderProgram(this._spGlow, PolygonVS, glowFS, attributeIndices);
         }
 
         if (pass.pick) {
-            if (typeof this._pickId === 'undefined') {
-                this._pickId = context.createPickId(this);
-            }
-
-            // Recompile shader when material changes
             if (materialChanged || typeof this._spPick === 'undefined') {
                 var pickFS = createPickFragmentShaderSource(
                     '#line 0\n' +
@@ -823,26 +776,50 @@ define([
                 this._pickUniforms = combine([this._uniforms, this._pickColorUniform, this.material._uniforms], false, false);
             }
 
-            commands = this._commandLists.pickList;
-            commands.length = length;
-
-            for (var j = 0; j < length; ++j) {
-                command = commands[j];
-                if (typeof command === 'undefined') {
-                    command = commands[j] = new DrawCommand();
-                }
-
-                command.boundingVolume = boundingVolume;
-                command.primitiveType = PrimitiveType.TRIANGLES;
-                command.passCommand.shaderProgram = this._spPick,
-                command.passCommand.uniformMap = this._pickUniforms;
-                command.vertexArray = vas[j];
-                command.renderState = this._rs;
+            if (typeof this._pickId === 'undefined') {
+                this._pickId = context.createPickId(this);
             }
         }
 
-        if (!this._commandLists.empty()) {
-            commandList.push(this._commandLists);
+        commands = this._commands;
+        commands.length = length;
+
+        for (var i = 0; i < length; ++i) {
+            command = commands[i];
+            if (typeof command === 'undefined') {
+                command = commands[i] = new DrawCommand();
+            }
+
+            command.boundingVolume = boundingVolume;
+            command.primitiveType = PrimitiveType.TRIANGLES;
+            command.vertexArray = vas[i];
+            command.renderState = this._rs;
+
+            if (pass.color) {
+                if (typeof command.passes.color === 'undefined') {
+                    command.passes.color = new PassCommand();
+                }
+                command.passes.color.shaderProgram = this._sp;
+                command.passes.color.uniformMap = this._drawUniforms;
+            }
+
+            if (pass.glow) {
+                if (typeof command.passes.glow === 'undefined') {
+                    command.passes.glow = new PassCommand();
+                }
+                command.passes.glow.shaderProgram = this._spGlow;
+                command.passes.glow.uniformMap = this._drawUniforms;
+            }
+
+            if (pass.pick) {
+                if (typeof command.passes.pick === 'undefined') {
+                    command.passes.pick = new PassCommand();
+                }
+                command.passes.pick.shaderProgram = this._spPick;
+                command.passes.pick.uniformMap = this._pickUniforms;
+            }
+
+            commandList.push(command);
         }
     };
 

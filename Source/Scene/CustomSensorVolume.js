@@ -14,8 +14,8 @@ define([
         '../Core/BoundingSphere',
         '../Renderer/BufferUsage',
         '../Renderer/BlendingState',
-        '../Renderer/CommandLists',
         '../Renderer/DrawCommand',
+        '../Renderer/PassCommand',
         '../Renderer/createPickFragmentShaderSource',
         './Material',
         '../Shaders/SensorVolume',
@@ -37,8 +37,8 @@ define([
         BoundingSphere,
         BufferUsage,
         BlendingState,
-        CommandLists,
         DrawCommand,
+        PassCommand,
         createPickFragmentShaderSource,
         Material,
         ShadersSensorVolume,
@@ -63,15 +63,14 @@ define([
     var CustomSensorVolume = function(options) {
         options = defaultValue(options, defaultValue.EMPTY_OBJECT);
 
+        this._sp = undefined;
+        this._spPick = undefined;
         this._pickId = undefined;
         this._pickIdThis = defaultValue(options._pickIdThis, this);
 
-        this._colorCommand = new DrawCommand();
-        this._pickCommand = new DrawCommand();
-        this._commandLists = new CommandLists();
-
-        this._colorCommand.primitiveType = this._pickCommand.primitiveType = PrimitiveType.TRIANGLES;
-        this._colorCommand.boundingVolume = this._pickCommand.boundingVolume = new BoundingSphere();
+        this._command = new DrawCommand();
+        this._command.primitiveType = PrimitiveType.TRIANGLES;
+        this._command.boundingVolume = new BoundingSphere();
 
         /**
          * <code>true</code> if this sensor will be shown; otherwise, <code>false</code>
@@ -245,7 +244,7 @@ define([
             boundingVolumePositions.push(p);
         }
 
-        BoundingSphere.fromPoints(boundingVolumePositions, customSensorVolume._colorCommand.boundingVolume);
+        BoundingSphere.fromPoints(boundingVolumePositions, customSensorVolume._command.boundingVolume);
 
         return positions;
     }
@@ -328,11 +327,13 @@ define([
             throw new DeveloperError('this.material must be defined.');
         }
 
+        var command = this._command;
+
         // Initial render state creation
-        if ((this._showThroughEllipsoid !== this.showThroughEllipsoid) || (typeof this._colorCommand.renderState === 'undefined')) {
+        if ((this._showThroughEllipsoid !== this.showThroughEllipsoid) || (typeof command.renderState === 'undefined')) {
             this._showThroughEllipsoid = this.showThroughEllipsoid;
 
-            var rs = context.createRenderState({
+            command.renderState = context.createRenderState({
                 depthTest : {
                     // This would be better served by depth testing with a depth buffer that does not
                     // include the ellipsoid depth - or a g-buffer containing an ellipsoid mask
@@ -342,9 +343,6 @@ define([
                 depthMask : false,
                 blending : BlendingState.ALPHA_BLEND
             });
-
-            this._colorCommand.renderState = rs;
-            this._pickCommand.renderState = rs;
         }
 
         // Recreate vertex buffer when directions change
@@ -355,76 +353,61 @@ define([
 
             var directions = this._directions;
             if (directions && (directions.length >= 3)) {
-                this._colorCommand.vertexArray = this._pickCommand.vertexArray = createVertexArray(this, context);
+                command.vertexArray = createVertexArray(this, context);
             }
         }
 
-        if (typeof this._colorCommand.vertexArray === 'undefined') {
+        if (typeof command.vertexArray === 'undefined') {
             return;
         }
-
-        var pass = frameState.passes;
-        this._colorCommand.modelMatrix = this._pickCommand.modelMatrix = this.modelMatrix;
-        this._commandLists.removeAll();
 
         var materialChanged = this._material !== this.material;
         this._material = this.material;
 
-        if (pass.color) {
-            var colorCommand = this._colorCommand;
+        var pass = frameState.passes;
+        command.modelMatrix = this.modelMatrix;
 
-            // Recompile shader when material changes
-            if (materialChanged || typeof colorCommand.passCommand.shaderProgram === 'undefined') {
-                var fsSource =
-                    '#line 0\n' +
-                    ShadersSensorVolume +
-                    '#line 0\n' +
-                    this._material.shaderSource +
-                    '#line 0\n' +
-                    CustomSensorVolumeFS;
+        // Recompile shader when material changes
+        if (pass.color && (materialChanged || typeof this._sp === 'undefined')) {
+            var fsSource =
+                '#line 0\n' +
+                ShadersSensorVolume +
+                '#line 0\n' +
+                this._material.shaderSource +
+                '#line 0\n' +
+                CustomSensorVolumeFS;
 
-                colorCommand.passCommand.shaderProgram = context.getShaderCache().replaceShaderProgram(
-                    colorCommand.passCommand.shaderProgram, CustomSensorVolumeVS, fsSource, attributeIndices);
-                colorCommand.passCommand.uniformMap = combine([this._uniforms, this._material._uniforms], false, false);
-            }
-
-            this._commandLists.colorList.push(colorCommand);
+            this._sp = context.getShaderCache().replaceShaderProgram(
+                this._sp, CustomSensorVolumeVS, fsSource, attributeIndices);
+            command.passes.color = new PassCommand(this._sp, combine([this._uniforms, this._material._uniforms], false, false));
         }
 
-        if (pass.pick) {
-            var pickCommand = this._pickCommand;
-
+        if (pass.pick && (materialChanged || typeof this._spPick === 'undefined')) {
             if (typeof this._pickId === 'undefined') {
                 this._pickId = context.createPickId(this._pickIdThis);
             }
 
-            // Recompile shader when material changes
-            if (materialChanged || typeof pickCommand.passCommand.shaderProgram === 'undefined') {
-                var pickFS = createPickFragmentShaderSource(
-                    '#line 0\n' +
-                    ShadersSensorVolume +
-                    '#line 0\n' +
-                    this._material.shaderSource +
-                    '#line 0\n' +
-                    CustomSensorVolumeFS, 'uniform');
+            var pickFS = createPickFragmentShaderSource(
+                '#line 0\n' +
+                ShadersSensorVolume +
+                '#line 0\n' +
+                this._material.shaderSource +
+                '#line 0\n' +
+                CustomSensorVolumeFS, 'uniform');
 
-                pickCommand.passCommand.shaderProgram = context.getShaderCache().replaceShaderProgram(
-                    pickCommand.passCommand.shaderProgram, CustomSensorVolumeVS, pickFS, attributeIndices);
+            this._spPick = context.getShaderCache().replaceShaderProgram(
+                this._spPick, CustomSensorVolumeVS, pickFS, attributeIndices);
+            var that = this;
+            var uniformMap = combine([this._uniforms, this._material._uniforms, {
+                czm_pickColor : function() {
+                    return that._pickId.color;
+                }
+            }], false, false);
 
-                var that = this;
-                pickCommand.passCommand.uniformMap = combine([this._uniforms, this._material._uniforms, {
-                    czm_pickColor : function() {
-                        return that._pickId.color;
-                    }
-                }], false, false);
-            }
-
-            this._commandLists.pickList.push(pickCommand);
+            command.passes.pick = new PassCommand(this._spPick, uniformMap);
         }
 
-        if (!this._commandLists.empty()) {
-            commandList.push(this._commandLists);
-        }
+        commandList.push(command);
     };
 
     /**
@@ -441,8 +424,8 @@ define([
      */
     CustomSensorVolume.prototype.destroy = function() {
         this._colorCommand.vertexArray = this._colorCommand.vertexArray && this._colorCommand.vertexArray.destroy();
-        this._colorCommand.passCommand.shaderProgram = this._colorCommand.passCommand.shaderProgram && this._colorCommand.passCommand.shaderProgram.release();
-        this._pickCommand.passCommand.shaderProgram = this._pickCommand.passCommand.shaderProgram && this._pickCommand.passCommand.shaderProgram.release();
+        this._sp = this._sp && this._sp.release();
+        this._spPick = this._spPick && this._spPick.release();
         this._pickId = this._pickId && this._pickId.destroy();
         return destroyObject(this);
     };
