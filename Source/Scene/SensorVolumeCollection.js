@@ -47,8 +47,8 @@ define([
      * @see SensorVolumeCollection#addCustom
      * @see SensorVolumeCollection#addComplexConic
      */
-    SensorVolumeCollection.prototype.addRectangularPyramid = function(template) {
-        var sensor = new RectangularPyramidSensorVolume(template);
+    SensorVolumeCollection.prototype.addRectangularPyramid = function(options) {
+        var sensor = new RectangularPyramidSensorVolume(options);
         this._sensors.push(sensor);
         return sensor;
     };
@@ -75,8 +75,8 @@ define([
      * @see SensorVolumeCollection#addRectangularPyramid
      * @see SensorVolumeCollection#addComplexConic
      */
-    SensorVolumeCollection.prototype.addCustom = function(template) {
-        var sensor = new CustomSensorVolume(template);
+    SensorVolumeCollection.prototype.addCustom = function(options) {
+        var sensor = new CustomSensorVolume(options);
         this._sensors.push(sensor);
         return sensor;
     };
