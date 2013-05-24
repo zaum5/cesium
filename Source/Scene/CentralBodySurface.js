@@ -146,31 +146,31 @@ define([
         };
     };
 
-    function writePoints(czml, from, to) {
+    function addPositions(positions, from, to) {
         for (var time = 0.0; time < 1.0; time += 0.1) {
-            czml += CesiumMath.lerp(from.longitude, to.longitude, time);
-            czml += ',';
-            czml += CesiumMath.lerp(from.latitude, to.latitude, time);
-            czml += ',0.0,';
+            positions.push(CesiumMath.lerp(from.longitude, to.longitude, time));
+            positions.push(CesiumMath.lerp(from.latitude, to.latitude, time));
+            positions.push(0.0);
         }
-        czml += to.longitude;
-        czml += ',';
-        czml += to.latitude;
-        czml += ',0.0';
-        return czml;
+        positions.push(to.longitude);
+        positions.push(to.latitude);
+        positions.push(0.0);
     }
 
-    CentralBodySurface.prototype.writeEventsAsCzml = function(provider) {
+    CentralBodySurface.prototype.getEventsAsCzml = function(provider) {
         var navigationStart = JulianDate.fromIso8601('1970-01-01T00:00:00Z').addSeconds(window.performance.timing.navigationStart / 1000.0);
         var tilingScheme = provider.getTilingScheme();
         var loadEvents = this._debug.loadEvents;
         var seenTiles = {};
-        var czml = '[';
+        var czml = [];
 
-        czml += '{"id":"document","clock":{';
-        czml += '"currentTime":"' + navigationStart.addSeconds(loadEvents[0].timestamp / 1000.0).toIso8601() + '",';
-        czml += '"multiplier":0.1';
-        czml += '}}';
+        czml.push({
+           id : 'document',
+           clock : {
+               currentTime : navigationStart.addSeconds(loadEvents[0].timestamp / 1000.0).toIso8601(),
+               multiplier : 0.1
+           }
+        });
 
         for (var i = 0, len = loadEvents.length; i < len; ++i) {
             var loadEvent = loadEvents[i];
@@ -178,66 +178,66 @@ define([
                 continue;
             }
 
-            czml += ',';
-
-            var tileKey = JSON.stringify({x:loadEvent.x,y:loadEvent.y,level:loadEvent.level});
-            if (typeof seenTiles[tileKey] === 'undefined') {
-                seenTiles[tileKey] = true;
-                czml += '{';
-                czml += '"id":"' + encodeURIComponent(tileKey) + '",';
-                czml += '"vertexPositions":{';
+            var id = loadEvent.level + '-' + loadEvent.x + '-' + loadEvent.y;
+            if (typeof seenTiles[id] === 'undefined') {
+                seenTiles[id] = true;
+                var positions = [];
                 var extent = tilingScheme.tileXYToExtent(loadEvent.x, loadEvent.y, loadEvent.level);
-                czml += '"cartographicRadians":[';
-                czml = writePoints(czml, extent.getSouthwest(), extent.getNorthwest());
-                czml += ',';
-                czml = writePoints(czml, extent.getNorthwest(), extent.getNortheast());
-                czml += ',';
-                czml = writePoints(czml, extent.getNortheast(), extent.getSoutheast());
-                czml += ',';
-                czml = writePoints(czml, extent.getSoutheast(), extent.getSouthwest());
-                czml += ']},';
-                czml += '"polyline":{"show":false},';
-                czml += '"position":{"cartographicRadians":[' + extent.getCenter().longitude + ',' + extent.getCenter().latitude + ',0.0]},';
-                czml += '"label":{"show":false,"verticalOrigin":"CENTER","horizontalOrigin":"CENTER","text":"' + loadEvent.level + ',' + loadEvent.x + ',' + loadEvent.y + '"}';
-                czml += '},';
+                addPositions(positions, extent.getSouthwest(), extent.getNorthwest());
+                addPositions(positions, extent.getNorthwest(), extent.getNortheast());
+                addPositions(positions, extent.getNortheast(), extent.getSoutheast());
+                addPositions(positions, extent.getSoutheast(), extent.getSouthwest());
+                czml.push({
+                    id : id,
+                    vertexPositions : {
+                        cartographicRadians : positions
+                    },
+                    position : {
+                        cartographicRadians : [extent.getCenter().longitude, extent.getCenter().latitude, extent.getCenter().height]
+                    },
+                    polyline : {
+                        show : false
+                    },
+                    label : {
+                        show : false,
+                        verticalOrigin : "CENTER",
+                        horizontalOrigin : "CENTER",
+                        text : loadEvent.level + ',' + loadEvent.x + ',' + loadEvent.y
+                    }
+                });
             }
 
-            czml += '{';
-            czml += '"id":"' + encodeURIComponent(tileKey) + '",';
-            czml += '"polyline":{';
-            czml += '"interval":"' + navigationStart.addSeconds(loadEvent.timestamp / 1000.0).toIso8601() + '/9999-01-01T00:00:00Z",';
+            var interval = navigationStart.addSeconds(loadEvent.timestamp / 1000.0).toIso8601() + '/9999-01-01T00:00:00Z';
+
+            var polyline = {
+                    interval : interval
+            };
+
+            var label = {
+                    interval : interval
+            };
+
             if (loadEvent.event === 'request') {
-                czml += '"color":{"rgba":[255, 0, 0, 255]},';
-                czml += '"show":true';
+                polyline.color = label.fillColor = label.outlineColor = {
+                        rgba : [255, 0, 0, 255]
+                };
+                polyline.show = label.show = true;
             } else if (loadEvent.event === 'ready') {
-                czml += '"color":{"rgba":[0, 255, 0, 255]},';
-                czml += '"show":true';
+                polyline.color = label.fillColor = label.outlineColor = {
+                        rgba : [0, 255, 0, 255]
+                };
+                polyline.show = label.show = true;
             } else {
-                czml += '"show":false';
+                polyline.show = label.show = false;
             }
 
-            czml += '},';
-
-            czml += '"label":{';
-            czml += '"interval":"' + navigationStart.addSeconds(loadEvent.timestamp / 1000.0).toIso8601() + '/9999-01-01T00:00:00Z",';
-            if (loadEvent.event === 'request') {
-                czml += '"fillColor":{"rgba":[255, 0, 0, 255]},';
-                czml += '"outlineColor":{"rgba":[255, 0, 0, 255]},';
-                czml += '"show":true';
-            } else if (loadEvent.event === 'ready') {
-                czml += '"fillColor":{"rgba":[0, 255, 0, 255]},';
-                czml += '"outlineColor":{"rgba":[0, 255, 0, 255]},';
-                czml += '"show":true';
-            } else {
-                czml += '"show":false';
-            }
-
-            czml += '}';
-
-            czml += '}';
+            czml.push({
+                id : id,
+                label : label,
+                polyline : polyline
+            });
         }
-        czml += ']';
-        console.log(czml);
+        return czml;
     };
 
     CentralBodySurface.prototype.update = function(context, frameState, colorCommandList, centralBodyUniformMap, shaderSet, renderState, projection) {

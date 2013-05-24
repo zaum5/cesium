@@ -198,7 +198,8 @@ require([
         new Button({
             label : 'Write CZML',
             onClick : function() {
-                widget.centralBody._surface.writeEventsAsCzml(widget.centralBody.terrainProvider);
+                var czml = widget.centralBody._surface.getEventsAsCzml(widget.centralBody.terrainProvider);
+                console.log(JSON.stringify(czml));
             }
         }).placeAt('toolbar');
 
