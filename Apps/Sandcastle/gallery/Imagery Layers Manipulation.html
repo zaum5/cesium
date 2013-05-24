@@ -187,6 +187,21 @@ require([
 
     function createLayerUserInterface() {
         domConstruct.place('<table id="layerTable"></table>', 'toolbar');
+
+        new Button({
+            label : 'Clear Events',
+            onClick : function() {
+                widget.centralBody._surface._debug.loadEvents.length = 0;
+            }
+        }).placeAt('toolbar');
+
+        new Button({
+            label : 'Write CZML',
+            onClick : function() {
+                widget.centralBody._surface.writeEventsAsCzml(widget.centralBody.terrainProvider);
+            }
+        }).placeAt('toolbar');
+
         updateUserInterface(imageryLayerCollection);
     }
 

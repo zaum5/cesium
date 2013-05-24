@@ -7,11 +7,13 @@ define([
         '../Core/Cartesian2',
         '../Core/Cartesian3',
         '../Core/Cartesian4',
+        '../Core/Math',
         '../Core/CubeMapEllipsoidTessellator',
         '../Core/DeveloperError',
         '../Core/Ellipsoid',
         '../Core/EllipsoidalOccluder',
         '../Core/Intersect',
+        '../Core/JulianDate',
         '../Core/Matrix4',
         '../Core/MeshFilters',
         '../Core/PrimitiveType',
@@ -42,11 +44,13 @@ define([
         Cartesian2,
         Cartesian3,
         Cartesian4,
+        CesiumMath,
         CubeMapEllipsoidTessellator,
         DeveloperError,
         Ellipsoid,
         EllipsoidalOccluder,
         Intersect,
+        JulianDate,
         Matrix4,
         MeshFilters,
         PrimitiveType,
@@ -122,6 +126,7 @@ define([
             enableDebugOutput : false,
             boundingSphereTile : undefined,
             boundingSphereVA : undefined,
+            loadEvents : [],
 
             maxDepth : 0,
             tilesVisited : 0,
@@ -139,6 +144,100 @@ define([
 
             suspendLodUpdate : false
         };
+    };
+
+    function writePoints(czml, from, to) {
+        for (var time = 0.0; time < 1.0; time += 0.1) {
+            czml += CesiumMath.lerp(from.longitude, to.longitude, time);
+            czml += ',';
+            czml += CesiumMath.lerp(from.latitude, to.latitude, time);
+            czml += ',0.0,';
+        }
+        czml += to.longitude;
+        czml += ',';
+        czml += to.latitude;
+        czml += ',0.0';
+        return czml;
+    }
+
+    CentralBodySurface.prototype.writeEventsAsCzml = function(provider) {
+        var navigationStart = JulianDate.fromIso8601('1970-01-01T00:00:00Z').addSeconds(window.performance.timing.navigationStart / 1000.0);
+        var tilingScheme = provider.getTilingScheme();
+        var loadEvents = this._debug.loadEvents;
+        var seenTiles = {};
+        var czml = '[';
+
+        czml += '{"id":"document","clock":{';
+        czml += '"currentTime":"' + navigationStart.addSeconds(loadEvents[0].timestamp / 1000.0).toIso8601() + '",';
+        czml += '"multiplier":0.1';
+        czml += '}}';
+
+        for (var i = 0, len = loadEvents.length; i < len; ++i) {
+            var loadEvent = loadEvents[i];
+            if (loadEvent.provider !== provider || loadEvent.level === 0) {
+                continue;
+            }
+
+            czml += ',';
+
+            var tileKey = JSON.stringify({x:loadEvent.x,y:loadEvent.y,level:loadEvent.level});
+            if (typeof seenTiles[tileKey] === 'undefined') {
+                seenTiles[tileKey] = true;
+                czml += '{';
+                czml += '"id":"' + encodeURIComponent(tileKey) + '",';
+                czml += '"vertexPositions":{';
+                var extent = tilingScheme.tileXYToExtent(loadEvent.x, loadEvent.y, loadEvent.level);
+                czml += '"cartographicRadians":[';
+                czml = writePoints(czml, extent.getSouthwest(), extent.getNorthwest());
+                czml += ',';
+                czml = writePoints(czml, extent.getNorthwest(), extent.getNortheast());
+                czml += ',';
+                czml = writePoints(czml, extent.getNortheast(), extent.getSoutheast());
+                czml += ',';
+                czml = writePoints(czml, extent.getSoutheast(), extent.getSouthwest());
+                czml += ']},';
+                czml += '"polyline":{"show":false},';
+                czml += '"position":{"cartographicRadians":[' + extent.getCenter().longitude + ',' + extent.getCenter().latitude + ',0.0]},';
+                czml += '"label":{"show":false,"verticalOrigin":"CENTER","horizontalOrigin":"CENTER","text":"' + loadEvent.level + ',' + loadEvent.x + ',' + loadEvent.y + '"}';
+                czml += '},';
+            }
+
+            czml += '{';
+            czml += '"id":"' + encodeURIComponent(tileKey) + '",';
+            czml += '"polyline":{';
+            czml += '"interval":"' + navigationStart.addSeconds(loadEvent.timestamp / 1000.0).toIso8601() + '/9999-01-01T00:00:00Z",';
+            if (loadEvent.event === 'request') {
+                czml += '"color":{"rgba":[255, 0, 0, 255]},';
+                czml += '"show":true';
+            } else if (loadEvent.event === 'ready') {
+                czml += '"color":{"rgba":[0, 255, 0, 255]},';
+                czml += '"show":true';
+            } else {
+                czml += '"show":false';
+            }
+
+            czml += '},';
+
+            czml += '"label":{';
+            czml += '"interval":"' + navigationStart.addSeconds(loadEvent.timestamp / 1000.0).toIso8601() + '/9999-01-01T00:00:00Z",';
+            if (loadEvent.event === 'request') {
+                czml += '"fillColor":{"rgba":[255, 0, 0, 255]},';
+                czml += '"outlineColor":{"rgba":[255, 0, 0, 255]},';
+                czml += '"show":true';
+            } else if (loadEvent.event === 'ready') {
+                czml += '"fillColor":{"rgba":[0, 255, 0, 255]},';
+                czml += '"outlineColor":{"rgba":[0, 255, 0, 255]},';
+                czml += '"show":true';
+            } else {
+                czml += '"show":false';
+            }
+
+            czml += '}';
+
+            czml += '}';
+        }
+        czml += ']';
+        console.log(czml);
     };
 
     CentralBodySurface.prototype.update = function(context, frameState, colorCommandList, centralBodyUniformMap, shaderSet, renderState, projection) {
@@ -678,7 +777,34 @@ define([
         do {
             surface._tileReplacementQueue.markTileRendered(tile);
 
+            var readyAlready = tile.state === TileState.READY;
+            if (typeof surface._debug.loadEvents !== 'undefined') {
+                if (tile.state === TileState.START) {
+                    surface._debug.loadEvents.push({
+                        timestamp : window.performance.now(),
+                        provider : terrainProvider,
+                        x : tile.x,
+                        y : tile.y,
+                        level : tile.level,
+                        event : 'request'
+                    });
+                }
+            }
+
             tile.processStateMachine(context, terrainProvider, imageryLayerCollection);
+
+            if (typeof surface._debug.loadEvents !== 'undefined') {
+                if (!readyAlready && tile.state === TileState.READY) {
+                    surface._debug.loadEvents.push({
+                        timestamp : window.performance.now(),
+                        provider : terrainProvider,
+                        x : tile.x,
+                        y : tile.y,
+                        level : tile.level,
+                        event : 'ready'
+                    });
+                }
+            }
 
             var next = tile.loadNext;
 
