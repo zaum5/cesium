@@ -1367,6 +1367,69 @@ define([
         },
 
         /**
+         * An automatic GLSL uniform representing the sun position in world coordinates.
+         * <br /><br />
+         * Like all automatic uniforms, <code>czm_sunPositionWC</code> does not need to be explicitly declared.
+         * However, it can be explicitly declared when a shader is also used by other applications such
+         * as a third-party authoring tool.
+         *
+         * @alias czm_sunPositionWC
+         * @glslUniform
+         *
+         * @see UniformState#getSunPositionWC
+         * @see czm_sunPositionColumbusView
+         * @see czm_sunDirectionWC
+         *
+         * @example
+         * // GLSL declaration
+         * uniform vec3 czm_sunPositionWC;
+         */
+        czm_sunPositionWC : {
+            getSize : function() {
+                return 1;
+            },
+
+            getDatatype : function() {
+                return UniformDatatype.FLOAT_VECTOR3;
+            },
+
+            getValue : function(uniformState) {
+                return uniformState.getSunPositionWC();
+            }
+        },
+
+        /**
+         * An automatic GLSL uniform representing the sun position in Columbus view world coordinates.
+         * <br /><br />
+         * Like all automatic uniforms, <code>czm_sunPositionColumbusView</code> does not need to be explicitly declared.
+         * However, it can be explicitly declared when a shader is also used by other applications such
+         * as a third-party authoring tool.
+         *
+         * @alias czm_sunPositionColumbusView
+         * @glslUniform
+         *
+         * @see UniformState#getSunPositionColumbusView
+         * @see czm_sunPositionWC
+         *
+         * @example
+         * // GLSL declaration
+         * uniform vec3 czm_sunPositionColumbusView;
+         */
+        czm_sunPositionColumbusView : {
+            getSize : function() {
+                return 1;
+            },
+
+            getDatatype : function() {
+                return UniformDatatype.FLOAT_VECTOR3;
+            },
+
+            getValue : function(uniformState) {
+                return uniformState.getSunPositionColumbusView();
+            }
+        },
+
+        /**
          * An automatic GLSL uniform representing the normalized direction to the sun in eye coordinates.
          * This is commonly used for directional lighting computations.
          * <br /><br />
@@ -1414,6 +1477,7 @@ define([
          * @glslUniform
          *
          * @see UniformState#getSunDirectionWC
+         * @see czm_sunPositionWC
          * @see czm_sunDirectionEC
          *
          * @example
@@ -2305,6 +2369,8 @@ define([
     }
 
     function getBuiltinConstants() {
+        // use toExponential instead of toString to prevent a number like 1.2e2 from expanding to 120
+        // and have a shader fail to compile because it thinks it should be an int.
         var constants = {
             /**
              * A built-in GLSL floating-point constant for <code>Math.PI</code>.
@@ -2321,7 +2387,7 @@ define([
              * // Example
              * float twoPi = 2.0 * czm_pi;
              */
-            czm_pi : Math.PI.toString(),
+            czm_pi : Math.PI.toExponential(),
 
             /**
              * A built-in GLSL floating-point constant for <code>1/pi</code>.
@@ -2338,7 +2404,7 @@ define([
              * // Example
              * float pi = 1.0 / czm_oneOverPi;
              */
-            czm_oneOverPi : CesiumMath.ONE_OVER_PI.toString(),
+            czm_oneOverPi : CesiumMath.ONE_OVER_PI.toExponential(),
 
             /**
              * A built-in GLSL floating-point constant for <code>pi/2</code>.
@@ -2355,7 +2421,7 @@ define([
              * // Example
              * float pi = 2.0 * czm_piOverTwo;
              */
-            czm_piOverTwo : CesiumMath.PI_OVER_TWO.toString(),
+            czm_piOverTwo : CesiumMath.PI_OVER_TWO.toExponential(),
 
             /**
              * A built-in GLSL floating-point constant for <code>pi/3</code>.
@@ -2372,7 +2438,7 @@ define([
              * // Example
              * float pi = 3.0 * czm_piOverThree;
              */
-            czm_piOverThree : CesiumMath.PI_OVER_THREE.toString(),
+            czm_piOverThree : CesiumMath.PI_OVER_THREE.toExponential(),
 
             /**
              * A built-in GLSL floating-point constant for <code>pi/4</code>.
@@ -2389,7 +2455,7 @@ define([
              * // Example
              * float pi = 4.0 * czm_piOverFour;
              */
-            czm_piOverFour : CesiumMath.PI_OVER_FOUR.toString(),
+            czm_piOverFour : CesiumMath.PI_OVER_FOUR.toExponential(),
 
             /**
              * A built-in GLSL floating-point constant for <code>pi/6</code>.
@@ -2406,7 +2472,7 @@ define([
              * // Example
              * float pi = 6.0 * czm_piOverSix;
              */
-            czm_piOverSix : CesiumMath.PI_OVER_SIX.toString(),
+            czm_piOverSix : CesiumMath.PI_OVER_SIX.toExponential(),
 
             /**
              * A built-in GLSL floating-point constant for <code>3pi/2</code>.
@@ -2423,7 +2489,7 @@ define([
              * // Example
              * float pi = (2.0 / 3.0) * czm_threePiOver2;
              */
-            czm_threePiOver2 : CesiumMath.THREE_PI_OVER_TWO.toString(),
+            czm_threePiOver2 : CesiumMath.THREE_PI_OVER_TWO.toExponential(),
 
             /**
              * A built-in GLSL floating-point constant for <code>2pi</code>.
@@ -2440,7 +2506,7 @@ define([
              * // Example
              * float pi = czm_twoPi / 2.0;
              */
-            czm_twoPi : CesiumMath.TWO_PI.toString(),
+            czm_twoPi : CesiumMath.TWO_PI.toExponential(),
 
             /**
              * A built-in GLSL floating-point constant for <code>1/2pi</code>.
@@ -2457,7 +2523,7 @@ define([
              * // Example
              * float pi = 2.0 * czm_oneOverTwoPi;
              */
-            czm_oneOverTwoPi : CesiumMath.ONE_OVER_TWO_PI.toString(),
+            czm_oneOverTwoPi : CesiumMath.ONE_OVER_TWO_PI.toExponential(),
 
             /**
              * A built-in GLSL floating-point constant for converting degrees to radians.
@@ -2474,7 +2540,7 @@ define([
              * // Example
              * float rad = czm_radiansPerDegree * deg;
              */
-            czm_radiansPerDegree : CesiumMath.RADIANS_PER_DEGREE.toString(),
+            czm_radiansPerDegree : CesiumMath.RADIANS_PER_DEGREE.toExponential(),
 
             /**
              * A built-in GLSL floating-point constant for converting radians to degrees.
@@ -2491,7 +2557,21 @@ define([
              * // Example
              * float deg = czm_degreesPerRadian * rad;
              */
-            czm_degreesPerRadian : CesiumMath.DEGREES_PER_RADIAN.toString()
+            czm_degreesPerRadian : CesiumMath.DEGREES_PER_RADIAN.toExponential(),
+
+            /**
+             * A built-in GLSL floating-point constant for one solar radius.
+             *
+             * @alias czm_solarRadius
+             * @glslConstant
+             *
+             * @see CesiumMath.SOLAR_RADIUS
+             *
+             * @example
+             * // GLSL declaration
+             * const float czm_solarRadius = ...;
+             */
+            czm_solarRadius : CesiumMath.SOLAR_RADIUS.toExponential()
         };
 
         var glslConstants = '';
