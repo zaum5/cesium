@@ -777,34 +777,7 @@ define([
         do {
             surface._tileReplacementQueue.markTileRendered(tile);
 
-            var readyAlready = tile.state === TileState.READY;
-            if (typeof surface._debug.loadEvents !== 'undefined') {
-                if (tile.state === TileState.START) {
-                    surface._debug.loadEvents.push({
-                        timestamp : window.performance.now(),
-                        provider : terrainProvider,
-                        x : tile.x,
-                        y : tile.y,
-                        level : tile.level,
-                        event : 'request'
-                    });
-                }
-            }
-
-            tile.processStateMachine(context, terrainProvider, imageryLayerCollection);
-
-            if (typeof surface._debug.loadEvents !== 'undefined') {
-                if (!readyAlready && tile.state === TileState.READY) {
-                    surface._debug.loadEvents.push({
-                        timestamp : window.performance.now(),
-                        provider : terrainProvider,
-                        x : tile.x,
-                        y : tile.y,
-                        level : tile.level,
-                        event : 'ready'
-                    });
-                }
-            }
+            tile.processStateMachine(context, terrainProvider, imageryLayerCollection, surface._debug.loadEvents);
 
             var next = tile.loadNext;
 

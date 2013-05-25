@@ -68,6 +68,8 @@ require([
 
     var imageryLayerCollection;
     var baseLayers = [];
+    
+    var infrared;
 
     function setupLayers() {
         // Create all the base layers that this example will support.
@@ -116,20 +118,22 @@ require([
                 new Cesium.SingleTileImageryProvider({
                     url : require.toUrl('Assets/Textures/NE2_LR_LC_SR_W_DR_2048.jpg')
                 }));
+        
+        infrared = new Cesium.WebMapServiceImageryProvider({
+            url : 'http://mesonet.agron.iastate.edu/cgi-bin/wms/goes/conus_ir.cgi?',
+            layers : 'goes_conus_ir',
+            credit : 'Infrared data courtesy Iowa Environmental Mesonet',
+            parameters : {
+                transparent : 'true',
+                format : 'image/png'
+            },
+            proxy : new Cesium.DefaultProxy('/proxy/')
+        });
 
         // Create the additional layers
         addAdditionalLayerOption(
                 'United States GOES infrared',
-                new Cesium.WebMapServiceImageryProvider({
-                    url : 'http://mesonet.agron.iastate.edu/cgi-bin/wms/goes/conus_ir.cgi?',
-                    layers : 'goes_conus_ir',
-                    credit : 'Infrared data courtesy Iowa Environmental Mesonet',
-                    parameters : {
-                        transparent : 'true',
-                        format : 'image/png'
-                    },
-                    proxy : new Cesium.DefaultProxy('/proxy/')
-                }));
+                infrared);
         addAdditionalLayerOption(
                 'United States weather radar',
                 new Cesium.WebMapServiceImageryProvider({
@@ -198,7 +202,7 @@ require([
         new Button({
             label : 'Write CZML',
             onClick : function() {
-                var czml = widget.centralBody._surface.getEventsAsCzml(widget.centralBody.terrainProvider);
+                var czml = widget.centralBody._surface.getEventsAsCzml(infrared);
                 console.log(JSON.stringify(czml));
             }
         }).placeAt('toolbar');

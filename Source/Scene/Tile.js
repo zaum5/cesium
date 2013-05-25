@@ -325,14 +325,25 @@ define([
         }
     };
 
-    Tile.prototype.processStateMachine = function(context, terrainProvider, imageryLayerCollection) {
+    Tile.prototype.processStateMachine = function(context, terrainProvider, imageryLayerCollection, loadEvents) {
         if (this.state === TileState.START) {
             prepareNewTile(this, terrainProvider, imageryLayerCollection);
             this.state = TileState.LOADING;
+
+            if (typeof loadEvents !== 'undefined') {
+                loadEvents.push({
+                    timestamp : window.performance.now(),
+                    provider : terrainProvider,
+                    x : this.x,
+                    y : this.y,
+                    level : this.level,
+                    event : 'request'
+                });
+            }
         }
 
         if (this.state === TileState.LOADING) {
-            processTerrainStateMachine(this, context, terrainProvider);
+            processTerrainStateMachine(this, context, terrainProvider, loadEvents);
         }
 
         var isRenderable = typeof this.vertexArray !== 'undefined';
@@ -358,6 +369,17 @@ define([
             }
 
             if (imagery.state === ImageryState.UNLOADED) {
+                if (typeof loadEvents !== 'undefined') {
+                    loadEvents.push({
+                        timestamp : window.performance.now(),
+                        provider : imageryLayer.getImageryProvider(),
+                        x : imagery.x,
+                        y : imagery.y,
+                        level : imagery.level,
+                        event : 'request'
+                    });
+                }
+
                 imagery.state = ImageryState.TRANSITIONING;
                 imageryLayer._requestImagery(imagery);
             }
@@ -370,6 +392,17 @@ define([
             if (imagery.state === ImageryState.TEXTURE_LOADED) {
                 imagery.state = ImageryState.TRANSITIONING;
                 imageryLayer._reprojectTexture(context, imagery);
+
+                if (typeof loadEvents !== 'undefined') {
+                    loadEvents.push({
+                        timestamp : window.performance.now(),
+                        provider : imageryLayer.getImageryProvider(),
+                        x : imagery.x,
+                        y : imagery.y,
+                        level : imagery.level,
+                        event : 'ready'
+                    });
+                }
             }
 
             if (imagery.state === ImageryState.FAILED || imagery.state === ImageryState.INVALID) {
@@ -455,7 +488,7 @@ define([
         ellipsoid.geodeticSurfaceNormal(northwestCornerCartesian, cartesian3Scratch).cross(tile.northeastCornerCartesian.subtract(northwestCornerCartesian, cartesian3Scratch2), cartesian3Scratch).normalize(tile.northNormal);
     }
 
-    function processTerrainStateMachine(tile, context, terrainProvider) {
+    function processTerrainStateMachine(tile, context, terrainProvider, loadEvents) {
         var loaded = tile.loadedTerrain;
         var upsampled = tile.upsampledTerrain;
         var suspendUpsampling = false;
@@ -497,6 +530,17 @@ define([
                 // No further loading or upsampling is necessary.
                 tile.loadedTerrain = undefined;
                 tile.upsampledTerrain = undefined;
+
+                if (typeof loadEvents !== 'undefined') {
+                    loadEvents.push({
+                        timestamp : window.performance.now(),
+                        provider : terrainProvider,
+                        x : tile.x,
+                        y : tile.y,
+                        level : tile.level,
+                        event : 'ready'
+                    });
+                }
             } else if (loaded.state === TerrainState.FAILED) {
                 // Loading failed for some reason, or data is simply not available,
                 // so no need to continue trying to load.  Any retrying will happen before we
