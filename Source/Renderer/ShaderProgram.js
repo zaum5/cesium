@@ -2245,7 +2245,7 @@ define([
 
     function getAutomaticUniformDeclaration(uniforms, uniform) {
         var automaticUniform = uniforms[uniform];
-        var declaration = 'uniform ' + automaticUniform.getDatatype().getGLSL() + ' ' + uniform;
+        var declaration = 'uniform mediump ' + automaticUniform.getDatatype().getGLSL() + ' ' + uniform;
 
         var size = automaticUniform.getSize();
         if (size === 1) {
