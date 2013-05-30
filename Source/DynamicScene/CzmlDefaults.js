@@ -13,6 +13,7 @@ define([
         './DynamicPolygon',
         './DynamicPolyline',
         './DynamicPyramid',
+        './DynamicVector',
         './DynamicBillboardVisualizer',
         './DynamicEllipsoidVisualizer',
         './DynamicConeVisualizerUsingCustomSensor', //CZML_TODO Replace with './DynamicConeVisualizer', once ComplexConicSensor works.
@@ -22,7 +23,8 @@ define([
         './DynamicPointVisualizer',
         './DynamicPolygonVisualizer',
         './DynamicPolylineVisualizer',
-        './DynamicPyramidVisualizer'
+        './DynamicPyramidVisualizer',
+        './DynamicVectorVisualizer'
     ], function(
         DynamicObject,
         DynamicBillboard,
@@ -37,6 +39,7 @@ define([
         DynamicPolygon,
         DynamicPolyline,
         DynamicPyramid,
+        DynamicVector,
         DynamicBillboardVisualizer,
         DynamicEllipsoidVisualizer,
         DynamicConeVisualizer,
@@ -46,7 +49,8 @@ define([
         DynamicPointVisualizer,
         DynamicPolygonVisualizer,
         DynamicPolylineVisualizer,
-        DynamicPyramidVisualizer) {
+        DynamicPyramidVisualizer,
+        DynamicVectorVisualizer) {
     "use strict";
 
     /**
@@ -81,6 +85,7 @@ define([
                     DynamicPolygon.processCzmlPacket,
                     DynamicPolyline.processCzmlPacket,
                     DynamicPyramid.processCzmlPacket,
+                    DynamicVector.processCzmlPacket,
                     DynamicObject.processCzmlPacketPosition,
                     DynamicObject.processCzmlPacketViewFrom,
                     DynamicObject.processCzmlPacketOrientation,
@@ -105,6 +110,7 @@ define([
                    DynamicPolygon.mergeProperties,
                    DynamicPolyline.mergeProperties,
                    DynamicPyramid.mergeProperties,
+                   DynamicVector.mergeProperties,
                    DynamicObject.mergeProperties],
 
         /**
@@ -124,6 +130,7 @@ define([
                     DynamicPolygon.undefineProperties,
                     DynamicPolyline.undefineProperties,
                     DynamicPyramid.undefineProperties,
+                    DynamicVector.undefineProperties,
                     DynamicObject.undefineProperties,
                     DynamicClock.undefineProperties],
 
@@ -145,6 +152,7 @@ define([
                     new DynamicPolygonVisualizer(scene),
                     new DynamicPolylineVisualizer(scene),
                     new DynamicPyramidVisualizer(scene),
+                    new DynamicVectorVisualizer(scene),
                     new DynamicPathVisualizer(scene)];
         }
     };
