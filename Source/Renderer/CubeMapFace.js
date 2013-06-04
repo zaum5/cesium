@@ -115,7 +115,7 @@ define([
      * @param {Number} [width=CubeMap's width] The width of the subimage to copy.
      * @param {Number} [height=CubeMap's height] The height of the subimage to copy.
      *
-     * @exception {DeveloperError} Cannot call copyFromFramebuffer when the texture pixel data type is FLOAT.
+     * @exception {DeveloperError} Cannot call copyFromFramebuffer when the texture pixel data type is FLOAT or HALF_FLOAT.
      * @exception {DeveloperError} This CubeMap was destroyed, i.e., destroy() was called.
      * @exception {DeveloperError} xOffset must be greater than or equal to zero.
      * @exception {DeveloperError} yOffset must be greater than or equal to zero.
@@ -161,8 +161,8 @@ define([
             throw new DeveloperError('yOffset + source.height must be less than or equal to getHeight().');
         }
 
-        if (this._pixelDatatype === PixelDatatype.FLOAT) {
-            throw new DeveloperError('Cannot call copyFromFramebuffer when the texture pixel data type is FLOAT.');
+        if (this._pixelDatatype === PixelDatatype.FLOAT || this._pixelDatatype === PixelDatatype.HALF_FLOAT) {
+            throw new DeveloperError('Cannot call copyFromFramebuffer when the texture pixel data type is FLOAT HALF_FLOAT.');
         }
 
         var gl = this._gl;

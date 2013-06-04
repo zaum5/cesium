@@ -114,7 +114,7 @@ defineSuite([
         expect(sampler.maximumAnisotropy).toEqual(1.0);
     });
 
-    it('gets the default valid sampler when data type is FLOAT ', function() {
+    it('gets the default valid sampler when data type is FLOAT or HALF_FLOAT', function() {
         if (context.getFloatingPointTexture()) {
             cubeMap = context.createCubeMap({
                 width : 16,
@@ -520,6 +520,73 @@ defineSuite([
             sp.getAllUniforms().u_direction.value = new Cartesian3(0, 0, -1);
             context.draw(da);
             expect(context.readPixels()).toEqual(negativeZColor.toBytes());
+        }
+    });
+
+    it('creates a cube map with half-floating-point textures', function() {
+        if (context.getHalfFloatingPointTexture()) {
+            cubeMap = context.createCubeMap({
+                source : {
+                    positiveX : blueAlphaImage,
+                    negativeX : blueAlphaImage,
+                    positiveY : blueAlphaImage,
+                    negativeY : blueAlphaImage,
+                    positiveZ : blueAlphaImage,
+                    negativeZ : blueAlphaImage
+                },
+                pixelDatatype : PixelDatatype.HALF_FLOAT
+            });
+
+            var vs = 'attribute vec4 position; void main() { gl_PointSize = 1.0; gl_Position = position; }';
+            var fs =
+                'uniform samplerCube u_texture;' +
+                'uniform mediump vec3 u_direction;' +
+                'void main() { gl_FragColor = textureCube(u_texture, u_direction); }';
+            sp = context.createShaderProgram(vs, fs, {
+                position : 0
+            });
+            sp.getAllUniforms().u_texture.value = cubeMap;
+
+            va = context.createVertexArray([{
+                vertexBuffer : context.createVertexBuffer(new Float32Array([0, 0, 0, 1]), BufferUsage.STATIC_DRAW),
+                componentsPerAttribute : 4
+            }]);
+
+            var da = {
+                primitiveType : PrimitiveType.POINTS,
+                shaderProgram : sp,
+                vertexArray : va
+            };
+
+            // +X is blue
+            sp.getAllUniforms().u_direction.value = new Cartesian3(1, 0, 0);
+            context.draw(da);
+            expect(context.readPixels()).toEqual([0, 0, 127, 127]);
+
+            // -X is blue
+            sp.getAllUniforms().u_direction.value = new Cartesian3(-1, 0, 0);
+            context.draw(da);
+            expect(context.readPixels()).toEqual([0, 0, 127, 127]);
+
+            // +Y is blue
+            sp.getAllUniforms().u_direction.value = new Cartesian3(0, 1, 0);
+            context.draw(da);
+            expect(context.readPixels()).toEqual([0, 0, 127, 127]);
+
+            // -Y is blue
+            sp.getAllUniforms().u_direction.value = new Cartesian3(0, -1, 0);
+            context.draw(da);
+            expect(context.readPixels()).toEqual([0, 0, 127, 127]);
+
+            // +Z is blue
+            sp.getAllUniforms().u_direction.value = new Cartesian3(0, 0, 1);
+            context.draw(da);
+            expect(context.readPixels()).toEqual([0, 0, 127, 127]);
+
+            // -Z is blue
+            sp.getAllUniforms().u_direction.value = new Cartesian3(0, 0, -1);
+            context.draw(da);
+            expect(context.readPixels()).toEqual([0, 0, 127, 127]);
         }
     });
 
@@ -961,6 +1028,18 @@ defineSuite([
         }
     });
 
+    it('throws during creation if pixelDatatype is HALF_FLOAT, and OES_texture_half_float is not supported', function() {
+        if (!context.getHalfFloatingPointTexture()) {
+            expect(function() {
+                cubeMap = context.createCubeMap({
+                    width : 16,
+                    height : 16,
+                    pixelDatatype : PixelDatatype.HALF_FLOAT
+                });
+            }).toThrow();
+        }
+    });
+
     it('fails to create (pixelDatatype)', function() {
         expect(function() {
             cubeMap = context.createCubeMap({
@@ -1056,12 +1135,26 @@ defineSuite([
         }).toThrow();
     });
 
-    it('fails to copy from the frame buffer (invalid data type)', function() {
+    it('fails to copy from the frame buffer (invalid data type FLOAT)', function() {
         if (context.getFloatingPointTexture()) {
             cubeMap = context.createCubeMap({
                 width : 1,
                 height : 1,
                 pixelDatatype : PixelDatatype.FLOAT
+            });
+
+            expect(function() {
+                cubeMap.getPositiveX().copyFromFramebuffer();
+            }).toThrow();
+        }
+    });
+
+    it('fails to copy from the frame buffer (invalid data type)', function() {
+        if (context.getHalfFloatingPointTexture()) {
+            cubeMap = context.createCubeMap({
+                width : 1,
+                height : 1,
+                pixelDatatype : PixelDatatype.HALF_FLOAT
             });
 
             expect(function() {
@@ -1158,7 +1251,7 @@ defineSuite([
         }).toThrow();
     });
 
-    it('throws when data type is FLOAT and minification filter is not NEAREST or NEAREST_MIPMAP_NEAREST', function() {
+    it('throws when data type is FLOAT or HALF_FLOAT and minification filter is not NEAREST or NEAREST_MIPMAP_NEAREST', function() {
         if (context.getFloatingPointTexture()) {
             cubeMap = context.createCubeMap({
                 width : 16,
@@ -1174,7 +1267,7 @@ defineSuite([
         }
     });
 
-    it('throws when data type is FLOAT and magnification filter is not NEAREST', function() {
+    it('throws when data type is FLOAT or HALF_FLOAT and magnification filter is not NEAREST', function() {
         if (context.getFloatingPointTexture()) {
             cubeMap = context.createCubeMap({
                 width : 16,

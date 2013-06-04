@@ -170,6 +170,10 @@ defineSuite([
         expect(context.getFloatingPointTexture()).toBeDefined();
     });
 
+    it('gets the texture half float extension', function() {
+        expect(context.getHalfFloatingPointTexture()).toBeDefined();
+    });
+
     it('gets texture filter anisotropic extension', function() {
         expect(context.getTextureFilterAnisotropic()).toBeDefined();
     });

@@ -178,12 +178,14 @@ define([
      * @param [sampler] DOC_TBA
      *
      * @exception {DeveloperError} This CubeMap was destroyed, i.e., destroy() was called.
+     * @exception {DeveloperError} Only NEAREST and NEAREST_MIPMAP_NEAREST minification filters are supported for floating point and half-floating point textures.
+     * @exception {DeveloperError} Only the NEAREST magnification filter is supported for floating point and half-floating point textures.
      */
     CubeMap.prototype.setSampler = function(sampler) {
         if (typeof sampler === 'undefined') {
             var minFilter = TextureMinificationFilter.LINEAR;
             var magFilter = TextureMagnificationFilter.LINEAR;
-            if (this._pixelDatatype === PixelDatatype.FLOAT) {
+            if (this._pixelDatatype === PixelDatatype.FLOAT || this._pixelDatatype === PixelDatatype.HALF_FLOAT) {
                 minFilter = TextureMinificationFilter.NEAREST;
                 magFilter = TextureMagnificationFilter.NEAREST;
             }
@@ -197,14 +199,14 @@ define([
             };
         }
 
-        if (this._pixelDatatype === PixelDatatype.FLOAT) {
+        if (this._pixelDatatype === PixelDatatype.FLOAT || this._pixelDatatype === PixelDatatype.HALF_FLOAT) {
             if (sampler.minificationFilter !== TextureMinificationFilter.NEAREST &&
                     sampler.minificationFilter !== TextureMinificationFilter.NEAREST_MIPMAP_NEAREST) {
-                throw new DeveloperError('Only NEAREST and NEAREST_MIPMAP_NEAREST minification filters are supported for floating point textures.');
+                throw new DeveloperError('Only NEAREST and NEAREST_MIPMAP_NEAREST minification filters are supported for floating point and half-floating point textures.');
             }
 
             if (sampler.magnificationFilter !== TextureMagnificationFilter.NEAREST) {
-                throw new DeveloperError('Only the NEAREST magnification filter is supported for floating point textures.');
+                throw new DeveloperError('Only the NEAREST magnification filter is supported for floating point and half-floating point textures.');
             }
         }
 

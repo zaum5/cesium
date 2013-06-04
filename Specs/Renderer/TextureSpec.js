@@ -186,6 +186,19 @@ defineSuite([
         }
     });
 
+    it('draws the expected half-floating-point texture color', function() {
+        if (context.getHalfFloatingPointTexture()) {
+            texture = context.createTexture2D({
+                pixelFormat : PixelFormat.RGBA,
+                pixelDatatype : PixelDatatype.HALF_FLOAT,
+                source : blueImage
+            });
+
+            var pixels = renderFragment(context);
+            expect(pixels).toEqual(Color.BLUE.toBytes());
+        }
+    });
+
     it('renders with premultiplied alpha', function() {
         texture = context.createTexture2D({
             source : blueAlphaImage,
@@ -356,7 +369,7 @@ defineSuite([
         expect(sampler.maximumAnisotropy).toEqual(1.0);
     });
 
-    it('is created with a default valid sampler when data type is FLOAT ', function() {
+    it('is created with a default valid sampler when data type is FLOAT or HALF_FLOAT', function() {
         if (context.getFloatingPointTexture()) {
             texture = context.createTexture2D({
                 source : blueImage,
@@ -573,6 +586,19 @@ defineSuite([
         }
     });
 
+    it('throws when creating if pixelDatatype is HALF_FLOAT, and OES_texture_half_float is not supported', function() {
+        if (!context.getHalfFloatingPointTexture()) {
+            expect(function() {
+                texture = context.createTexture2D({
+                    width : 1,
+                    height : 1,
+                    pixelFormat : PixelFormat.RGBA,
+                    pixelDatatype : PixelDatatype.HALF_FLOAT
+                });
+            }).toThrow();
+        }
+    });
+
     it('throws when creating from the framebuffer with an invalid pixel format', function() {
         expect(function() {
             texture = context.createTexture2DFromFramebuffer('invalid PixelFormat');
@@ -624,7 +650,7 @@ defineSuite([
         }
     });
 
-    it('throws when copying to a texture from the framebuffer with a FLOAT pixel data type', function() {
+    it('throws when copying to a texture from the framebuffer with a FLOAT or HALF_FLOAT pixel data type', function() {
         if (context.getFloatingPointTexture()) {
             texture = context.createTexture2D({
                 width : 1,
@@ -819,7 +845,7 @@ defineSuite([
         }).toThrow();
     });
 
-    it('throws when data type is FLOAT and minification filter is not NEAREST or NEAREST_MIPMAP_NEAREST', function() {
+    it('throws when data type is FLOAT or HALF_FLOAT and minification filter is not NEAREST or NEAREST_MIPMAP_NEAREST', function() {
         if (context.getFloatingPointTexture()) {
             texture = context.createTexture2D({
                 source : blueImage,
@@ -834,7 +860,7 @@ defineSuite([
         }
     });
 
-    it('throws when data type is FLOAT and magnification filter is not NEAREST', function() {
+    it('throws when data type is FLOAT or HALF_FLOAT and magnification filter is not NEAREST', function() {
         if (context.getFloatingPointTexture()) {
             texture = context.createTexture2D({
                 source : blueImage,

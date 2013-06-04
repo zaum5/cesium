@@ -140,7 +140,7 @@ define([
      * @param {Number} [height=getHeight()] optional
      *
      * @exception {DeveloperError} Cannot call copyFromFramebuffer when the texture pixel format is DEPTH_COMPONENT or DEPTH_STENCIL.
-     * @exception {DeveloperError} Cannot call copyFromFramebuffer when the texture pixel data type is FLOAT.
+     * @exception {DeveloperError} Cannot call copyFromFramebuffer when the texture pixel data type is FLOAT or HALF_FLOAT.
      * @exception {DeveloperError} This texture was destroyed, i.e., destroy() was called.
      * @exception {DeveloperError} xOffset must be greater than or equal to zero.
      * @exception {DeveloperError} yOffset must be greater than or equal to zero.
@@ -154,8 +154,8 @@ define([
             throw new DeveloperError('Cannot call copyFromFramebuffer when the texture pixel format is DEPTH_COMPONENT or DEPTH_STENCIL.');
         }
 
-        if (this._pixelDatatype === PixelDatatype.FLOAT) {
-            throw new DeveloperError('Cannot call copyFromFramebuffer when the texture pixel data type is FLOAT.');
+        if (this._pixelDatatype === PixelDatatype.FLOAT || this._pixelDatatype === PixelDatatype.HALF_FLOAT) {
+            throw new DeveloperError('Cannot call copyFromFramebuffer when the texture pixel data type is FLOAT or HALF_FLOAT.');
         }
 
         xOffset = defaultValue(xOffset, 0);
@@ -260,6 +260,8 @@ define([
     *                  and uses a maximum anisotropy of 1.0.
     *
     * @exception {DeveloperError} This texture was destroyed, i.e., destroy() was called.
+    * @exception {DeveloperError} Only NEAREST and NEAREST_MIPMAP_NEAREST minification filters are supported for floating point and half-floating point textures.
+    * @exception {DeveloperError} Only the NEAREST magnification filter is supported for floating point and half-floating point textures.
     *
     * @see Context#createSampler
     */
@@ -267,7 +269,7 @@ define([
         if (typeof sampler === 'undefined') {
             var minFilter = TextureMinificationFilter.LINEAR;
             var magFilter = TextureMagnificationFilter.LINEAR;
-            if (this._pixelDatatype === PixelDatatype.FLOAT) {
+            if (this._pixelDatatype === PixelDatatype.FLOAT || this._pixelDatatype === PixelDatatype.HALF_FLOAT) {
                 minFilter = TextureMinificationFilter.NEAREST;
                 magFilter = TextureMagnificationFilter.NEAREST;
             }
@@ -281,14 +283,14 @@ define([
             };
         }
 
-        if (this._pixelDatatype === PixelDatatype.FLOAT) {
+        if (this._pixelDatatype === PixelDatatype.FLOAT || this._pixelDatatype === PixelDatatype.HALF_FLOAT) {
             if (sampler.minificationFilter !== TextureMinificationFilter.NEAREST &&
                     sampler.minificationFilter !== TextureMinificationFilter.NEAREST_MIPMAP_NEAREST) {
-                throw new DeveloperError('Only NEAREST and NEAREST_MIPMAP_NEAREST minification filters are supported for floating point textures.');
+                throw new DeveloperError('Only NEAREST and NEAREST_MIPMAP_NEAREST minification filters are supported for floating point or half-floating point textures.');
             }
 
             if (sampler.magnificationFilter !== TextureMagnificationFilter.NEAREST) {
-                throw new DeveloperError('Only the NEAREST magnification filter is supported for floating point textures.');
+                throw new DeveloperError('Only the NEAREST magnification filter is supported for floating point or half-floating point textures.');
             }
         }
 
