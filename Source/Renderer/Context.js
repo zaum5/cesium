@@ -1233,13 +1233,14 @@ define([
      * @exception {DeveloperError} When description.pixelFormat is DEPTH_COMPONENT, description.pixelDatatype must be UNSIGNED_SHORT or UNSIGNED_INT.
      * @exception {DeveloperError} When description.pixelFormat is DEPTH_STENCIL, description.pixelDatatype must be UNSIGNED_INT_24_8_WEBGL.
      * @exception {DeveloperError} When description.pixelFormat is DEPTH_COMPONENT or DEPTH_STENCIL, source cannot be provided.
+     * @exception {DeveloperError} Can not create a texture from an array buffer when the pixel datatype is HALF_FLOAT.
      *
      * @see Context#createTexture2DFromFramebuffer
      * @see Context#createCubeMap
      * @see Context#createSampler
      */
     Context.prototype.createTexture2D = function(description) {
-        if (!description) {
+        if (typeof description === 'undefined') {
             throw new DeveloperError('description is required.');
         }
 
@@ -1285,6 +1286,10 @@ define([
             throw new RuntimeError('When description.pixelDatatype is HALF_FLOAT, this WebGL implementation must support the OES_texture_half_float extension.');
         }
 
+        if (typeof source !== 'undefined' && typeof source.arrayBufferView !== 'undefined' && this._pixelDatatype === PixelDatatype.HALF_FLOAT) {
+            throw new DeveloperError('Can not create a texture from an array buffer when the pixel datatype is HALF_FLOAT.');
+        }
+
         if ((pixelFormat === PixelFormat.DEPTH_COMPONENT) &&
             ((pixelDatatype !== PixelDatatype.UNSIGNED_SHORT) && (pixelDatatype !== PixelDatatype.UNSIGNED_INT))) {
             throw new DeveloperError('When description.pixelFormat is DEPTH_COMPONENT, description.pixelDatatype must be UNSIGNED_SHORT or UNSIGNED_INT.');
@@ -1316,12 +1321,12 @@ define([
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(textureTarget, texture);
 
-        if (source) {
+        if (typeof source !== 'undefined') {
             // TODO: _gl.pixelStorei(_gl._UNPACK_ALIGNMENT, 4);
             gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, preMultiplyAlpha);
             gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, flipY);
 
-            if (source.arrayBufferView) {
+            if (typeof source.arrayBufferView !== 'undefined') {
                 // Source: typed array
                 gl.texImage2D(textureTarget, 0, pixelFormat, width, height, 0, pixelFormat, pixelDatatype, source.arrayBufferView);
             } else {
@@ -1450,13 +1455,14 @@ define([
      * @exception {DeveloperError} Invalid description.pixelFormat.
      * @exception {DeveloperError} description.pixelFormat cannot be DEPTH_COMPONENT or DEPTH_STENCIL.
      * @exception {DeveloperError} Invalid description.pixelDatatype.
+     * @exception {DeveloperError} Can not create a texture from an array buffer when the pixel datatype is HALF_FLOAT.
      *
      * @see Context#createTexture2D
      * @see Context#createTexture2DFromFramebuffer
      * @see Context#createSampler
      */
     Context.prototype.createCubeMap = function(description) {
-        if (!description) {
+        if (typeof description === 'undefined') {
             throw new DeveloperError('description is required.');
         }
 
@@ -1464,10 +1470,13 @@ define([
         var width;
         var height;
 
-        if (source) {
+        var pixelDatatype = defaultValue(description.pixelDatatype, PixelDatatype.UNSIGNED_BYTE);
+
+        if (typeof source !== 'undefined') {
             var faces = [source.positiveX, source.negativeX, source.positiveY, source.negativeY, source.positiveZ, source.negativeZ];
 
-            if (!faces[0] || !faces[1] || !faces[2] || !faces[3] || !faces[4] || !faces[5]) {
+            if (typeof faces[0] === 'undefined' || typeof faces[1] === 'undefined' || typeof faces[2] === 'undefined' ||
+                    typeof faces[3] === 'undefined' || typeof faces[4] === 'undefined' || typeof faces[5] === 'undefined') {
                 throw new DeveloperError('description.source requires positiveX, negativeX, positiveY, negativeY, positiveZ, and negativeZ faces.');
             }
 
@@ -1477,6 +1486,10 @@ define([
             for ( var i = 1; i < 6; ++i) {
                 if ((Number(faces[i].width) !== width) || (Number(faces[i].height) !== height)) {
                     throw new DeveloperError('Each face in description.source must have the same width and height.');
+                }
+
+                if (typeof faces[i].arrayBufferView !== 'undefined' && pixelDatatype === PixelDatatype.HALF_FLOAT) {
+                    throw new DeveloperError('Can not create a texture from an array buffer when the pixel datatype is HALF_FLOAT.');
                 }
             }
         } else {
@@ -1511,7 +1524,6 @@ define([
             throw new DeveloperError('description.pixelFormat cannot be DEPTH_COMPONENT or DEPTH_STENCIL.');
         }
 
-        var pixelDatatype = defaultValue(description.pixelDatatype, PixelDatatype.UNSIGNED_BYTE);
         if (!PixelDatatype.validate(pixelDatatype)) {
             throw new DeveloperError('Invalid description.pixelDatatype.');
         }
@@ -1537,14 +1549,14 @@ define([
         gl.bindTexture(textureTarget, texture);
 
         function createFace(target, sourceFace) {
-            if (sourceFace.arrayBufferView) {
+            if (typeof sourceFace.arrayBufferView !== 'undefined') {
                 gl.texImage2D(target, 0, pixelFormat, size, size, 0, pixelFormat, pixelDatatype, sourceFace.arrayBufferView);
             } else {
                 gl.texImage2D(target, 0, pixelFormat, pixelFormat, pixelDatatype, sourceFace);
             }
         }
 
-        if (source) {
+        if (typeof source !== 'undefined') {
             // TODO: _gl.pixelStorei(_gl._UNPACK_ALIGNMENT, 4);
             gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, preMultiplyAlpha);
             gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, flipY);

@@ -599,6 +599,21 @@ defineSuite([
         }
     });
 
+    it('throws when creating if pixelDatatype is HALF_FLOAT and source is an array buffer', function() {
+        if (context.getHalfFloatingPointTexture()) {
+            expect(function() {
+                texture = context.createTexture2D({
+                    source : {
+                        width : 1,
+                        height : 1,
+                        arrayBufferView : new Uint8Array([0, 0, 255, 255])
+                    },
+                    pixelDatatype : PixelDatatype.HALF_FLOAT
+                });
+            }).toThrow();
+        }
+    });
+
     it('throws when creating from the framebuffer with an invalid pixel format', function() {
         expect(function() {
             texture = context.createTexture2DFromFramebuffer('invalid PixelFormat');
@@ -796,6 +811,25 @@ defineSuite([
         expect(function() {
             texture.copyFrom(image);
         }).toThrow();
+    });
+
+    it('throws when copyFrom is given a buffer when pixel datatype is HALF_FLOAT', function() {
+        if (context.getHalfFloatingPointTexture()) {
+            texture = context.createTexture2D({
+                width : 1,
+                height : 1,
+                pixelDatatype : PixelDatatype.HALF_FLOAT
+            });
+            var buffer = new Uint8Array([0, 0, 255, 255]);
+
+            expect(function() {
+                texture.copyFrom({
+                    width : 1,
+                    height : 1,
+                    arrayBufferView : buffer
+                });
+            }).toThrow();
+        }
     });
 
     it('throws when generating mipmaps with a DEPTH_COMPONENT or DEPTH_STENCIL pixel format', function() {

@@ -69,6 +69,7 @@ define([
      * @exception {DeveloperError} xOffset + source.width must be less than or equal to getWidth().
      * @exception {DeveloperError} yOffset + source.height must be less than or equal to getHeight().
      * @exception {DeveloperError} This texture was destroyed, i.e., destroy() was called.
+     * @exception {DeveloperError} Can not copy to a texture from an array buffer when the pixel datatype is HALF_FLOAT.
      *
      * @example
      * texture.copyFrom({
@@ -108,6 +109,10 @@ define([
             throw new DeveloperError('yOffset + source.height must be less than or equal to getHeight().');
         }
 
+        if (typeof source !== 'undefined' && typeof source.arrayBufferView !== 'undefined' && this._pixelDatatype === PixelDatatype.HALF_FLOAT) {
+            throw new DeveloperError('Can not copy to a texture from an array buffer when the pixel datatype is HALF_FLOAT.');
+        }
+
         var gl = this._gl;
         var target = this._textureTarget;
 
@@ -118,7 +123,7 @@ define([
         gl.bindTexture(target, this._texture);
 
         //Firefox bug: texSubImage2D has overloads and can't resolve our enums, so we use + to explicitly convert to a number.
-        if (source.arrayBufferView) {
+        if (typeof source.arrayBufferView !== 'undefined') {
             gl.texSubImage2D(target, 0, xOffset, yOffset, width, height, +this._pixelFormat, +this._pixelDatatype, source.arrayBufferView);
         } else {
             gl.texSubImage2D(target, 0, xOffset, yOffset, this._pixelFormat, this._pixelDatatype, source);

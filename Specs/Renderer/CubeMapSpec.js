@@ -527,12 +527,12 @@ defineSuite([
         if (context.getHalfFloatingPointTexture()) {
             cubeMap = context.createCubeMap({
                 source : {
-                    positiveX : blueAlphaImage,
-                    negativeX : blueAlphaImage,
-                    positiveY : blueAlphaImage,
-                    negativeY : blueAlphaImage,
-                    positiveZ : blueAlphaImage,
-                    negativeZ : blueAlphaImage
+                    positiveX : blueImage,
+                    negativeX : blueImage,
+                    positiveY : blueImage,
+                    negativeY : blueImage,
+                    positiveZ : blueImage,
+                    negativeZ : blueImage
                 },
                 pixelDatatype : PixelDatatype.HALF_FLOAT
             });
@@ -561,32 +561,32 @@ defineSuite([
             // +X is blue
             sp.getAllUniforms().u_direction.value = new Cartesian3(1, 0, 0);
             context.draw(da);
-            expect(context.readPixels()).toEqual([0, 0, 127, 127]);
+            expect(context.readPixels()).toEqual([0, 0, 255, 255]);
 
             // -X is blue
             sp.getAllUniforms().u_direction.value = new Cartesian3(-1, 0, 0);
             context.draw(da);
-            expect(context.readPixels()).toEqual([0, 0, 127, 127]);
+            expect(context.readPixels()).toEqual([0, 0, 255, 255]);
 
             // +Y is blue
             sp.getAllUniforms().u_direction.value = new Cartesian3(0, 1, 0);
             context.draw(da);
-            expect(context.readPixels()).toEqual([0, 0, 127, 127]);
+            expect(context.readPixels()).toEqual([0, 0, 255, 255]);
 
             // -Y is blue
             sp.getAllUniforms().u_direction.value = new Cartesian3(0, -1, 0);
             context.draw(da);
-            expect(context.readPixels()).toEqual([0, 0, 127, 127]);
+            expect(context.readPixels()).toEqual([0, 0, 255, 255]);
 
             // +Z is blue
             sp.getAllUniforms().u_direction.value = new Cartesian3(0, 0, 1);
             context.draw(da);
-            expect(context.readPixels()).toEqual([0, 0, 127, 127]);
+            expect(context.readPixels()).toEqual([0, 0, 255, 255]);
 
             // -Z is blue
             sp.getAllUniforms().u_direction.value = new Cartesian3(0, 0, -1);
             context.draw(da);
-            expect(context.readPixels()).toEqual([0, 0, 127, 127]);
+            expect(context.readPixels()).toEqual([0, 0, 255, 255]);
         }
     });
 
@@ -1040,6 +1040,49 @@ defineSuite([
         }
     });
 
+    it('throws during creation if pixelDatatype is HALF_FLOAT and the source is an array buffer', function() {
+        if (context.getHalfFloatingPointTexture()) {
+            expect(function() {
+                var buffer = new Uint8Array([0, 0, 255, 255]);
+                cubeMap = context.createCubeMap({
+                    source : {
+                        positiveX : {
+                            width : 1,
+                            height : 1,
+                            arrayBufferView : buffer
+                        },
+                        negativeX : {
+                            width : 1,
+                            height : 1,
+                            arrayBufferView : buffer
+                        },
+                        positiveY : {
+                            width : 1,
+                            height : 1,
+                            arrayBufferView : buffer
+                        },
+                        negativeY : {
+                            width : 1,
+                            height : 1,
+                            arrayBufferView : buffer
+                        },
+                        positiveZ : {
+                            width : 1,
+                            height : 1,
+                            arrayBufferView : buffer
+                        },
+                        negativeZ : {
+                            width : 1,
+                            height : 1,
+                            arrayBufferView : buffer
+                        }
+                    },
+                    pixelDatatype : PixelDatatype.HALF_FLOAT
+                });
+            }).toThrow();
+        }
+    });
+
     it('fails to create (pixelDatatype)', function() {
         expect(function() {
             cubeMap = context.createCubeMap({
@@ -1133,6 +1176,25 @@ defineSuite([
         expect(function() {
             cubeMap.getNegativeY().copyFrom(image);
         }).toThrow();
+    });
+
+    it('fails to copy from a buffer when pixel datatype is HALF_FLOAT', function() {
+        if (context.getHalfFloatingPointTexture()) {
+            cubeMap = context.createCubeMap({
+                width : 1,
+                height : 1,
+                pixelDatatype : PixelDatatype.HALF_FLOAT
+            });
+            var buffer = new Uint8Array([0, 0, 255, 255]);
+
+            expect(function() {
+                cubeMap.getNegativeZ().copyFrom({
+                    width : 1,
+                    height : 1,
+                    arrayBufferView : buffer
+                });
+            }).toThrow();
+        }
     });
 
     it('fails to copy from the frame buffer (invalid data type FLOAT)', function() {
