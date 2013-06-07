@@ -2025,7 +2025,7 @@ define([
             return _location;
         };
 
-        this._set = function() {
+        this._set = (function() {
             switch (activeUniform.type) {
             case _gl.FLOAT:
                 return function() {
@@ -2095,7 +2095,7 @@ define([
             default:
                 throw new RuntimeError('Unrecognized uniform type: ' + activeUniform.type + ' for uniform "' + activeUniform.name + '".');
             }
-        }();
+        })();
 
         if ((activeUniform.type === _gl.SAMPLER_2D) || (activeUniform.type === _gl.SAMPLER_CUBE)) {
             this._setSampler = function(textureUnitIndex) {
@@ -2142,7 +2142,7 @@ define([
             return _locations;
         };
 
-        this._set = function() {
+        this._set = (function() {
             switch (activeUniform.type) {
             case _gl.FLOAT:
                 return function() {
@@ -2234,7 +2234,7 @@ define([
             default:
                 throw new RuntimeError('Unrecognized uniform type: ' + activeUniform.type);
             }
-        }();
+        })();
 
         if ((activeUniform.type === _gl.SAMPLER_2D) || (activeUniform.type === _gl.SAMPLER_CUBE)) {
             this._setSampler = function(textureUnitIndex) {
