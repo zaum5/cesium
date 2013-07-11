@@ -6,13 +6,13 @@ define([
         '../Core/Cartesian2',
         '../Core/Cartesian3',
         '../Core/Cartesian4',
-        '../Core/CubeMapEllipsoidTessellator',
+        '../Core/EllipsoidGeometry',
         '../Core/DeveloperError',
         '../Core/Ellipsoid',
         '../Core/EllipsoidalOccluder',
         '../Core/Intersect',
         '../Core/Matrix4',
-        '../Core/MeshFilters',
+        '../Core/GeometryPipeline',
         '../Core/PrimitiveType',
         '../Core/Queue',
         '../Core/WebMercatorProjection',
@@ -30,13 +30,13 @@ define([
         Cartesian2,
         Cartesian3,
         Cartesian4,
-        CubeMapEllipsoidTessellator,
+        EllipsoidGeometry,
         DeveloperError,
         Ellipsoid,
         EllipsoidalOccluder,
         Intersect,
         Matrix4,
-        MeshFilters,
+        GeometryPipeline,
         PrimitiveType,
         Queue,
         WebMercatorProjection,
@@ -192,7 +192,10 @@ define([
             var numDestroyed = 0;
             for ( var i = 0, len = tileImageryCollection.length; i < len; ++i) {
                 var tileImagery = tileImageryCollection[i];
-                var imagery = tileImagery.imagery;
+                var imagery = tileImagery.loadingImagery;
+                if (typeof imagery === 'undefined') {
+                    imagery = tileImagery.readyImagery;
+                }
                 if (imagery.imageryLayer === layer) {
                     if (startIndex === -1) {
                         startIndex = i;
@@ -291,7 +294,17 @@ define([
     };
 
     function sortTileImageryByLayerIndex(a, b) {
-        return a.imagery.imageryLayer._layerIndex - b.imagery.imageryLayer._layerIndex;
+        var aImagery = a.loadingImagery;
+        if (typeof aImagery === 'undefined') {
+            aImagery = a.readyImagery;
+        }
+
+        var bImagery = b.loadingImagery;
+        if (typeof bImagery === 'undefined') {
+            bImagery = b.readyImagery;
+        }
+
+        return aImagery.imageryLayer._layerIndex - bImagery.imageryLayer._layerIndex;
     }
 
     function updateLayers(surface) {
@@ -492,8 +505,7 @@ define([
         var tileImageryCollection = tile.imagery;
         for ( var i = 0, len = tileImageryCollection.length; i < len; ++i) {
             var tileImagery = tileImageryCollection[i];
-            var imageryLayer = tileImagery.imagery.imageryLayer;
-            if (tileImagery.imagery.state === ImageryState.READY && imageryLayer.alpha !== 0.0) {
+            if (typeof tileImagery.readyImagery !== 'undefined' && tileImagery.readyImagery.imageryLayer.alpha !== 0.0) {
                 ++readyTextureCount;
             }
         }
@@ -696,11 +708,14 @@ define([
         if (typeof surface._debug !== 'undefined' && typeof surface._debug.boundingSphereTile !== 'undefined') {
             if (!surface._debug.boundingSphereVA) {
                 var radius = surface._debug.boundingSphereTile.boundingSphere3D.radius;
-                var sphere = CubeMapEllipsoidTessellator.compute(new Ellipsoid(radius, radius, radius), 10);
-                MeshFilters.toWireframeInPlace(sphere);
-                surface._debug.boundingSphereVA = context.createVertexArrayFromMesh({
-                    mesh : sphere,
-                    attributeIndices : MeshFilters.createAttributeIndices(sphere)
+                var sphere = new EllipsoidGeometry({
+                    radii : new Cartesian3(radius, radius, radius),
+                    numberOfPartitions : 10
+                });
+                GeometryPipeline.toWireframe(sphere);
+                surface._debug.boundingSphereVA = context.createVertexArrayFromGeometry({
+                    geometry : sphere,
+                    attributeIndices : GeometryPipeline.createAttributeIndices(sphere)
                 });
             }
 
@@ -954,13 +969,14 @@ define([
 
                     while (numberOfDayTextures < maxTextures && imageryIndex < imageryLen) {
                         var tileImagery = tileImageryCollection[imageryIndex];
-                        var imagery = tileImagery.imagery;
-                        var imageryLayer = imagery.imageryLayer;
+                        var imagery = tileImagery.readyImagery;
                         ++imageryIndex;
 
-                        if (imagery.state !== ImageryState.READY || imageryLayer.alpha === 0.0) {
+                        if (typeof imagery === 'undefined' || imagery.state !== ImageryState.READY || imagery.imageryLayer.alpha === 0.0) {
                             continue;
                         }
+
+                        var imageryLayer = imagery.imageryLayer;
 
                         if (typeof tileImagery.textureTranslationAndScale === 'undefined') {
                             tileImagery.textureTranslationAndScale = imageryLayer._calculateTextureTranslationAndScale(tile, tileImagery);
