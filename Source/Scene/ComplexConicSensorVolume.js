@@ -10,8 +10,10 @@ define([
         '../Core/Matrix4',
         '../Core/ComponentDatatype',
         '../Core/PrimitiveType',
-        '../Core/BoxTessellator',
+        '../Core/BoxGeometry',
         '../Core/BoundingSphere',
+        '../Core/Geometry',
+        '../Core/IndexDatatype',
         '../Renderer/BufferUsage',
         '../Renderer/CommandLists',
         '../Renderer/CullFace',
@@ -35,8 +37,10 @@ define([
         Matrix4,
         ComponentDatatype,
         PrimitiveType,
-        BoxTessellator,
+        BoxGeometry,
         BoundingSphere,
+        Geometry,
+        IndexDatatype,
         BufferUsage,
         CommandLists,
         CullFace,
@@ -238,7 +242,7 @@ define([
     ComplexConicSensorVolume.prototype._getBoundingVolume = function() {
         var r = isFinite(this.radius) ? this.radius : FAR;
 
-        var mesh;
+        var geometry;
         var minimumCorner;
         var maximumCorner;
         if (this.outerHalfAngle <= CesiumMath.toRadians(45.0)) {
@@ -258,7 +262,7 @@ define([
                 values.push(positions[i].x, positions[i].y, positions[i].z);
             }
 
-            mesh = {
+            geometry = new Geometry({
                 attributes : {
                     position : {
                         componentDatatype : ComponentDatatype.FLOAT,
@@ -266,18 +270,16 @@ define([
                         values : values
                     }
                 },
-                indexLists : [{
-                    primitiveType : PrimitiveType.TRIANGLES,
-                    values : [
-                              0, 1, 4, // bottom side
-                              0, 4, 3, // left side
-                              0, 3, 2, // top side
-                              0, 2, 1, // right side
-                              1, 2, 3, // top
-                              1, 3, 4
-                          ]
-                }]
-            };
+                indices : IndexDatatype.createTypedArray(positions.length, [
+                    0, 1, 4, // bottom side
+                    0, 4, 3, // left side
+                    0, 3, 2, // top side
+                    0, 2, 1, // right side
+                    1, 2, 3, // top
+                    1, 3, 4
+                ]),
+                primitiveType : PrimitiveType.TRIANGLES
+            });
 
             BoundingSphere.fromPoints(positions, this._colorCommand.boundingVolume);
         } else if (this.outerHalfAngle <= CesiumMath.toRadians(90.0)) {
@@ -285,7 +287,7 @@ define([
             minimumCorner = new Cartesian3(-r, -r, 0.0);
             maximumCorner = new Cartesian3(r, r, r);
 
-            mesh = BoxTessellator.compute({
+            geometry = new BoxGeometry({
                 minimumCorner : minimumCorner,
                 maximumCorner : maximumCorner
             });
@@ -296,7 +298,7 @@ define([
             minimumCorner = new Cartesian3(-r, -r, -r);
             maximumCorner = new Cartesian3(r, r, r);
 
-            mesh = BoxTessellator.compute({
+            geometry = new BoxGeometry({
                 minimumCorner : minimumCorner,
                 maximumCorner : maximumCorner
             });
@@ -304,7 +306,7 @@ define([
             BoundingSphere.fromPoints([minimumCorner, maximumCorner], this._colorCommand.boundingVolume);
         }
 
-        return mesh;
+        return geometry;
     };
 
     ComplexConicSensorVolume.prototype._combineMaterials = function() {
@@ -393,8 +395,8 @@ define([
             this._outerHalfAngle = this.outerHalfAngle;
             this._radius = this.radius;
 
-            this._colorCommand.vertexArray = this._pickCommand.vertexArray = context.createVertexArrayFromMesh({
-                mesh : this._getBoundingVolume(),
+            this._colorCommand.vertexArray = this._pickCommand.vertexArray = context.createVertexArrayFromGeometry({
+                geometry : this._getBoundingVolume(),
                 attributeIndices : attributeIndices,
                 bufferUsage : BufferUsage.STATIC_DRAW
             });
