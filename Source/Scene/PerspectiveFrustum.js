@@ -1,17 +1,9 @@
 /*global define*/
 define([
         '../Core/DeveloperError',
-        '../Core/destroyObject',
-        '../Core/Cartesian3',
-        '../Core/Cartesian4',
-        '../Core/Matrix4',
         '../Scene/PerspectiveOffCenterFrustum'
     ], function(
         DeveloperError,
-        destroyObject,
-        Cartesian3,
-        Cartesian4,
-        Matrix4,
         PerspectiveOffCenterFrustum) {
     "use strict";
 
@@ -39,6 +31,7 @@ define([
         /**
          * The angle of the field of view, in radians.
          * @type {Number}
+         * @default undefined
          */
         this.fovy = undefined;
         this._fovy = undefined;
@@ -46,6 +39,7 @@ define([
         /**
          * The aspect ratio of the frustum's width to it's height.
          * @type {Number}
+         * @default undefined
          */
         this.aspectRatio = undefined;
         this._aspectRatio = undefined;
@@ -53,6 +47,7 @@ define([
         /**
          * The distance of the near plane.
          * @type {Number}
+         * @default 1.0 
          */
         this.near = 1.0;
         this._near = this.near;
@@ -60,6 +55,7 @@ define([
         /**
          * The distance of the far plane.
          * @type {Number}
+         * @default 500000000.0
          */
         this.far = 500000000.0;
         this._far = this.far;

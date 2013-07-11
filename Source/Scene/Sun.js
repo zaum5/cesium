@@ -1,7 +1,6 @@
 /*global define*/
 define([
         '../Core/BoundingSphere',
-        '../Core/Cartesian2',
         '../Core/Cartesian3',
         '../Core/ComponentDatatype',
         '../Core/destroyObject',
@@ -15,7 +14,6 @@ define([
         '../Shaders/SunFS'
     ], function(
         BoundingSphere,
-        Cartesian2,
         Cartesian3,
         ComponentDatatype,
         destroyObject,
@@ -52,11 +50,9 @@ define([
 
         /**
          * Determines if the sun will be shown.
-         * <p>
-         * The default is <code>true</code>.
-         * </p>
          *
-         * @type Boolean
+         * @type {Boolean}
+         * @default true
          */
         this.show = true;
     };

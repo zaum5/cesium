@@ -2,12 +2,16 @@
 defineSuite([
          'Renderer/Context',
          'Core/Color',
+         'Core/IndexDatatype',
+         'Renderer/BufferUsage',
          'Specs/createContext',
          'Specs/destroyContext',
          'Specs/renderFragment'
      ], function(
          Context,
          Color,
+         IndexDatatype,
+         BufferUsage,
          createContext,
          destroyContext,
          renderFragment) {
@@ -139,6 +143,14 @@ defineSuite([
         expect(context.getMaximumViewportHeight()).toBeGreaterThan(0);
     });
 
+    it('gets antialias', function() {
+        var c = createContext({
+            antialias : false
+        });
+        expect(c.getAntialias()).toEqual(false);
+        c.destroy();
+    });
+
     it('gets the standard derivatives extension', function() {
         var fs =
             '#ifdef GL_OES_standard_derivatives\n' +
@@ -162,6 +174,18 @@ defineSuite([
         }
     });
 
+    it('gets the element index uint extension', function() {
+        if (context.getElementIndexUint()) {
+            var buffer = context.createIndexBuffer(6, BufferUsage.STREAM_DRAW, IndexDatatype.UNSIGNED_INT);
+            expect(buffer).toBeDefined();
+            buffer.destroy();
+        } else {
+            expect(function() {
+                context.createIndexBuffer(6, BufferUsage.STREAM_DRAW, IndexDatatype.UNSIGNED_INT);
+            }).toThrow();
+        }
+    });
+
     it('gets the depth texture extension', function() {
         expect(context.getDepthTexture()).toBeDefined();
     });
@@ -170,7 +194,7 @@ defineSuite([
         expect(context.getFloatingPointTexture()).toBeDefined();
     });
 
-    it('gets texture filter anisotropic', function() {
+    it('gets texture filter anisotropic extension', function() {
         expect(context.getTextureFilterAnisotropic()).toBeDefined();
     });
 
@@ -180,6 +204,10 @@ defineSuite([
         } else {
             expect(context.getMaximumTextureFilterAnisotropy()).toEqual(1.0);
         }
+    });
+
+    it('gets vertex array object extension', function() {
+        expect(context.getVertexArrayObject()).toBeDefined();
     });
 
     it('sets shader program validation', function() {

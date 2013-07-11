@@ -8,7 +8,6 @@ define([
         '../Core/Event',
         '../Core/Extent',
         './ImageryProvider',
-        './WebMercatorTilingScheme',
         './GeographicTilingScheme'
     ], function(
         clone,
@@ -19,7 +18,6 @@ define([
         Event,
         Extent,
         ImageryProvider,
-        WebMercatorTilingScheme,
         GeographicTilingScheme) {
     "use strict";
 
@@ -225,6 +223,23 @@ define([
     };
 
     /**
+     * Gets the minimum level-of-detail that can be requested.  This function should
+     * not be called before {@link WebMapServiceImageryProvider#isReady} returns true.
+     *
+     * @memberof WebMapServiceImageryProvider
+     *
+     * @returns {Number} The minimum level.
+     *
+     * @exception {DeveloperError} <code>getMinimumLevel</code> must not be called before the imagery provider is ready.
+     */
+    WebMapServiceImageryProvider.prototype.getMinimumLevel = function() {
+        if (!this._ready) {
+            throw new DeveloperError('getMinimumLevel must not be called before the imagery provider is ready.');
+        }
+        return 0;
+    };
+
+    /**
      * Gets the maximum level-of-detail that can be requested.  This function should
      * not be called before {@link WebMapServiceImageryProvider#isReady} returns true.
      *
@@ -345,7 +360,7 @@ define([
             throw new DeveloperError('requestImage must not be called before the imagery provider is ready.');
         }
         var url = buildImageUrl(this, x, y, level);
-        return ImageryProvider.loadImage(url);
+        return ImageryProvider.loadImage(this, url);
     };
 
     /**

@@ -6,7 +6,6 @@ define([
         '../Core/Cartesian3',
         '../Core/Cartesian4',
         '../Core/Matrix4',
-        '../Core/Ray',
         './CameraController',
         './PerspectiveFrustum'
     ], function(
@@ -16,7 +15,6 @@ define([
         Cartesian3,
         Cartesian4,
         Matrix4,
-        Ray,
         CameraController,
         PerspectiveFrustum) {
     "use strict";
@@ -60,6 +58,7 @@ define([
          * Modifies the camera's reference frame. The inverse of this transformation is appended to the view matrix.
          *
          * @type {Matrix4}
+         * @default {@link Matrix4.IDENTITY}
          *
          * @see Transforms
          */
@@ -117,6 +116,7 @@ define([
          * The region of space in view.
          *
          * @type {Frustum}
+         * @default PerspectiveFrustum()
          *
          * @see PerspectiveFrustum
          * @see PerspectiveOffCenterFrustum
@@ -130,6 +130,7 @@ define([
          * Defines camera behavior. The controller can be used to perform common camera manipulations.
          *
          * @type {CameraController}
+         * @default CameraController(this)
          */
         this.controller = new CameraController(this);
 

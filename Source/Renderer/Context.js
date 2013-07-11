@@ -4,16 +4,18 @@ define([
         '../Core/DeveloperError',
         '../Core/destroyObject',
         '../Core/Color',
+        '../Core/ComponentDatatype',
         '../Core/IndexDatatype',
         '../Core/RuntimeError',
         '../Core/PrimitiveType',
+        '../Core/Geometry',
         '../Core/createGuid',
         '../Core/Matrix4',
+        '../Core/Math',
         './Buffer',
         './BufferUsage',
         './CubeMap',
         './Framebuffer',
-        './MipmapHint',
         './PixelDatatype',
         './PixelFormat',
         './PickFramebuffer',
@@ -37,16 +39,18 @@ define([
         DeveloperError,
         destroyObject,
         Color,
+        ComponentDatatype,
         IndexDatatype,
         RuntimeError,
         PrimitiveType,
+        Geometry,
         createGuid,
         Matrix4,
+        CesiumMath,
         Buffer,
         BufferUsage,
         CubeMap,
         Framebuffer,
-        MipmapHint,
         PixelDatatype,
         PixelFormat,
         PickFramebuffer,
@@ -171,9 +175,6 @@ define([
         if (typeof options === 'undefined') {
             options = {};
         }
-        if (typeof options.stencil === 'undefined') {
-            options.stencil = false;
-        }
         if (typeof options.alpha === 'undefined') {
             options.alpha = false;
         }
@@ -220,13 +221,17 @@ define([
         this._aliasedPointSizeRange = gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE); // must include 1
         this._maximumViewportDimensions = gl.getParameter(gl.MAX_VIEWPORT_DIMS);
 
+        this._antialias = gl.getContextAttributes().antialias;
+
         // Query and initialize extensions
         this._standardDerivatives = gl.getExtension('OES_standard_derivatives');
+        this._elementIndexUint = gl.getExtension('OES_element_index_uint');
         this._depthTexture = gl.getExtension('WEBKIT_WEBGL_depth_texture') || gl.getExtension('MOZ_WEBGL_depth_texture');
         this._textureFloat = gl.getExtension('OES_texture_float');
         var textureFilterAnisotropic = gl.getExtension('EXT_texture_filter_anisotropic') || gl.getExtension('WEBKIT_EXT_texture_filter_anisotropic') || gl.getExtension('MOZ_EXT_texture_filter_anisotropic');
         this._textureFilterAnisotropic = textureFilterAnisotropic;
         this._maximumTextureFilterAnisotropy = textureFilterAnisotropic ? gl.getParameter(textureFilterAnisotropic.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : 1.0;
+        this._vertexArrayObject = gl.getExtension('OES_vertex_array_object');
 
         var cc = gl.getParameter(gl.COLOR_CLEAR_VALUE);
         this._clearColor = new Color(cc[0], cc[1], cc[2], cc[3]);
@@ -672,6 +677,18 @@ define([
     };
 
     /**
+     * Returns <code>true</code> if the WebGL context supports antialiasing.  By default
+     * antialiasing is requested, but it is not supported by all systems.
+     *
+     * @memberof Context
+     *
+     * @returns {Boolean} <code>true</code> if antialiasing is supported.
+     */
+    Context.prototype.getAntialias = function() {
+        return this._antialias;
+    };
+
+    /**
      * Returns <code>true</code> if the OES_standard_derivatives extension is supported.  This
      * extension provides access to <code>dFdx<code>, <code>dFdy<code>, and <code>fwidth<code>
      * functions from GLSL.  A shader using these functions still needs to explicitly enable the
@@ -685,6 +702,21 @@ define([
      */
     Context.prototype.getStandardDerivatives = function() {
         return !!this._standardDerivatives;
+    };
+
+    /**
+     * Returns <code>true</code> if the OES_element_index_uint extension is supported.  This
+     * extension allows the use of unsigned int indices, which can improve performance by
+     * eliminating batch breaking caused by unsigned short indices.
+     *
+     * @memberof Context
+     *
+     * @returns {Boolean} <code>true</code> if OES_element_index_uint is supported; otherwise, <code>false</code>.
+     *
+     * @see <a href='http://www.khronos.org/registry/webgl/extensions/OES_element_index_uint/'>OES_element_index_uint</a>
+     */
+    Context.prototype.getElementIndexUint = function() {
+        return !!this._elementIndexUint;
     };
 
     /**
@@ -737,6 +769,21 @@ define([
      */
     Context.prototype.getMaximumTextureFilterAnisotropy = function() {
         return this._maximumTextureFilterAnisotropy;
+    };
+
+    /**
+     * Returns <code>true</code> if the OES_vertex_array_object extension is supported.  This
+     * extension can improve performance by reducing the overhead of switching vertex arrays.
+     * When enabled, this extension is automatically used by {@link VertexArray}.
+     *
+     * @memberof Context
+     *
+     * @returns {Boolean} <code>true</code> if OES_vertex_array_object is supported; otherwise, <code>false</code>.
+     *
+     * @see <a href='http://www.khronos.org/registry/webgl/extensions/OES_vertex_array_object/'>OES_vertex_array_object</a>
+     */
+    Context.prototype.getVertexArrayObject = function() {
+        return !!this._vertexArrayObject;
     };
 
     /**
@@ -1037,6 +1084,7 @@ define([
      *
      * @return {IndexBuffer} The index buffer, ready to be attached to a vertex array.
      *
+     * @exception {RuntimeError} IndexDatatype.UNSIGNED_INT requires OES_element_index_uint, which is not supported on this system.
      * @exception {DeveloperError} The size in bytes must be greater than zero.
      * @exception {DeveloperError} Invalid <code>usage</code>.
      * @exception {DeveloperError} Invalid <code>indexDatatype</code>.
@@ -1062,15 +1110,15 @@ define([
      *     BufferUsage.STATIC_DRAW, IndexDatatype.UNSIGNED_SHORT)
      */
     Context.prototype.createIndexBuffer = function(typedArrayOrSizeInBytes, usage, indexDatatype) {
-        var bytesPerIndex;
-
-        if (indexDatatype === IndexDatatype.UNSIGNED_BYTE) {
-            bytesPerIndex = Uint8Array.BYTES_PER_ELEMENT;
-        } else if (indexDatatype === IndexDatatype.UNSIGNED_SHORT) {
-            bytesPerIndex = Uint16Array.BYTES_PER_ELEMENT;
-        } else {
+        if (!IndexDatatype.validate(indexDatatype)) {
             throw new DeveloperError('Invalid indexDatatype.');
         }
+
+        if ((indexDatatype === IndexDatatype.UNSIGNED_INT) && !this.getElementIndexUint()) {
+            throw new RuntimeError('IndexDatatype.UNSIGNED_INT requires OES_element_index_uint, which is not supported on this system.');
+        }
+
+        var bytesPerIndex = indexDatatype.sizeInBytes;
 
         var gl = this._gl;
         var buffer = createBuffer(gl, gl.ELEMENT_ARRAY_BUFFER, typedArrayOrSizeInBytes, usage);
@@ -1108,7 +1156,7 @@ define([
      * @exception {DeveloperError} Attribute must have a <code>strideInBytes</code> less than or equal to 255 or not specify it.
      * @exception {DeveloperError} Index n is used by more than one attribute.
      *
-     * @see Context#createVertexArrayFromMesh
+     * @see Context#createVertexArrayFromGeometry
      * @see Context#createVertexBuffer
      * @see Context#createIndexBuffer
      * @see Context#draw
@@ -1178,7 +1226,7 @@ define([
      * var va = context.createVertexArray(attributes);
      */
     Context.prototype.createVertexArray = function(attributes, indexBuffer) {
-        return new VertexArray(this._gl, attributes, indexBuffer);
+        return new VertexArray(this._gl, this._vertexArrayObject, attributes, indexBuffer);
     };
 
     /**
@@ -2051,8 +2099,9 @@ define([
 
         var offset = command.offset;
         var count = command.count;
+        var hasIndexBuffer = (typeof indexBuffer !== 'undefined');
 
-        if (indexBuffer) {
+        if (hasIndexBuffer) {
             offset = (offset || 0) * indexBuffer.getBytesPerIndex(); // in bytes
             count = count || indexBuffer.getNumberOfIndices();
         } else {
@@ -2070,7 +2119,7 @@ define([
 
             va._bind();
 
-            if (indexBuffer) {
+            if (hasIndexBuffer) {
                 this._gl.drawElements(primitiveType, count, indexBuffer.getIndexDatatype().value, offset);
             } else {
                 this._gl.drawArrays(primitiveType, offset, count);
@@ -2137,15 +2186,15 @@ define([
 
     //////////////////////////////////////////////////////////////////////////////////////////
 
-    Context.prototype._interleaveAttributes = function(attributes) {
-        function computeNumberOfVertices(attribute) {
-            return attribute.values.length / attribute.componentsPerAttribute;
-        }
+    function computeNumberOfVertices(attribute) {
+        return attribute.values.length / attribute.componentsPerAttribute;
+    }
 
-        function computeAttributeSizeInBytes(attribute) {
-            return attribute.componentDatatype.sizeInBytes * attribute.componentsPerAttribute;
-        }
+    function computeAttributeSizeInBytes(attribute) {
+        return attribute.componentDatatype.sizeInBytes * attribute.componentsPerAttribute;
+    }
 
+    function interleaveAttributes(attributes) {
         var j;
         var name;
         var attribute;
@@ -2154,8 +2203,15 @@ define([
         var names = [];
         for (name in attributes) {
             // Attribute needs to have per-vertex values; not a constant value for all vertices.
-            if (attributes.hasOwnProperty(name) && attributes[name].values) {
+            if (attributes.hasOwnProperty(name) &&
+                    typeof attributes[name] !== 'undefined' &&
+                    typeof attributes[name].values !== 'undefined') {
                 names.push(name);
+
+                if (attributes[name].componentDatatype === ComponentDatatype.DOUBLE) {
+                    attributes[name].componentDatatype = ComponentDatatype.FLOAT;
+                    attributes[name].values = ComponentDatatype.FLOAT.createTypedArray(attributes[name].values);
+                }
             }
         }
 
@@ -2218,7 +2274,7 @@ define([
                 var sizeInBytes = attributes[name].componentDatatype.sizeInBytes;
 
                 views[name] = {
-                    pointer : attributes[name].componentDatatype.toTypedArray(buffer),
+                    pointer : attributes[name].componentDatatype.createTypedArray(buffer),
                     index : offsetsInBytes[name] / sizeInBytes, // Offset in ComponentType
                     strideInComponentType : vertexSizeInBytes / sizeInBytes
                 };
@@ -2252,33 +2308,95 @@ define([
 
         // No attributes to interleave.
         return undefined;
-    };
+    }
 
-    function createVertexArrayAttributes(context, creationArguments) {
-        var ca = creationArguments || {};
-        var mesh = ca.mesh || {};
-        var attributeIndices = ca.attributeIndices || {};
-        var bufferUsage = ca.bufferUsage || BufferUsage.DYNAMIC_DRAW;
-        var interleave = ca.vertexLayout && (ca.vertexLayout === VertexLayout.INTERLEAVED);
+    /**
+     * Creates a vertex array from a geometry.  A geometry contains vertex attributes and optional index data
+     * in system memory, whereas a vertex array contains vertex buffers and an optional index buffer in WebGL
+     * memory for use with rendering.
+     * <br /><br />
+     * The <code>geometry</code> argument should use the standard layout like the geometry returned by {@link BoxGeometry}.
+     * <br /><br />
+     * <code>creationArguments</code> can have four properties:
+     * <ul>
+     *   <li><code>geometry</code>:  The source geometry containing data used to create the vertex array.</li>
+     *   <li><code>attributeIndices</code>:  An object that maps geometry attribute names to vertex shader attribute indices.</li>
+     *   <li><code>bufferUsage</code>:  The expected usage pattern of the vertex array's buffers.  On some WebGL implementations, this can significantly affect performance.  See {@link BufferUsage}.  Default: <code>BufferUsage.DYNAMIC_DRAW</code>.</li>
+     *   <li><code>vertexLayout</code>:  Determines if all attributes are interleaved in a single vertex buffer or if each attribute is stored in a separate vertex buffer.  Default: <code>VertexLayout.SEPARATE</code>.</li>
+     * </ul>
+     * <br />
+     * If <code>creationArguments</code> is not specified or the <code>geometry</code> contains no data, the returned vertex array is empty.
+     *
+     * @memberof Context
+     *
+     * @param {Object} [creationArguments=undefined] An object defining the geometry, attribute indices, buffer usage, and vertex layout used to create the vertex array.
+     *
+     * @exception {RuntimeError} Each attribute list must have the same number of vertices.
+     * @exception {DeveloperError} The geometry must have zero or one index lists.
+     * @exception {DeveloperError} Index n is used by more than one attribute.
+     *
+     * @see Context#createVertexArray
+     * @see Context#createVertexBuffer
+     * @see Context#createIndexBuffer
+     * @see GeometryPipeline.createAttributeIndices
+     * @see ShaderProgram
+     *
+     * @example
+     * // Example 1. Creates a vertex array for rendering a box.  The default dynamic draw
+     * // usage is used for the created vertex and index buffer.  The attributes are not
+     * // interleaved by default.
+     * var geometry = new BoxGeometry();
+     * var va = context.createVertexArrayFromGeometry({
+     *     geometry             : geometry,
+     *     attributeIndices : GeometryPipeline.createAttributeIndices(geometry),
+     * });
+     *
+     * ////////////////////////////////////////////////////////////////////////////////
+     *
+     * // Example 2. Creates a vertex array with interleaved attributes in a
+     * // single vertex buffer.  The vertex and index buffer have static draw usage.
+     * var va = context.createVertexArrayFromGeometry({
+     *     geometry             : geometry,
+     *     attributeIndices : GeometryPipeline.createAttributeIndices(geometry),
+     *     bufferUsage      : BufferUsage.STATIC_DRAW,
+     *     vertexLayout     : VertexLayout.INTERLEAVED
+     * });
+     *
+     * ////////////////////////////////////////////////////////////////////////////////
+     *
+     * // Example 3.  When the caller destroys the vertex array, it also destroys the
+     * // attached vertex buffer(s) and index buffer.
+     * va = va.destroy();
+     */
+    Context.prototype.createVertexArrayFromGeometry = function(creationArguments) {
+        var ca = defaultValue(creationArguments, defaultValue.EMPTY_OBJECT);
+        var geometry = defaultValue(ca.geometry, defaultValue.EMPTY_OBJECT);
+
+        var bufferUsage = defaultValue(ca.bufferUsage, BufferUsage.DYNAMIC_DRAW);
+
+        var attributeIndices = defaultValue(ca.attributeIndices, defaultValue.EMPTY_OBJECT);
+        var interleave = (typeof ca.vertexLayout !== 'undefined') && (ca.vertexLayout === VertexLayout.INTERLEAVED);
+        var createdVAAttributes = ca.vertexArrayAttributes;
 
         var name;
         var attribute;
-        var vaAttributes = [];
-        var attributes = mesh.attributes;
+        var vertexBuffer;
+        var vaAttributes = (typeof createdVAAttributes !== 'undefined') ? createdVAAttributes : [];
+        var attributes = geometry.attributes;
 
         if (interleave) {
             // Use a single vertex buffer with interleaved vertices.
-            var interleavedAttributes = context._interleaveAttributes(attributes);
-            if (interleavedAttributes) {
-                var vertexBuffer = context.createVertexBuffer(interleavedAttributes.buffer, bufferUsage);
+            var interleavedAttributes = interleaveAttributes(attributes);
+            if (typeof interleavedAttributes !== 'undefined') {
+                vertexBuffer = this.createVertexBuffer(interleavedAttributes.buffer, bufferUsage);
                 var offsetsInBytes = interleavedAttributes.offsetsInBytes;
                 var strideInBytes = interleavedAttributes.vertexSizeInBytes;
 
                 for (name in attributes) {
-                    if (attributes.hasOwnProperty(name)) {
+                    if (attributes.hasOwnProperty(name) && typeof attributes[name] !== 'undefined') {
                         attribute = attributes[name];
 
-                        if (attribute.values) {
+                        if (typeof attribute.values !== 'undefined') {
                             // Common case: per-vertex attributes
                             vaAttributes.push({
                                 index : attributeIndices[name],
@@ -2304,13 +2422,24 @@ define([
         } else {
             // One vertex buffer per attribute.
             for (name in attributes) {
-                if (attributes.hasOwnProperty(name)) {
+                if (attributes.hasOwnProperty(name) && typeof attributes[name] !== 'undefined') {
                     attribute = attributes[name];
+
+                    var componentDatatype = attribute.componentDatatype;
+                    if (componentDatatype === ComponentDatatype.DOUBLE) {
+                        componentDatatype = ComponentDatatype.FLOAT;
+                    }
+
+                    vertexBuffer = undefined;
+                    if (typeof attribute.values !== 'undefined') {
+                        vertexBuffer = this.createVertexBuffer(componentDatatype.createTypedArray(attribute.values), bufferUsage);
+                    }
+
                     vaAttributes.push({
                         index : attributeIndices[name],
-                        vertexBuffer : attribute.values ? context.createVertexBuffer(attribute.componentDatatype.toTypedArray(attribute.values), bufferUsage) : undefined,
-                        value : attribute.value ? attribute.value : undefined,
-                        componentDatatype : attribute.componentDatatype,
+                        vertexBuffer : vertexBuffer,
+                        value : attribute.value,
+                        componentDatatype : componentDatatype,
                         componentsPerAttribute : attribute.componentsPerAttribute,
                         normalize : attribute.normalize
                     });
@@ -2318,88 +2447,17 @@ define([
             }
         }
 
-        return context.createVertexArray(vaAttributes);
-    }
-
-    /**
-     * Creates a vertex array from a mesh.  A mesh contains vertex attributes and optional index data
-     * in system memory, whereas a vertex array contains vertex buffers and an optional index buffer in WebGL
-     * memory for use with rendering.
-     * <br /><br />
-     * The <code>mesh</code> argument should use the standard layout like the mesh returned by {@link BoxTessellator}.
-     * <br /><br />
-     * <code>creationArguments</code> can have four properties:
-     * <ul>
-     *   <li><code>mesh</code>:  The source mesh containing data used to create the vertex array.</li>
-     *   <li><code>attributeIndices</code>:  An object that maps mesh attribute names to vertex shader attribute indices.</li>
-     *   <li><code>bufferUsage</code>:  The expected usage pattern of the vertex array's buffers.  On some WebGL implementations, this can significantly affect performance.  See {@link BufferUsage}.  Default: <code>BufferUsage.DYNAMIC_DRAW</code>.</li>
-     *   <li><code>vertexLayout</code>:  Determines if all attributes are interleaved in a single vertex buffer or if each attribute is stored in a separate vertex buffer.  Default: <code>VertexLayout.SEPARATE</code>.</li>
-     * </ul>
-     * <br />
-     * If <code>creationArguments</code> is not specified or the <code>mesh</code> contains no data, the returned vertex array is empty.
-     *
-     * @memberof Context
-     *
-     * @param {Object} [creationArguments=undefined] An object defining the mesh, attribute indices, buffer usage, and vertex layout used to create the vertex array.
-     *
-     * @exception {RuntimeError} Each attribute list must have the same number of vertices.
-     * @exception {DeveloperError} The mesh must have zero or one index lists.
-     * @exception {DeveloperError} Index n is used by more than one attribute.
-     *
-     * @see Context#createVertexArray
-     * @see Context#createVertexBuffer
-     * @see Context#createIndexBuffer
-     * @see MeshFilters.createAttributeIndices
-     * @see ShaderProgram
-     * @see BoxTessellator
-     *
-     * @example
-     * // Example 1. Creates a vertex array for rendering a box.  The default dynamic draw
-     * // usage is used for the created vertex and index buffer.  The attributes are not
-     * // interleaved by default.
-     * var mesh = BoxTessellator.compute();
-     * var va = context.createVertexArrayFromMesh({
-     *     mesh             : mesh,
-     *     attributeIndices : MeshFilters.createAttributeIndices(mesh),
-     * });
-     *
-     * ////////////////////////////////////////////////////////////////////////////////
-     *
-     * // Example 2. Creates a vertex array with interleaved attributes in a
-     * // single vertex buffer.  The vertex and index buffer have static draw usage.
-     * var va = context.createVertexArrayFromMesh({
-     *     mesh             : mesh,
-     *     attributeIndices : MeshFilters.createAttributeIndices(mesh),
-     *     bufferUsage      : BufferUsage.STATIC_DRAW,
-     *     vertexLayout     : VertexLayout.INTERLEAVED
-     * });
-     *
-     * ////////////////////////////////////////////////////////////////////////////////
-     *
-     * // Example 3.  When the caller destroys the vertex array, it also destroys the
-     * // attached vertex buffer(s) and index buffer.
-     * va = va.destroy();
-     */
-    Context.prototype.createVertexArrayFromMesh = function(creationArguments) {
-        var ca = creationArguments || {};
-        var mesh = ca.mesh || {};
-        var bufferUsage = ca.bufferUsage || BufferUsage.DYNAMIC_DRAW;
-        var indexLists;
-
-        if (mesh.indexLists) {
-            indexLists = mesh.indexLists;
-            if (indexLists.length !== 1) {
-                throw new DeveloperError('The mesh must have zero or one index lists.  This mesh has ' + indexLists.length.toString() + ' index lists.');
+        var indexBuffer;
+        var indices = geometry.indices;
+        if (typeof indices !== 'undefined') {
+            if ((Geometry.computeNumberOfVertices(geometry) > CesiumMath.SIXTY_FOUR_KILOBYTES) && this.getElementIndexUint()) {
+                indexBuffer = this.createIndexBuffer(new Uint32Array(indices), bufferUsage, IndexDatatype.UNSIGNED_INT);
+            } else{
+                indexBuffer = this.createIndexBuffer(new Uint16Array(indices), bufferUsage, IndexDatatype.UNSIGNED_SHORT);
             }
         }
 
-        var va = createVertexArrayAttributes(this, creationArguments);
-
-        if (indexLists) {
-            va.setIndexBuffer(this.createIndexBuffer(new Uint16Array(indexLists[0].values), bufferUsage, IndexDatatype.UNSIGNED_SHORT));
-        }
-
-        return va;
+        return this.createVertexArray(vaAttributes, indexBuffer);
     };
 
     /**

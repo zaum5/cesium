@@ -1,10 +1,8 @@
 /*global defineSuite*/
 defineSuite([
-             'Core/Cartesian4',
-             'Core/Math'
-            ], function(
-              Cartesian4,
-              CesiumMath) {
+         'Core/Cartesian4'
+     ], function(
+         Cartesian4) {
     "use strict";
     /*global jasmine,describe,xdescribe,it,xit,expect,beforeEach,afterEach,beforeAll,afterAll,spyOn,runs,waits,waitsFor*/
 
@@ -467,10 +465,8 @@ defineSuite([
         expect(cartesian.toString()).toEqual('(1.123, 2.345, 6.789, 6.123)');
     });
 
-    it('static clone throws with no parameter', function() {
-        expect(function() {
-            Cartesian4.clone();
-        }).toThrow();
+    it('static clone returns undefined with no parameter', function() {
+        expect(typeof Cartesian4.clone()).toEqual('undefined');
     });
 
     it('static getMaximumComponent throws with no parameter', function() {

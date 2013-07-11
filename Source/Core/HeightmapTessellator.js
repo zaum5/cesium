@@ -2,36 +2,23 @@
 define([
         './defaultValue',
         './freezeObject',
-        './getImagePixels',
         './DeveloperError',
         './Cartesian3',
-        './ComponentDatatype',
         './Ellipsoid',
-        './Extent',
-        './Math',
-        './PrimitiveType'
+        './Math'
     ], function(
         defaultValue,
         freezeObject,
-        getImagePixels,
         DeveloperError,
         Cartesian3,
-        ComponentDatatype,
         Ellipsoid,
-        Extent,
-        CesiumMath,
-        PrimitiveType) {
+        CesiumMath) {
     "use strict";
 
     /**
      * Contains functions to create a mesh from a heightmap image.
      *
      * @exports HeightmapTessellator
-     *
-     * @see ExtentTessellator
-     * @see CubeMapEllipsoidTessellator
-     * @see BoxTessellator
-     * @see PlaneTessellator
      */
     var HeightmapTessellator = {};
 

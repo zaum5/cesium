@@ -8,6 +8,7 @@ define([
         '../Core/Cartesian4',
         '../Core/EncodedCartesian3',
         '../Core/Matrix4',
+        '../Core/Math',
         '../Core/ComponentDatatype',
         '../Core/IndexDatatype',
         '../Core/PrimitiveType',
@@ -32,6 +33,7 @@ define([
         Cartesian4,
         EncodedCartesian3,
         Matrix4,
+        CesiumMath,
         ComponentDatatype,
         IndexDatatype,
         PrimitiveType,
@@ -57,7 +59,6 @@ define([
     //When it does, we need to recreate the indicesBuffer.
     var POSITION_SIZE_INDEX = Polyline.POSITION_SIZE_INDEX;
     var NUMBER_OF_PROPERTIES = Polyline.NUMBER_OF_PROPERTIES;
-    var SIXTYFOURK = 64 * 1024;
 
     var attributeIndices = {
         position3DHigh : 0,
@@ -130,7 +131,8 @@ define([
          * by {@link Transforms.eastNorthUpToFixedFrame}.  This matrix is available to GLSL vertex and fragment
          * shaders via {@link czm_model} and derived uniforms.
          *
-         * @type Matrix4
+         * @type {Matrix4}
+         * @default {@link Matrix4.IDENTITY}
          *
          * @see Transforms.eastNorthUpToFixedFrame
          * @see czm_model
@@ -141,6 +143,7 @@ define([
 
         this._boundingVolume = undefined;
         this._boundingVolume2D = undefined;
+        this._boundingVolumeScratch = new BoundingSphere();
 
         this._commandLists = new CommandLists();
         this._colorCommands = [];
@@ -365,7 +368,6 @@ define([
     };
 
     var emptyArray = [];
-    var scracthBoundingSphere = new BoundingSphere();
 
     /**
      * @private
@@ -439,11 +441,11 @@ define([
             boundingVolume = this._boundingVolume2D;
         } else if (frameState.mode === SceneMode.SCENE2D) {
             if (typeof this._boundingVolume2D !== 'undefined') {
-                boundingVolume = BoundingSphere.clone(this._boundingVolume2D, scracthBoundingSphere);
+                boundingVolume = BoundingSphere.clone(this._boundingVolume2D, this._boundingVolumeScratch);
                 boundingVolume.center.x = 0.0;
             }
         } else if (typeof this._boundingVolume !== 'undefined' && typeof this._boundingVolume2D !== 'undefined') {
-            boundingVolume = BoundingSphere.union(this._boundingVolume, this._boundingVolume2D, scracthBoundingSphere);
+            boundingVolume = BoundingSphere.union(this._boundingVolume, this._boundingVolume2D, this._boundingVolumeScratch);
         }
 
         if (typeof boundingVolume === 'undefined') {
@@ -743,14 +745,14 @@ define([
 
                     vbo += vertexBufferOffset[k];
 
-                    var positionHighOffset = 6 * (k * (positionSizeInBytes * SIXTYFOURK) - vbo * positionSizeInBytes);//componentsPerAttribute(3) * componentDatatype(4)
+                    var positionHighOffset = 6 * (k * (positionSizeInBytes * CesiumMath.SIXTY_FOUR_KILOBYTES) - vbo * positionSizeInBytes);//componentsPerAttribute(3) * componentDatatype(4)
                     var positionLowOffset = positionSizeInBytes + positionHighOffset;
                     var prevPositionHighOffset =  positionSizeInBytes + positionLowOffset;
                     var prevPositionLowOffset = positionSizeInBytes + prevPositionHighOffset;
                     var nextPositionHighOffset = positionSizeInBytes + prevPositionLowOffset;
                     var nextPositionLowOffset = positionSizeInBytes + nextPositionHighOffset;
-                    var vertexPickColorBufferOffset = k * (pickColorSizeInBytes * SIXTYFOURK) - vbo * pickColorSizeInBytes;
-                    var vertexTexCoordExpandWidthAndShowBufferOffset = k * (texCoordExpandWidthAndShowSizeInBytes * SIXTYFOURK) - vbo * texCoordExpandWidthAndShowSizeInBytes;
+                    var vertexPickColorBufferOffset = k * (pickColorSizeInBytes * CesiumMath.SIXTY_FOUR_KILOBYTES) - vbo * pickColorSizeInBytes;
+                    var vertexTexCoordExpandWidthAndShowBufferOffset = k * (texCoordExpandWidthAndShowSizeInBytes * CesiumMath.SIXTY_FOUR_KILOBYTES) - vbo * texCoordExpandWidthAndShowSizeInBytes;
 
                     var attributes = [{
                         index : attributeIndices.position3DHigh,
@@ -1246,7 +1248,7 @@ define([
                 for ( var j = 0; j < numberOfSegments; ++j) {
                     var segmentLength = segments[j] - 1.0;
                     for ( var k = 0; k < segmentLength; ++k) {
-                        if (indicesCount + 4 >= SIXTYFOURK - 1) {
+                        if (indicesCount + 4 >= CesiumMath.SIXTY_FOUR_KILOBYTES - 1) {
                             polyline._locatorBuckets.push({
                                 locator : bucketLocator,
                                 count : segmentIndexCount
@@ -1278,7 +1280,7 @@ define([
                     count : segmentIndexCount
                 });
 
-                if (indicesCount + 4 >= SIXTYFOURK - 1) {
+                if (indicesCount + 4 >= CesiumMath.SIXTY_FOUR_KILOBYTES - 1) {
                     vertexBufferOffset.push(0);
                     indices = [];
                     totalIndices.push(indices);

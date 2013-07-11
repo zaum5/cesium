@@ -3,14 +3,12 @@ defineSuite([
          'Core/AxisAlignedBoundingBox',
          'Core/Cartesian3',
          'Core/Cartesian4',
-         'Core/Intersect',
-         'Core/Math'
+         'Core/Intersect'
      ], function(
          AxisAlignedBoundingBox,
          Cartesian3,
          Cartesian4,
-         Intersect,
-         CesiumMath) {
+         Intersect) {
     "use strict";
     /*global jasmine,describe,xdescribe,it,xit,expect,beforeEach,afterEach,beforeAll,afterAll,spyOn,runs,waits,waitsFor*/
 
@@ -141,10 +139,8 @@ defineSuite([
         expect(box.intersect(plane)).toEqual(Intersect.INTERSECTING);
     });
 
-    it('static clone throws with no parameter', function() {
-        expect(function() {
-            AxisAlignedBoundingBox.clone();
-        }).toThrow();
+    it('static clone returns undefined with no parameter', function() {
+        expect(typeof AxisAlignedBoundingBox.clone()).toEqual('undefined');
     });
 
     it('static intersect throws without a box', function() {

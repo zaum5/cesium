@@ -1,26 +1,14 @@
 /*global define*/
 define([
-        '../Core/defaultValue',
         '../Core/destroyObject',
-        '../Core/BoundingSphere',
-        '../Core/Cartesian3',
-        '../Core/Cartesian4',
         '../Core/DeveloperError',
-        '../Core/Intersect',
-        '../Core/Matrix4',
         './ComplexConicSensorVolume',
         './CustomSensorVolume',
         './RectangularPyramidSensorVolume',
         './SceneMode'
     ], function(
-        defaultValue,
         destroyObject,
-        BoundingSphere,
-        Cartesian3,
-        Cartesian4,
         DeveloperError,
-        Intersect,
-        Matrix4,
         ComplexConicSensorVolume,
         CustomSensorVolume,
         RectangularPyramidSensorVolume,

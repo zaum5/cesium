@@ -9,6 +9,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to contribute to Cesiu
    * [Ed Mackey](https://github.com/emackey)
    * [Dan Bagnell](https://github.com/bagnell)
    * [Scott Hunter](https://github.com/shunter)
+   * [Frank Stoner](https://github.com/fstoner)
    * [Matthew Ford](https://github.com/mrmattf)
    * [Tom Fili](https://github.com/tfili)
    * [Matthew Amato](https://github.com/mramato)
@@ -19,6 +20,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to contribute to Cesiu
    * [Hannah Pinkos](https://github.com/hpinkos)
 * [NICTA](http://www.nicta.com.au/)
    * [Chris Cooper](https://github.com/chris-cooper)
+* [EU Edge](http://euedge.com/)
+   *  [Ákos Maróy](https://github.com/akosmaroy)
 
 ## [Individual CLA](http://www.agi.com/licenses/individual-cla-agi-v1.0.txt)
 * [Victor Berchet](https://github.com/vicb)
@@ -28,5 +31,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to contribute to Cesiu
 * [Vignesh Panneerselvam](https://github.com/nobelium)
 * [Ognjen Bubalo](https://github.com/ognjenb)
 * [Ayudh Das](https://github.com/ayudhDas)
+* [You Lu](https://github.com/YouLu)
 
 Also see [our contributors page](http://cesium.agi.com/contributors.html) for more information.

@@ -1,31 +1,29 @@
 /*global defineSuite*/
 defineSuite([
-             'DynamicScene/DynamicBillboard',
-             'DynamicScene/DynamicObject',
-             'Core/JulianDate',
-             'Core/Cartesian2',
-             'Core/Cartesian3',
-             'Core/Color',
-             'Core/Iso8601',
-             'Core/TimeInterval',
-             'Scene/HorizontalOrigin',
-             'Scene/VerticalOrigin'
-            ], function(
-              DynamicBillboard,
-              DynamicObject,
-              JulianDate,
-              Cartesian2,
-              Cartesian3,
-              Color,
-              Iso8601,
-              TimeInterval,
-              HorizontalOrigin,
-              VerticalOrigin) {
+         'DynamicScene/DynamicBillboard',
+         'DynamicScene/DynamicObject',
+         'Core/Cartesian2',
+         'Core/Cartesian3',
+         'Core/Color',
+         'Core/Iso8601',
+         'Core/TimeInterval',
+         'Scene/HorizontalOrigin',
+         'Scene/VerticalOrigin'
+     ], function(
+         DynamicBillboard,
+         DynamicObject,
+         Cartesian2,
+         Cartesian3,
+         Color,
+         Iso8601,
+         TimeInterval,
+         HorizontalOrigin,
+         VerticalOrigin) {
     "use strict";
     /*global jasmine,describe,xdescribe,it,xit,expect,beforeEach,afterEach,beforeAll,afterAll,spyOn,runs,waits,waitsFor*/
 
     it('processCzmlPacket adds data for infinite billboard.', function() {
-        var sourceUri = 'http://someImage.com/';
+        var sourceUri = 'http://someImage.invalid/';
         var billboardPacket = {
             billboard : {
                 image : 'image.png',
@@ -49,7 +47,7 @@ defineSuite([
         expect(DynamicBillboard.processCzmlPacket(dynamicObject, billboardPacket, undefined, sourceUri)).toEqual(true);
 
         expect(dynamicObject.billboard).toBeDefined();
-        expect(dynamicObject.billboard.image.getValue(Iso8601.MINIMUM_VALUE)).toEqual('http://someImage.com/image.png');
+        expect(dynamicObject.billboard.image.getValue(Iso8601.MINIMUM_VALUE)).toEqual(sourceUri + 'image.png');
         expect(dynamicObject.billboard.scale.getValue(Iso8601.MINIMUM_VALUE)).toEqual(billboardPacket.billboard.scale);
         expect(dynamicObject.billboard.horizontalOrigin.getValue(Iso8601.MINIMUM_VALUE)).toEqual(HorizontalOrigin.CENTER);
         expect(dynamicObject.billboard.verticalOrigin.getValue(Iso8601.MINIMUM_VALUE)).toEqual(VerticalOrigin.CENTER);
@@ -63,7 +61,7 @@ defineSuite([
         var billboardPacket = {
             billboard : {
                 interval : '2000-01-01/2001-01-01',
-                image : 'http://someImage.com/image',
+                image : 'http://someImage.invalid/image',
                 scale : 1.0,
                 horizontalOrigin : 'CENTER',
                 verticalOrigin : 'CENTER',

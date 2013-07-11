@@ -5,7 +5,6 @@ define([
         '../Core/Cartesian2',
         '../Core/Matrix4',
         '../Core/writeTextToCanvas',
-        '../Renderer/BufferUsage',
         './BillboardCollection',
         './Label',
         './LabelStyle',
@@ -17,7 +16,6 @@ define([
         Cartesian2,
         Matrix4,
         writeTextToCanvas,
-        BufferUsage,
         BillboardCollection,
         Label,
         LabelStyle,
@@ -341,6 +339,7 @@ define([
          * shaders via {@link czm_model} and derived uniforms.
          *
          * @type Matrix4
+         * @default {@link Matrix4.IDENTITY}
          *
          * @see Transforms.eastNorthUpToFixedFrame
          * @see czm_model

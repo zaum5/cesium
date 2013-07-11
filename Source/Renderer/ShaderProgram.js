@@ -759,8 +759,8 @@ define([
          *
          * void main()
          * {
-         *   vec3 p = czm_translateRelativeToEye(positionHigh, positionLow);
-         *   gl_Position = czm_projection * (czm_modelViewRelativeToEye * vec4(p, 1.0));
+         *   vec4 p = czm_translateRelativeToEye(positionHigh, positionLow);
+         *   gl_Position = czm_projection * (czm_modelViewRelativeToEye * p);
          * }
          *
          * @see czm_modelViewProjectionRelativeToEye
@@ -963,8 +963,8 @@ define([
          *
          * void main()
          * {
-         *   vec3 p = czm_translateRelativeToEye(positionHigh, positionLow);
-         *   gl_Position = czm_modelViewProjectionRelativeToEye * vec4(p, 1.0);
+         *   vec4 p = czm_translateRelativeToEye(positionHigh, positionLow);
+         *   gl_Position = czm_modelViewProjectionRelativeToEye * p;
          * }
          *
          * @see czm_modelViewRelativeToEye
@@ -1951,7 +1951,7 @@ define([
             return _location;
         };
 
-        this._set = function() {
+        this._set = (function() {
             switch (activeUniform.type) {
             case _gl.FLOAT:
                 return function() {
@@ -2021,7 +2021,7 @@ define([
             default:
                 throw new RuntimeError('Unrecognized uniform type: ' + activeUniform.type + ' for uniform "' + activeUniform.name + '".');
             }
-        }();
+        })();
 
         if ((activeUniform.type === _gl.SAMPLER_2D) || (activeUniform.type === _gl.SAMPLER_CUBE)) {
             this._setSampler = function(textureUnitIndex) {
@@ -2068,7 +2068,7 @@ define([
             return _locations;
         };
 
-        this._set = function() {
+        this._set = (function() {
             switch (activeUniform.type) {
             case _gl.FLOAT:
                 return function() {
@@ -2160,7 +2160,7 @@ define([
             default:
                 throw new RuntimeError('Unrecognized uniform type: ' + activeUniform.type);
             }
-        }();
+        })();
 
         if ((activeUniform.type === _gl.SAMPLER_2D) || (activeUniform.type === _gl.SAMPLER_CUBE)) {
             this._setSampler = function(textureUnitIndex) {
@@ -2596,7 +2596,7 @@ define([
         gl.deleteShader(vertexShader);
         gl.deleteShader(fragmentShader);
 
-        if (attributeLocations) {
+        if (typeof attributeLocations !== 'undefined') {
             for ( var attribute in attributeLocations) {
                 if (attributeLocations.hasOwnProperty(attribute)) {
                     gl.bindAttribLocation(program, attributeLocations[attribute], attribute);

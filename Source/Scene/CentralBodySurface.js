@@ -3,72 +3,50 @@ define([
         '../Core/defaultValue',
         '../Core/destroyObject',
         '../Core/BoundingSphere',
-        '../Core/BoundingRectangle',
         '../Core/Cartesian2',
         '../Core/Cartesian3',
         '../Core/Cartesian4',
-        '../Core/CubeMapEllipsoidTessellator',
+        '../Core/EllipsoidGeometry',
         '../Core/DeveloperError',
         '../Core/Ellipsoid',
         '../Core/EllipsoidalOccluder',
         '../Core/Intersect',
         '../Core/Matrix4',
-        '../Core/MeshFilters',
+        '../Core/GeometryPipeline',
         '../Core/PrimitiveType',
         '../Core/Queue',
-        '../Core/TaskProcessor',
         '../Core/WebMercatorProjection',
         '../Renderer/DrawCommand',
-        '../Renderer/PixelDatatype',
-        '../Renderer/PixelFormat',
-        '../Renderer/TextureMagnificationFilter',
-        '../Renderer/TextureMinificationFilter',
-        '../Renderer/TextureWrap',
         './ImageryLayer',
         './ImageryState',
         './SceneMode',
         './TerrainProvider',
-        './TerrainState',
-        './TileLoadQueue',
         './TileReplacementQueue',
-        './TileState',
-        './TileTerrain',
-        '../ThirdParty/when'
+        './TileState'
     ], function(
         defaultValue,
         destroyObject,
         BoundingSphere,
-        BoundingRectangle,
         Cartesian2,
         Cartesian3,
         Cartesian4,
-        CubeMapEllipsoidTessellator,
+        EllipsoidGeometry,
         DeveloperError,
         Ellipsoid,
         EllipsoidalOccluder,
         Intersect,
         Matrix4,
-        MeshFilters,
+        GeometryPipeline,
         PrimitiveType,
         Queue,
-        TaskProcessor,
         WebMercatorProjection,
         DrawCommand,
-        PixelDatatype,
-        PixelFormat,
-        TextureMagnificationFilter,
-        TextureMinificationFilter,
-        TextureWrap,
         ImageryLayer,
         ImageryState,
         SceneMode,
         TerrainProvider,
-        TerrainState,
-        TileLoadQueue,
         TileReplacementQueue,
-        TileState,
-        TileTerrain,
-        when) {
+        TileState) {
     "use strict";
 
     /**
@@ -106,7 +84,7 @@ define([
         this._tileCommands = [];
         this._tileCommandUniformMaps = [];
         this._tileTraversalQueue = new Queue();
-        this._tileLoadQueue = new TileLoadQueue();
+        this._tileLoadQueue = [];
         this._tileReplacementQueue = new TileReplacementQueue();
         this._tileCacheSize = 100;
 
@@ -214,7 +192,10 @@ define([
             var numDestroyed = 0;
             for ( var i = 0, len = tileImageryCollection.length; i < len; ++i) {
                 var tileImagery = tileImageryCollection[i];
-                var imagery = tileImagery.imagery;
+                var imagery = tileImagery.loadingImagery;
+                if (typeof imagery === 'undefined') {
+                    imagery = tileImagery.readyImagery;
+                }
                 if (imagery.imageryLayer === layer) {
                     if (startIndex === -1) {
                         startIndex = i;
@@ -313,7 +294,17 @@ define([
     };
 
     function sortTileImageryByLayerIndex(a, b) {
-        return a.imagery.imageryLayer._layerIndex - b.imagery.imageryLayer._layerIndex;
+        var aImagery = a.loadingImagery;
+        if (typeof aImagery === 'undefined') {
+            aImagery = a.readyImagery;
+        }
+
+        var bImagery = b.loadingImagery;
+        if (typeof bImagery === 'undefined') {
+            bImagery = b.readyImagery;
+        }
+
+        return aImagery.imageryLayer._layerIndex - bImagery.imageryLayer._layerIndex;
     }
 
     function updateLayers(surface) {
@@ -359,8 +350,7 @@ define([
         debug.texturesRendered = 0;
         debug.tilesWaitingForChildren = 0;
 
-        surface._tileLoadQueue.clear();
-        surface._tileLoadQueue.markInsertionPoint();
+        surface._tileLoadQueue.length = 0;
         surface._tileReplacementQueue.markStartOfRenderFrame();
 
         // We can't render anything before the level zero tiles exist.
@@ -515,8 +505,7 @@ define([
         var tileImageryCollection = tile.imagery;
         for ( var i = 0, len = tileImageryCollection.length; i < len; ++i) {
             var tileImagery = tileImageryCollection[i];
-            var imageryLayer = tileImagery.imagery.imageryLayer;
-            if (tileImagery.imagery.state === ImageryState.READY && imageryLayer.alpha !== 0.0) {
+            if (typeof tileImagery.readyImagery !== 'undefined' && tileImagery.readyImagery.imageryLayer.alpha !== 0.0) {
                 ++readyTextureCount;
             }
         }
@@ -654,7 +643,7 @@ define([
     }
 
     function queueTileLoad(surface, tile) {
-        surface._tileLoadQueue.insertBeforeInsertionPoint(tile);
+        surface._tileLoadQueue.push(tile);
     }
 
     function processTileLoadQueue(surface, context, frameState) {
@@ -662,8 +651,7 @@ define([
         var terrainProvider = surface._terrainProvider;
         var imageryLayerCollection = surface._imageryLayerCollection;
 
-        var tile = tileLoadQueue.head;
-        if (typeof tile === 'undefined') {
+        if (tileLoadQueue.length === 0) {
             return;
         }
 
@@ -675,19 +663,16 @@ define([
         var timeSlice = surface._loadQueueTimeSlice;
         var endTime = startTime + timeSlice;
 
-        do {
+        for (var len = tileLoadQueue.length - 1, i = len; i >= 0; --i) {
+            var tile = tileLoadQueue[i];
             surface._tileReplacementQueue.markTileRendered(tile);
 
             tile.processStateMachine(context, terrainProvider, imageryLayerCollection);
 
-            var next = tile.loadNext;
-
-            if (tile.state === TileState.READY) {
-                tileLoadQueue.remove(tile);
+            if (Date.now() >= endTime) {
+                break;
             }
-
-            tile = next;
-        } while (Date.now() < endTime && typeof tile !== 'undefined');
+        }
     }
 
     // This is debug code to render the bounding sphere of the tile in
@@ -723,11 +708,14 @@ define([
         if (typeof surface._debug !== 'undefined' && typeof surface._debug.boundingSphereTile !== 'undefined') {
             if (!surface._debug.boundingSphereVA) {
                 var radius = surface._debug.boundingSphereTile.boundingSphere3D.radius;
-                var sphere = CubeMapEllipsoidTessellator.compute(new Ellipsoid(radius, radius, radius), 10);
-                MeshFilters.toWireframeInPlace(sphere);
-                surface._debug.boundingSphereVA = context.createVertexArrayFromMesh({
-                    mesh : sphere,
-                    attributeIndices : MeshFilters.createAttributeIndices(sphere)
+                var sphere = new EllipsoidGeometry({
+                    radii : new Cartesian3(radius, radius, radius),
+                    numberOfPartitions : 10
+                });
+                GeometryPipeline.toWireframe(sphere);
+                surface._debug.boundingSphereVA = context.createVertexArrayFromGeometry({
+                    geometry : sphere,
+                    attributeIndices : GeometryPipeline.createAttributeIndices(sphere)
                 });
             }
 
@@ -981,13 +969,14 @@ define([
 
                     while (numberOfDayTextures < maxTextures && imageryIndex < imageryLen) {
                         var tileImagery = tileImageryCollection[imageryIndex];
-                        var imagery = tileImagery.imagery;
-                        var imageryLayer = imagery.imageryLayer;
+                        var imagery = tileImagery.readyImagery;
                         ++imageryIndex;
 
-                        if (imagery.state !== ImageryState.READY || imageryLayer.alpha === 0.0) {
+                        if (typeof imagery === 'undefined' || imagery.state !== ImageryState.READY || imagery.imageryLayer.alpha === 0.0) {
                             continue;
                         }
+
+                        var imageryLayer = imagery.imageryLayer;
 
                         if (typeof tileImagery.textureTranslationAndScale === 'undefined') {
                             tileImagery.textureTranslationAndScale = imageryLayer._calculateTextureTranslationAndScale(tile, tileImagery);

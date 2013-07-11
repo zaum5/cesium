@@ -7,11 +7,11 @@ define([
         '../Core/Cartesian2',
         '../Core/Cartesian4',
         '../Core/Color',
-        '../Core/DeveloperError',
-        '../Core/Event',
         '../Core/Extent',
         '../Core/Math',
         '../Core/PrimitiveType',
+        '../Core/Geometry',
+        '../Core/GeometryAttribute',
         '../Renderer/BufferUsage',
         '../Renderer/MipmapHint',
         '../Renderer/TextureMagnificationFilter',
@@ -36,11 +36,11 @@ define([
         Cartesian2,
         Cartesian4,
         Color,
-        DeveloperError,
-        Event,
         Extent,
         CesiumMath,
         PrimitiveType,
+        Geometry,
+        GeometryAttribute,
         BufferUsage,
         MipmapHint,
         TextureMagnificationFilter,
@@ -134,6 +134,7 @@ define([
          * frame and for every tile, so it must be fast.
          *
          * @type {Number}
+         * @default 1.0
          */
         this.alpha = defaultValue(description.alpha, defaultValue(imageryProvider.defaultAlpha, 1.0));
 
@@ -148,6 +149,7 @@ define([
          * frame and for every tile, so it must be fast.
          *
          * @type {Number}
+         * @default {@link ImageryLayer.DEFAULT_BRIGHTNESS}
          */
         this.brightness = defaultValue(description.brightness, defaultValue(imageryProvider.defaultBrightness, ImageryLayer.DEFAULT_BRIGHTNESS));
 
@@ -162,6 +164,7 @@ define([
          * frame and for every tile, so it must be fast.
          *
          * @type {Number}
+         * @default {@link ImageryLayer.DEFAULT_CONTRAST}
          */
         this.contrast = defaultValue(description.contrast, defaultValue(imageryProvider.defaultContrast, ImageryLayer.DEFAULT_CONTRAST));
 
@@ -174,6 +177,7 @@ define([
          * frame and for every tile, so it must be fast.
          *
          * @type {Number}
+         * @default {@link ImageryLayer.DEFAULT_HUE}
          */
         this.hue = defaultValue(description.hue, defaultValue(imageryProvider.defaultHue, ImageryLayer.DEFAULT_HUE));
 
@@ -187,6 +191,7 @@ define([
          * frame and for every tile, so it must be fast.
          *
          * @type {Number}
+         * @default {@link ImageryLayer.DEFAULT_SATURATION}
          */
         this.saturation = defaultValue(description.saturation, defaultValue(imageryProvider.defaultSaturation, ImageryLayer.DEFAULT_SATURATION));
 
@@ -200,6 +205,7 @@ define([
          * frame and for every tile, so it must be fast.
          *
          * @type {Number}
+         * @default {@link ImageryLayer.DEFAULT_GAMMA}
          */
         this.gamma = defaultValue(description.gamma, defaultValue(imageryProvider.defaultGamma, ImageryLayer.DEFAULT_GAMMA));
 
@@ -207,6 +213,7 @@ define([
          * Determines if this layer is shown.
          *
          * @type {Boolean}
+         * @default true
          */
         this.show = defaultValue(description.show, true);
 
@@ -234,30 +241,35 @@ define([
      * This value is used as the default brightness for the imagery layer if one is not provided during construction
      * or by the imagery provider. This value does not modify the brightness of the imagery.
      * @type {number}
+     * @default 1.0
      */
     ImageryLayer.DEFAULT_BRIGHTNESS = 1.0;
     /**
      * This value is used as the default contrast for the imagery layer if one is not provided during construction
      * or by the imagery provider. This value does not modify the contrast of the imagery.
-     * @type {number}
+     * @type {Number}
+     * @default 1.0
      */
     ImageryLayer.DEFAULT_CONTRAST = 1.0;
     /**
      * This value is used as the default hue for the imagery layer if one is not provided during construction
      * or by the imagery provider. This value does not modify the hue of the imagery.
-     * @type {number}
+     * @type {Number}
+     * @default 0.0
      */
     ImageryLayer.DEFAULT_HUE = 0.0;
     /**
      * This value is used as the default saturation for the imagery layer if one is not provided during construction
      * or by the imagery provider. This value does not modify the saturation of the imagery.
-     * @type {number}
+     * @type {Number}
+     * @default 1.0
      */
     ImageryLayer.DEFAULT_SATURATION = 1.0;
     /**
      * This value is used as the default gamma for the imagery layer if one is not provided during construction
      * or by the imagery provider. This value does not modify the gamma of the imagery.
-     * @type {number}
+     * @type {Number}
+     * @default 1.0
      */
     ImageryLayer.DEFAULT_GAMMA = 1.0;
 
@@ -363,7 +375,7 @@ define([
             // The imagery provider is not ready, so we can't create skeletons, yet.
             // Instead, add a placeholder so that we'll know to create
             // the skeletons once the provider is ready.
-            this._skeletonPlaceholder.imagery.addReference();
+            this._skeletonPlaceholder.loadingImagery.addReference();
             tile.imagery.splice(insertionPoint, 0, this._skeletonPlaceholder);
             return true;
         }
@@ -417,6 +429,13 @@ define([
         var maximumLevel = imageryProvider.getMaximumLevel();
         if (imageryLevel > maximumLevel) {
             imageryLevel = maximumLevel;
+        }
+
+        if (typeof imageryProvider.getMinimumLevel !== 'undefined') {
+            var minimumLevel = imageryProvider.getMinimumLevel();
+            if (imageryLevel < minimumLevel) {
+                imageryLevel = minimumLevel;
+            }
         }
 
         var imageryTilingScheme = imageryProvider.getTilingScheme();
@@ -530,7 +549,7 @@ define([
      *          are the scale.
      */
     ImageryLayer.prototype._calculateTextureTranslationAndScale = function(tile, tileImagery) {
-        var imageryExtent = tileImagery.imagery.extent;
+        var imageryExtent = tileImagery.readyImagery.extent;
         var terrainExtent = tile.extent;
         var terrainWidth = terrainExtent.east - terrainExtent.west;
         var terrainHeight = terrainExtent.north - terrainExtent.south;
@@ -759,22 +778,22 @@ define([
 
         if (typeof reproject === 'undefined') {
             reproject = context.cache.imageryLayer_reproject = {
-                    framebuffer : undefined,
-                    vertexArray : undefined,
-                    shaderProgram : undefined,
-                    renderState : undefined,
-                    sampler : undefined,
-                    destroy : function() {
-                        if (typeof this.framebuffer !== 'undefined') {
-                            this.frameBuffer.destroy();
-                        }
-                        if (typeof this.vertexArray !== 'undefined') {
-                            this.vertexArray.destroy();
-                        }
-                        if (typeof this.shaderProgram !== 'undefined') {
-                            this.shaderProgram.destroy();
-                        }
+                framebuffer : undefined,
+                vertexArray : undefined,
+                shaderProgram : undefined,
+                renderState : undefined,
+                sampler : undefined,
+                destroy : function() {
+                    if (typeof this.framebuffer !== 'undefined') {
+                        this.framebuffer.destroy();
                     }
+                    if (typeof this.vertexArray !== 'undefined') {
+                        this.vertexArray.destroy();
+                    }
+                    if (typeof this.shaderProgram !== 'undefined') {
+                        this.shaderProgram.release();
+                    }
+                }
             };
 
             reproject.framebuffer = context.createFramebuffer();
@@ -799,26 +818,24 @@ define([
                 }
             }
 
-            var reprojectMesh = {
+            var reprojectGeometry = new Geometry({
                 attributes : {
-                    position : {
+                    position : new GeometryAttribute({
                         componentDatatype : ComponentDatatype.FLOAT,
                         componentsPerAttribute : 2,
                         values : positions
-                    }
+                    })
                 },
-                indexLists : [{
-                    primitiveType : PrimitiveType.TRIANGLES,
-                    values : TerrainProvider.getRegularGridIndices(256, 256)
-                }]
-            };
+                indices : TerrainProvider.getRegularGridIndices(256, 256),
+                primitiveType : PrimitiveType.TRIANGLES
+            });
 
             var reprojectAttribInds = {
                 position : 0
             };
 
-            reproject.vertexArray = context.createVertexArrayFromMesh({
-                mesh : reprojectMesh,
+            reproject.vertexArray = context.createVertexArrayFromGeometry({
+                geometry : reprojectGeometry,
                 attributeIndices : reprojectAttribInds,
                 bufferUsage : BufferUsage.STATIC_DRAW
             });
