@@ -1,22 +1,26 @@
 /*global define*/
 define([
         '../Core/defaultValue',
+        '../Core/defined',
         '../Core/DeveloperError',
         '../Core/Color',
         '../Core/Cartesian2',
         '../Core/Cartesian3',
         '../Core/Cartesian4',
+        '../Core/NearFarScalar',
         './HorizontalOrigin',
         './VerticalOrigin',
         './SceneMode',
         './SceneTransforms'
     ], function(
         defaultValue,
+        defined,
         DeveloperError,
         Color,
         Cartesian2,
         Cartesian3,
         Cartesian4,
+        NearFarScalar,
         HorizontalOrigin,
         VerticalOrigin,
         SceneMode,
@@ -46,6 +50,8 @@ define([
      * updated, it may be more efficient to clear the collection with {@link BillboardCollection#removeAll}
      * and add new billboards instead of modifying each one.
      *
+     * @exception {DeveloperError} scaleByDistance.far must be greater than scaleByDistance.near
+     *
      * @see BillboardCollection
      * @see BillboardCollection#add
      * @see Label
@@ -56,6 +62,10 @@ define([
      */
     var Billboard = function(description, billboardCollection) {
         description = defaultValue(description, EMPTY_OBJECT);
+
+        if (defined(description.scaleByDistance) && description.scaleByDistance.far <= description.scaleByDistance.near) {
+            throw new DeveloperError('scaleByDistance.far must be greater than scaleByDistance.near.');
+        }
 
         this._show = defaultValue(description.show, true);
 
@@ -73,6 +83,7 @@ define([
         this._alignedAxis = Cartesian3.clone(defaultValue(description.alignedAxis, Cartesian3.ZERO));
         this._width = description.width;
         this._height = description.height;
+        this._scaleByDistance = description.scaleByDistance;
 
         this._pickId = undefined;
         this._pickIdThis = description._pickIdThis;
@@ -92,18 +103,19 @@ define([
     var COLOR_INDEX = Billboard.COLOR_INDEX = 8;
     var ROTATION_INDEX = Billboard.ROTATION_INDEX = 9;
     var ALIGNED_AXIS_INDEX = Billboard.ALIGNED_AXIS_INDEX = 10;
-    Billboard.NUMBER_OF_PROPERTIES = 11;
+    var SCALE_BY_DISTANCE_INDEX = Billboard.SCALE_BY_DISTANCE_INDEX = 11;
+    Billboard.NUMBER_OF_PROPERTIES = 12;
 
     function makeDirty(billboard, propertyChanged) {
         var billboardCollection = billboard._billboardCollection;
-        if (typeof billboardCollection !== 'undefined') {
+        if (defined(billboardCollection)) {
             billboardCollection._updateBillboard(billboard, propertyChanged);
             billboard._dirty = true;
         }
     }
 
     Billboard.prototype.getPickId = function(context) {
-        if (typeof this._pickId === 'undefined') {
+        if (!defined(this._pickId)) {
             this._pickId = context.createPickId(defaultValue(this._pickIdThis, this));
         }
 
@@ -137,7 +149,7 @@ define([
      * @see Billboard#getShow
      */
     Billboard.prototype.setShow = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -188,7 +200,7 @@ define([
      * });
      */
     Billboard.prototype.setPosition = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -252,7 +264,7 @@ define([
      * @see Label#setPixelOffset
      */
     Billboard.prototype.setPixelOffset = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -261,6 +273,59 @@ define([
             Cartesian2.clone(value, pixelOffset);
             makeDirty(this, PIXEL_OFFSET_INDEX);
         }
+    };
+
+    /**
+     * Returns the near and far scaling properties of a Billboard based on the billboard's distance from the camera.
+     *
+     * @memberof Billboard
+     *
+     * @return {NearFarScalar} The near/far scaling values based on camera distance to the billboard
+     *
+     * @see Billboard#setScaleByDistance
+     */
+    Billboard.prototype.getScaleByDistance = function() {
+        return this._scaleByDistance;
+    };
+
+    /**
+     * Sets near and far scaling properties of a Billboard based on the billboard's distance from the camera.
+     * A billboard's scale will interpolate between the {@link NearFarScalar#nearValue} and
+     * {@link NearFarScalar#farValue} while the camera distance falls within the upper and lower bounds
+     * of the specified {@link NearFarScalar#near} and {@link NearFarScalar#far}.
+     * Outside of these ranges the billboard's scale remains clamped to the nearest bound.  If undefined,
+     * scaleByDistance will be disabled.
+     *
+     * @memberof Billboard
+     *
+     * @param {NearFarScalar} scale The configuration of near and far distances and their respective scale values
+     *
+     * @exception {DeveloperError} far distance must be greater than near distance.
+     *
+     * @see Billboard#getScaleByDistance
+     *
+     * @example
+     * // Example 1.
+     * // Set a billboard's scaleByDistance to scale by 1.5 when the
+     * // camera is 1500 meters from the billboard and disappear as
+     * // the camera distance approaches 8.0e6 meters.
+     * b.setScaleByDistance(new NearFarScalar(1.5e2, 1.5, 8.0e6, 0.0));
+     *
+     * // Example 2.
+     * // disable scaling by distance
+     * b.setScaleByDistance(undefined);
+     */
+    Billboard.prototype.setScaleByDistance = function(scale) {
+        if (NearFarScalar.equals(this._scaleByDistance, scale)) {
+            return;
+        }
+
+        if (scale.far <= scale.near) {
+            throw new DeveloperError('far distance must be greater than near distance.');
+        }
+
+        makeDirty(this, SCALE_BY_DISTANCE_INDEX);
+        this._scaleByDistance = NearFarScalar.clone(scale, this._scaleByDistance);
     };
 
     /**
@@ -310,7 +375,7 @@ define([
      * @see Billboard#getEyeOffset
      */
     Billboard.prototype.setEyeOffset = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -357,7 +422,7 @@ define([
      * b.setVerticalOrigin(VerticalOrigin.BOTTOM);
      */
     Billboard.prototype.setHorizontalOrigin = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -403,7 +468,7 @@ define([
      * b.setVerticalOrigin(VerticalOrigin.BOTTOM);
      */
     Billboard.prototype.setVerticalOrigin = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -448,7 +513,7 @@ define([
      * @see Billboard#setImageIndex
      */
     Billboard.prototype.setScale = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -547,7 +612,7 @@ define([
      * });
      */
     Billboard.prototype.setColor = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -587,7 +652,7 @@ define([
      * @see Billboard#setAlignedAxis
      */
     Billboard.prototype.setRotation = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -642,7 +707,7 @@ define([
      * billboard.setAlignedAxis(Cartesian3.ZERO);
      */
     Billboard.prototype.setAlignedAxis = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -781,15 +846,15 @@ define([
      */
     Billboard.prototype.computeScreenSpacePosition = function(context, frameState) {
         var billboardCollection = this._billboardCollection;
-        if (typeof billboardCollection === 'undefined') {
+        if (!defined(billboardCollection)) {
             throw new DeveloperError('Billboard must be in a collection.  Was it removed?');
         }
 
-        if (typeof context === 'undefined') {
+        if (!defined(context)) {
             throw new DeveloperError('context is required.');
         }
 
-        if (typeof frameState === 'undefined') {
+        if (!defined(frameState)) {
             throw new DeveloperError('frameState is required.');
         }
 
@@ -809,7 +874,7 @@ define([
      */
     Billboard.prototype.equals = function(other) {
         return this === other ||
-               typeof other !== 'undefined' &&
+               defined(other) &&
                this._show === other._show &&
                this._imageIndex === other._imageIndex &&
                this._scale === other._scale &&
@@ -818,7 +883,8 @@ define([
                Cartesian3.equals(this._position, other._position) &&
                Color.equals(this._color, other._color) &&
                Cartesian2.equals(this._pixelOffset, other._pixelOffset) &&
-               Cartesian3.equals(this._eyeOffset, other._eyeOffset);
+               Cartesian3.equals(this._eyeOffset, other._eyeOffset) &&
+               NearFarScalar.equals(this._scaleByDistance, other._scaleByDistance);
     };
 
     Billboard.prototype._destroy = function() {

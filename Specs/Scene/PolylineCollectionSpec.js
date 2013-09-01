@@ -798,62 +798,6 @@ defineSuite([
         expect(context.readPixels()).toNotEqual([0, 0, 0, 0]);
     });
 
-    it('renders more than 64K vertices of different polylines of different widths', function() {
-        var positions = [];
-        for ( var i = 0; i < CesiumMath.SIXTY_FOUR_KILOBYTES - 2; ++i) {
-            positions.push({
-                x : -1,
-                y : -1,
-                z : 0
-            });
-            positions.push({
-                x : -1,
-                y : 1,
-                z : 0
-            });
-        }
-
-        polylines.add({
-            positions : positions
-        });
-
-        polylines.add({
-            positions:positions,
-            width:2
-        });
-        positions = [];
-
-        positions.push({
-            x : 0,
-            y : -1,
-            z : 0
-        });
-        positions.push({
-            x : 0,
-            y : 1,
-            z : 0
-        });
-        positions.push({
-            x : 0,
-            y : -1,
-            z : 0
-        });
-        positions.push({
-            x : 0,
-            y : 1,
-            z : 0
-        });
-        polylines.add({
-           positions:positions,
-           width:5
-        });
-        ClearCommand.ALL.execute(context);
-        expect(context.readPixels()).toEqual([0, 0, 0, 0]);
-
-        render(context, frameState, polylines);
-        expect(context.readPixels()).toNotEqual([0, 0, 0, 0]);
-    });
-
     it('does not render', function() {
         var p = polylines.add({
             positions : [{
@@ -1580,6 +1524,40 @@ defineSuite([
 
     it('computes bounding sphere in 2D', function() {
         test2DBoundingSphere(SceneMode.SCENE2D);
+    });
+
+    it('computes optimized bounding volumes per material', function() {
+        var one = polylines.add({
+            positions : [{
+                x : 1.0,
+                y : 2.0,
+                z : 3.0
+            },{
+                x : 2.0,
+                y : 3.0,
+                z : 4.0
+            }]
+        });
+        one.getMaterial().uniforms.color = new Color(1.0, 0.0, 0.0, 1.0);
+
+        var two = polylines.add({
+            positions : [{
+                x : 4.0,
+                y : 5.0,
+                z : 6.0
+            },{
+                x : 2.0,
+                y : 3.0,
+                z : 4.0
+            }]
+        });
+        two.getMaterial().uniforms.color = new Color(0.0, 1.0, 0.0, 1.0);
+
+        var commandList = [];
+        polylines.update(context, frameState, commandList);
+
+        expect(commandList[0].colorList[0].boundingVolume).toEqual(one._boundingVolume);
+        expect(commandList[0].colorList[1].boundingVolume).toEqual(two._boundingVolume);
     });
 
     it('isDestroyed', function() {

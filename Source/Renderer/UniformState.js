@@ -6,6 +6,7 @@ define([
         '../Core/Cartesian3',
         '../Core/Cartesian4',
         '../Core/Cartographic',
+        '../Core/defined',
         '../Core/Math',
         '../Core/EncodedCartesian3',
         '../Core/BoundingRectangle',
@@ -19,6 +20,7 @@ define([
         Cartesian3,
         Cartesian4,
         Cartographic,
+        defined,
         CesiumMath,
         EncodedCartesian3,
         BoundingRectangle,
@@ -126,6 +128,7 @@ define([
         this._cameraRight = new Cartesian3();
         this._cameraUp = new Cartesian3();
         this._frustum2DWidth = 0.0;
+        this._eyeHeight2D = new Cartesian2();
     };
 
     function setView(uniformState, matrix) {
@@ -180,7 +183,7 @@ define([
     var transformMatrix = new Matrix3();
     var sunCartographicScratch = new Cartographic();
     function setSunAndMoonDirections(uniformState, frameState) {
-        if (typeof Transforms.computeIcrfToFixedMatrix(frameState.time, transformMatrix) === 'undefined') {
+        if (!defined(Transforms.computeIcrfToFixedMatrix(frameState.time, transformMatrix))) {
             transformMatrix = Transforms.computeTemeToPseudoFixedMatrix(frameState.time, transformMatrix);
         }
 
@@ -214,7 +217,7 @@ define([
      */
     UniformState.prototype.updateFrustum = function(frustum) {
         setProjection(this, frustum.getProjectionMatrix());
-        if (typeof frustum.getInfiniteProjectionMatrix !== 'undefined') {
+        if (defined(frustum.getInfiniteProjectionMatrix)) {
             setInfiniteProjection(this, frustum.getInfiniteProjectionMatrix());
         }
         this._currentFrustum.x = frustum.near;
@@ -242,8 +245,12 @@ define([
 
         if (frameState.mode === SceneMode.SCENE2D) {
             this._frustum2DWidth = camera.frustum.right - camera.frustum.left;
+            this._eyeHeight2D.x = this._frustum2DWidth * 0.5;
+            this._eyeHeight2D.y = this._eyeHeight2D.x * this._eyeHeight2D.x;
         } else {
             this._frustum2DWidth = 0.0;
+            this._eyeHeight2D.x = 0.0;
+            this._eyeHeight2D.y = 0.0;
         }
 
         setSunAndMoonDirections(this, frameState);
@@ -915,6 +922,21 @@ define([
     };
 
     /**
+     * Returns the the height (<code>x</code>) and the height squared (<code>y</code>)
+     * in meters of the camera above the 2D world plane. This uniform is only valid
+     * when the {@link SceneMode} equal to <code>SCENE2D</code>.
+     *
+     * @memberof UniformState
+     *
+     * @returns {Cartesian2} Height and height squared above the 2D world plane for SCENE2D {@link SceneMode}.
+     *
+     * @see czm_eyeHeight2D
+     */
+    UniformState.prototype.getEyeHeight2D = function() {
+        return this._eyeHeight2D;
+    };
+
+    /**
      * Returns the size of a pixel in meters at a distance of one meter from the camera.
      *
      * @memberof UniformState
@@ -1124,7 +1146,7 @@ define([
         enuToFixed.multiplyByVector(d, d);
 
         // Compute the view matrix based on the new fixed-frame camera position and directions.
-        if (typeof result === 'undefined') {
+        if (!defined(result)) {
             result = new Matrix4();
         }
 

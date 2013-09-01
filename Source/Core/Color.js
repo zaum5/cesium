@@ -1,12 +1,18 @@
 /*global define*/
 define([
         './defaultValue',
+        './defined',
         './freezeObject',
-        './DeveloperError'
+        './DeveloperError',
+        './FeatureDetection',
+        './Math'
     ], function(
         defaultValue,
+        defined,
         freezeObject,
-        DeveloperError) {
+        DeveloperError,
+        FeatureDetection,
+        CesiumMath) {
     "use strict";
 
     function hue2rgb(m1, m2, h) {
@@ -38,6 +44,8 @@ define([
      *
      * @constructor
      * @alias Color
+     *
+     * @see Packable
      */
     var Color = function(red, green, blue, alpha) {
         /**
@@ -88,7 +96,7 @@ define([
     var scratchArrayBuffer;
     var scratchUint32Array;
     var scratchUint8Array;
-    if (typeof ArrayBuffer !== 'undefined') {
+    if (FeatureDetection.supportsTypedArrays()) {
         scratchArrayBuffer = new ArrayBuffer(4);
         scratchUint32Array = new Uint32Array(scratchArrayBuffer);
         scratchUint8Array = new Uint8Array(scratchArrayBuffer);
@@ -153,6 +161,110 @@ define([
         return new Color(red, green, blue, alpha);
     };
 
+    /**
+     * Creates a random color using the provided options. For reproducible random colors, you should
+     * call {@link CesiumMath#setRandomNumberSeed} once at the beginning of your application.
+     * @memberof Color
+     *
+     * @param {Object} [options] Object containing the options.
+     * @param {Number} [options.red] If specified, the red component to use instead of a randomized value.
+     * @param {Number} [options.minimumRed=0.0] The maximum red value to generate if none was specified.
+     * @param {Number} [options.maximumRed=1.0] The minimum red value to generate if none was specified.
+     * @param {Number} [options.green] If specified, the green component to use instead of a randomized value.
+     * @param {Number} [options.minimumGreen=0.0] The maximum green value to generate if none was specified.
+     * @param {Number} [options.maximumGreen=1.0] The minimum green value to generate if none was specified.
+     * @param {Number} [options.blue] If specified, the blue component to use instead of a randomized value.
+     * @param {Number} [options.minimumBlue=0.0] The maximum blue value to generate if none was specified.
+     * @param {Number} [options.maximumBlue=1.0] The minimum blue value to generate if none was specified.
+     * @param {Number} [options.alpha] If specified, the alpha component to use instead of a randomized value.
+     * @param {Number} [options.minimumAlpha=0.0] The maximum alpha value to generate if none was specified.
+     * @param {Number} [options.maximumAlpha=1.0] The minimum alpha value to generate if none was specified.
+     * @param {Color} [result] The object to store the result in, if undefined a new instance will be created.
+     *
+     * @return {Color} The modified result parameter or a new instance if result was undefined.
+     *
+     * @exception {DeveloperError} minimumRed must be less than or equal to maximumRed.
+     * @exception {DeveloperError} minimumGreen must be less than or equal to maximumGreen.
+     * @exception {DeveloperError} minimumBlue must be less than or equal to maximumBlue.
+     * @exception {DeveloperError} minimumAlpha must be less than or equal to maximumAlpha.
+     *
+     * @example
+     * //Create a completely random color
+     * var color = Color.fromRandom();
+     *
+     * //Create a random shade of yellow.
+     * var color = Color.fromRandom({
+     *     red : 1.0,
+     *     green : 1.0,
+     *     alpha : 1.0
+     * });
+     *
+     * //Create a random bright color.
+     * var color = Color.fromRandom({
+     *     minimumRed : 0.75,
+     *     minimumGreen : 0.75,
+     *     minimumBlue : 0.75,
+     *     alpha : 1.0
+     * });
+     */
+    Color.fromRandom = function(options, result) {
+        options = defaultValue(options, defaultValue.EMPTY_OBJECT);
+
+        var red = options.red;
+        if (!defined(red)) {
+            var minimumRed = defaultValue(options.minimumRed, 0);
+            var maximumRed = defaultValue(options.maximumRed, 1.0);
+
+            if (minimumRed > maximumRed) {
+                throw new DeveloperError("minimumRed must be less than or equal to maximumRed");
+            }
+            red = minimumRed + (CesiumMath.nextRandomNumber() * (maximumRed - minimumRed));
+        }
+
+        var green = options.green;
+        if (!defined(green)) {
+            var minimumGreen = defaultValue(options.minimumGreen, 0);
+            var maximumGreen = defaultValue(options.maximumGreen, 1.0);
+
+            if (minimumGreen > maximumGreen) {
+                throw new DeveloperError("minimumGreen must be less than or equal to maximumGreen");
+            }
+            green = minimumGreen + (CesiumMath.nextRandomNumber() * (maximumGreen - minimumGreen));
+        }
+
+        var blue = options.blue;
+        if (!defined(blue)) {
+            var minimumBlue = defaultValue(options.minimumBlue, 0);
+            var maximumBlue = defaultValue(options.maximumBlue, 1.0);
+
+            if (minimumBlue > maximumBlue) {
+                throw new DeveloperError("minimumBlue must be less than or equal to maximumBlue");
+            }
+            blue = minimumBlue + (CesiumMath.nextRandomNumber() * (maximumBlue - minimumBlue));
+        }
+
+        var alpha = options.alpha;
+        if (!defined(alpha)) {
+            var minimumAlpha = defaultValue(options.minimumAlpha, 0);
+            var maximumAlpha = defaultValue(options.maximumAlpha, 1.0);
+
+            if (minimumAlpha > maximumAlpha) {
+                throw new DeveloperError("minimumAlpha must be less than or equal to maximumAlpha");
+            }
+            alpha = minimumAlpha + (CesiumMath.nextRandomNumber() * (maximumAlpha - minimumAlpha));
+        }
+
+        if (!defined(result)) {
+            return new Color(red, green, blue, alpha);
+        }
+
+        result.red = red;
+        result.green = green;
+        result.blue = blue;
+        result.alpha = alpha;
+        return result;
+    };
+
     //#rgb
     var rgbMatcher = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i;
     //#rrggbb
@@ -178,50 +290,107 @@ define([
      * @see <a href="http://www.w3.org/TR/css3-color">CSS color values</a>
      */
     Color.fromCssColorString = function(color) {
-        if (typeof color === 'undefined') {
+        if (!defined(color)) {
             throw new DeveloperError('color is required');
         }
 
         var namedColor = Color[color.toUpperCase()];
-        if (typeof namedColor !== 'undefined') {
+        if (defined(namedColor)) {
             return namedColor.clone();
         }
 
         var matches = rgbMatcher.exec(color);
         if (matches !== null) {
-            return new Color(
-                    parseInt(matches[1], 16) / 15.0,
-                    parseInt(matches[2], 16) / 15.0,
-                    parseInt(matches[3], 16) / 15.0);
+            return new Color(parseInt(matches[1], 16) / 15.0,
+                             parseInt(matches[2], 16) / 15.0,
+                             parseInt(matches[3], 16) / 15.0);
         }
 
         matches = rrggbbMatcher.exec(color);
         if (matches !== null) {
-            return new Color(
-                    parseInt(matches[1], 16) / 255.0,
-                    parseInt(matches[2], 16) / 255.0,
-                    parseInt(matches[3], 16) / 255.0);
+            return new Color(parseInt(matches[1], 16) / 255.0,
+                             parseInt(matches[2], 16) / 255.0,
+                             parseInt(matches[3], 16) / 255.0);
         }
 
         matches = rgbParenthesesMatcher.exec(color);
         if (matches !== null) {
-            return new Color(
-                    parseFloat(matches[1]) / ('%' === matches[1].substr(-1) ? 100.0 : 255.0),
-                    parseFloat(matches[2]) / ('%' === matches[2].substr(-1) ? 100.0 : 255.0),
-                    parseFloat(matches[3]) / ('%' === matches[3].substr(-1) ? 100.0 : 255.0),
-                    parseFloat(defaultValue(matches[4], '1.0')));
+            return new Color(parseFloat(matches[1]) / ('%' === matches[1].substr(-1) ? 100.0 : 255.0),
+                             parseFloat(matches[2]) / ('%' === matches[2].substr(-1) ? 100.0 : 255.0),
+                             parseFloat(matches[3]) / ('%' === matches[3].substr(-1) ? 100.0 : 255.0),
+                             parseFloat(defaultValue(matches[4], '1.0')));
         }
 
         matches = hslParenthesesMatcher.exec(color);
         if (matches !== null) {
-            return Color.fromHsl(
-                    parseFloat(matches[1]) / 360.0,
-                    parseFloat(matches[2]) / 100.0,
-                    parseFloat(matches[3]) / 100.0,
-                    parseFloat(defaultValue(matches[4], '1.0')));
+            return Color.fromHsl(parseFloat(matches[1]) / 360.0,
+                                 parseFloat(matches[2]) / 100.0,
+                                 parseFloat(matches[3]) / 100.0,
+                                 parseFloat(defaultValue(matches[4], '1.0')));
         }
 
         return undefined;
+    };
+
+    /**
+     * The number of elements used to pack the object into an array.
+     * @Type {Number}
+     */
+    Color.packedLength = 4;
+
+    /**
+     * Stores the provided instance into the provided array.
+     * @memberof Color
+     *
+     * @param {Color} value The value to pack.
+     * @param {Array} array The array to pack into.
+     * @param {Number} [startingIndex=0] The index into the array at which to start packing the elements.
+     *
+     * @exception {DeveloperError} value is required.
+     * @exception {DeveloperError} array is required.
+     */
+    Color.pack = function(value, array, startingIndex) {
+        if (!defined(value)) {
+            throw new DeveloperError('value is required');
+        }
+
+        if (!defined(array)) {
+            throw new DeveloperError('array is required');
+        }
+
+        startingIndex = defaultValue(startingIndex, 0);
+
+        array[startingIndex++] = value.red;
+        array[startingIndex++] = value.green;
+        array[startingIndex++] = value.blue;
+        array[startingIndex] = value.alpha;
+    };
+
+    /**
+     * Retrieves an instance from a packed array.
+     * @memberof Color
+     *
+     * @param {Array} array The packed array.
+     * @param {Number} [startingIndex=0] The starting index of the element to be unpacked.
+     * @param {Color} [result] The object into which to store the result.
+     *
+     * @exception {DeveloperError} array is required.
+     */
+    Color.unpack = function(array, startingIndex, result) {
+        if (!defined(array)) {
+            throw new DeveloperError('array is required');
+        }
+
+        startingIndex = defaultValue(startingIndex, 0);
+
+        if (!defined(result)) {
+            result = new Color();
+        }
+        result.red = array[startingIndex++];
+        result.green = array[startingIndex++];
+        result.blue = array[startingIndex++];
+        result.alpha = array[startingIndex];
+        return result;
     };
 
     /**
@@ -257,10 +426,10 @@ define([
      * @return {Color} The modified result parameter or a new instance if result was undefined. (Returns undefined if color is undefined)
      */
     Color.clone = function(color, result) {
-        if (typeof color === 'undefined'){
+        if (!defined(color)) {
             return undefined;
         }
-        if (typeof result === 'undefined') {
+        if (!defined(result)) {
             return new Color(color.red, color.green, color.blue, color.alpha);
         }
         result.red = color.red;
@@ -279,12 +448,12 @@ define([
      * @return {Boolean} <code>true</code> if the Colors are equal; otherwise, <code>false</code>.
      */
     Color.equals = function(left, right) {
-        return (left === right) ||
-               (typeof left !== 'undefined' &&
-                typeof right !== 'undefined' &&
-                left.red === right.red &&
-                left.green === right.green &&
-                left.blue === right.blue &&
+        return (left === right) || //
+               (defined(left) && //
+                defined(right) && //
+                left.red === right.red && //
+                left.green === right.green && //
+                left.blue === right.blue && //
                 left.alpha === right.alpha);
     };
 
@@ -319,11 +488,11 @@ define([
      * @return {Boolean} <code>true</code> if the Colors are equal within the specified epsilon; otherwise, <code>false</code>.
      */
     Color.prototype.equalsEpsilon = function(other, epsilon) {
-        return (this === other) ||
-               ((typeof other !== 'undefined') &&
-                (Math.abs(this.red - other.red) <= epsilon) &&
-                (Math.abs(this.green - other.green) <= epsilon) &&
-                (Math.abs(this.blue - other.blue) <= epsilon) &&
+        return (this === other) || //
+               ((defined(other)) && //
+                (Math.abs(this.red - other.red) <= epsilon) && //
+                (Math.abs(this.green - other.green) <= epsilon) && //
+                (Math.abs(this.blue - other.blue) <= epsilon) && //
                 (Math.abs(this.alpha - other.alpha) <= epsilon));
     };
 
