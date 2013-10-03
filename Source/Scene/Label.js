@@ -55,8 +55,8 @@ define([
      *
      * @demo <a href="http://cesium.agi.com/Cesium/Apps/Sandcastle/index.html?src=Labels.html">Cesium Sandcastle Labels Demo</a>
      */
-    var Label = function(description, labelCollection) {
-        description = defaultValue(description, defaultValue.EMPTY_OBJECT);
+    var Label = function(options, labelCollection) {
+        options = defaultValue(options, defaultValue.EMPTY_OBJECT);
 
         if (defined(description.translucencyByDistance) &&
                 description.translucencyByDistance.far <= description.translucencyByDistance.near) {
@@ -77,6 +77,7 @@ define([
         this._position = Cartesian3.clone(defaultValue(description.position, Cartesian3.ZERO));
         this._scale = defaultValue(description.scale, 1.0);
         this._translucencyByDistance = description.translucencyByDistance;
+        this._id = options.id;
 
         this._labelCollection = labelCollection;
         this._glyphs = [];
@@ -685,6 +686,17 @@ define([
     };
 
     /**
+     * Returns the user-defined object returned when the label is picked.
+     *
+     * @memberof Label
+     *
+     * @returns {Object} The user-defined object returned when the label is picked.
+     */
+    Label.prototype.getId = function() {
+        return this._id;
+    };
+
+    /**
      * Sets the uniform scale that is multiplied with the label's size in pixels.
      * A scale of <code>1.0</code> does not change the size of the label; a scale greater than
      * <code>1.0</code> enlarges the label; a positive scale less than <code>1.0</code> shrinks
@@ -790,7 +802,8 @@ define([
                Color.equals(this._outlineColor, other._outlineColor) &&
                Cartesian2.equals(this._pixelOffset, other._pixelOffset) &&
                Cartesian3.equals(this._eyeOffset, other._eyeOffset) &&
-               NearFarScalar.equals(this._translucencyByDistance, other._translucencyByDistance);
+               NearFarScalar.equals(this._translucencyByDistance, other._translucencyByDistance) &&
+               this._id === other._id;
     };
 
     /**
