@@ -58,25 +58,25 @@ define([
     var Label = function(options, labelCollection) {
         options = defaultValue(options, defaultValue.EMPTY_OBJECT);
 
-        if (defined(description.translucencyByDistance) &&
-                description.translucencyByDistance.far <= description.translucencyByDistance.near) {
+        if (defined(options.translucencyByDistance) &&
+                options.translucencyByDistance.far <= options.translucencyByDistance.near) {
             throw new DeveloperError('translucencyByDistance.far must be greater than translucencyByDistance.near.');
         }
 
-        this._text = defaultValue(description.text, '');
-        this._show = defaultValue(description.show, true);
-        this._font = defaultValue(description.font, '30px sans-serif');
-        this._fillColor = Color.clone(defaultValue(description.fillColor, Color.WHITE));
-        this._outlineColor = Color.clone(defaultValue(description.outlineColor, Color.BLACK));
-        this._outlineWidth = defaultValue(description.outlineWidth, 1.0);
-        this._style = defaultValue(description.style, LabelStyle.FILL);
-        this._verticalOrigin = defaultValue(description.verticalOrigin, VerticalOrigin.BOTTOM);
-        this._horizontalOrigin = defaultValue(description.horizontalOrigin, HorizontalOrigin.LEFT);
-        this._pixelOffset = Cartesian2.clone(defaultValue(description.pixelOffset, Cartesian2.ZERO));
-        this._eyeOffset = Cartesian3.clone(defaultValue(description.eyeOffset, Cartesian3.ZERO));
-        this._position = Cartesian3.clone(defaultValue(description.position, Cartesian3.ZERO));
-        this._scale = defaultValue(description.scale, 1.0);
-        this._translucencyByDistance = description.translucencyByDistance;
+        this._text = defaultValue(options.text, '');
+        this._show = defaultValue(options.show, true);
+        this._font = defaultValue(options.font, '30px sans-serif');
+        this._fillColor = Color.clone(defaultValue(options.fillColor, Color.WHITE));
+        this._outlineColor = Color.clone(defaultValue(options.outlineColor, Color.BLACK));
+        this._outlineWidth = defaultValue(options.outlineWidth, 1.0);
+        this._style = defaultValue(options.style, LabelStyle.FILL);
+        this._verticalOrigin = defaultValue(options.verticalOrigin, VerticalOrigin.BOTTOM);
+        this._horizontalOrigin = defaultValue(options.horizontalOrigin, HorizontalOrigin.LEFT);
+        this._pixelOffset = Cartesian2.clone(defaultValue(options.pixelOffset, Cartesian2.ZERO));
+        this._eyeOffset = Cartesian3.clone(defaultValue(options.eyeOffset, Cartesian3.ZERO));
+        this._position = Cartesian3.clone(defaultValue(options.position, Cartesian3.ZERO));
+        this._scale = defaultValue(options.scale, 1.0);
+        this._translucencyByDistance = options.translucencyByDistance;
         this._id = options.id;
 
         this._labelCollection = labelCollection;

@@ -69,8 +69,8 @@ define([
         if (defined(options.scaleByDistance) && options.scaleByDistance.far <= options.scaleByDistance.near) {
             throw new DeveloperError('scaleByDistance.far must be greater than scaleByDistance.near.');
         }
-        if (defined(description.translucencyByDistance) &&
-                description.translucencyByDistance.far <= description.translucencyByDistance.near) {
+        if (defined(options.translucencyByDistance) &&
+                options.translucencyByDistance.far <= options.translucencyByDistance.near) {
             throw new DeveloperError('translucencyByDistance.far must be greater than translucencyByDistance.near.');
         }
 
@@ -79,19 +79,19 @@ define([
         this._position = Cartesian3.clone(defaultValue(options.position, Cartesian3.ZERO));
         this._actualPosition = Cartesian3.clone(this._position); // For columbus view and 2D
 
-        this._pixelOffset = Cartesian2.clone(defaultValue(description.pixelOffset, Cartesian2.ZERO));
-        this._eyeOffset = Cartesian3.clone(defaultValue(description.eyeOffset, Cartesian3.ZERO));
-        this._verticalOrigin = defaultValue(description.verticalOrigin, VerticalOrigin.CENTER);
-        this._horizontalOrigin = defaultValue(description.horizontalOrigin, HorizontalOrigin.CENTER);
-        this._scale = defaultValue(description.scale, 1.0);
-        this._imageIndex = defaultValue(description.imageIndex, -1);
-        this._color = Color.clone(defaultValue(description.color, Color.WHITE));
-        this._rotation = defaultValue(description.rotation, 0.0);
-        this._alignedAxis = Cartesian3.clone(defaultValue(description.alignedAxis, Cartesian3.ZERO));
-        this._width = description.width;
-        this._height = description.height;
-        this._scaleByDistance = description.scaleByDistance;
-        this._translucencyByDistance = description.translucencyByDistance;
+        this._pixelOffset = Cartesian2.clone(defaultValue(options.pixelOffset, Cartesian2.ZERO));
+        this._eyeOffset = Cartesian3.clone(defaultValue(options.eyeOffset, Cartesian3.ZERO));
+        this._verticalOrigin = defaultValue(options.verticalOrigin, VerticalOrigin.CENTER);
+        this._horizontalOrigin = defaultValue(options.horizontalOrigin, HorizontalOrigin.CENTER);
+        this._scale = defaultValue(options.scale, 1.0);
+        this._imageIndex = defaultValue(options.imageIndex, -1);
+        this._color = Color.clone(defaultValue(options.color, Color.WHITE));
+        this._rotation = defaultValue(options.rotation, 0.0);
+        this._alignedAxis = Cartesian3.clone(defaultValue(options.alignedAxis, Cartesian3.ZERO));
+        this._width = options.width;
+        this._height = options.height;
+        this._scaleByDistance = options.scaleByDistance;
+        this._translucencyByDistance = options.translucencyByDistance;
         this._id = options.id;
 
         this._pickId = undefined;
@@ -963,7 +963,7 @@ define([
                Cartesian3.equals(this._eyeOffset, other._eyeOffset) &&
                NearFarScalar.equals(this._scaleByDistance, other._scaleByDistance) &&
                NearFarScalar.equals(this._translucencyByDistance, other._translucencyByDistance) &&
-               this._id === other._id;;
+               this._id === other._id;
     };
 
     Billboard.prototype._destroy = function() {
