@@ -374,7 +374,7 @@ define([
      * // Example 3. Construct a JulianDate 5 hours behind UTC April 24th, 2012 5:00 pm UTC
      * var localDay = JulianDate.fromIso8601('2012-04-24T12:00-05:00');
      */
-    JulianDate.fromIso8601 = function(iso8601String) {
+    JulianDate.fromIso8601 = function(iso8601String, result) {
         if (typeof iso8601String !== 'string') {
             throw new DeveloperError(iso8601ErrorMessage);
         }
@@ -603,7 +603,13 @@ define([
 
         //Now create the JulianDate components from the Gregorian date and actually create our instance.
         var components = computeJulianDateComponents(year, month, day, hour, minute, second, millisecond);
-        var result = new JulianDate(components[0], components[1], TimeStandard.UTC);
+
+        if (!defined(result)) {
+            result = new JulianDate(components[0], components[1], TimeStandard.UTC);
+        } else {
+            setComponents(components[0], components[1], result);
+            convertUtcToTai(result);
+        }
 
         //If we were on a leap second, add it back.
         if (isLeapSecond) {

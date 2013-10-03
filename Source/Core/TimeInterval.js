@@ -1,12 +1,14 @@
 /*global define*/
 define([
         './defined',
+        './defaultValue',
         './DeveloperError',
         './freezeObject',
         './JulianDate',
         './TimeStandard'
     ], function(
         defined,
+        defaultValue,
         DeveloperError,
         freezeObject,
         JulianDate,
@@ -46,13 +48,8 @@ define([
             throw new DeveloperError('stop must be specified.');
         }
 
-        if (!defined(isStartIncluded)) {
-            isStartIncluded = true;
-        }
-
-        if (!defined(isStopIncluded)) {
-            isStopIncluded = true;
-        }
+        isStartIncluded = defaultValue(isStartIncluded, true);
+        isStopIncluded = defaultValue(isStopIncluded, true);
 
         var stopComparedToStart = JulianDate.compare(stop, start);
 
@@ -103,11 +100,19 @@ define([
      * // Construct an open Timeinterval with a Cartesian data payload.
      * var interval = TimeInterval.fromIso8601('2012-03-15T11:02:24.55Z/2012-03-15T12:28:24.03Z', false, false, new Cartesian3(1,2,3));
      */
-    TimeInterval.fromIso8601 = function(iso8601String, isStartIncluded, isStopIncluded, data) {
+    TimeInterval.fromIso8601 = function(iso8601String, isStartIncluded, isStopIncluded, data, result) {
         var iso8601Interval = iso8601String.split('/');
-        var intervalStart = JulianDate.fromIso8601(iso8601Interval[0]);
-        var intervalStop = JulianDate.fromIso8601(iso8601Interval[1]);
-        return new TimeInterval(intervalStart, intervalStop, isStartIncluded, isStopIncluded, data);
+        if (!defined(result)) {
+            var intervalStart = JulianDate.fromIso8601(iso8601Interval[0]);
+            var intervalStop = JulianDate.fromIso8601(iso8601Interval[1]);
+            return new TimeInterval(intervalStart, intervalStop, isStartIncluded, isStopIncluded, data);
+        }
+        result.start = JulianDate.fromIso8601(iso8601Interval[0], result.start);
+        result.stop = JulianDate.fromIso8601(iso8601Interval[1], result.stop);
+        result.isStartIncluded = defaultValue(isStartIncluded, true);
+        result.isStopIncluded = defaultValue(isStopIncluded, true);
+        result.data = data;
+        return result;
     };
 
     /**
