@@ -43,6 +43,17 @@ define([
                                   DynamicPyramidVisualizer,
                                   DynamicPathVisualizer];
 
+    //Cesium currently has issues with sensors, polylines, and paths on Android.
+    var ua = navigator.userAgent.toLowerCase();
+    var isAndroid = ua.indexOf("android") > -1; //&& ua.indexOf("mobile");
+    if (isAndroid) {
+        defaultVisualizerTypes = [DynamicBillboardVisualizer,
+                                  DynamicEllipsoidVisualizer,
+                                  DynamicLabelVisualizer,
+                                  DynamicPointVisualizer,
+                                  DynamicPolygonVisualizer];
+    }
+
     /**
      * Visualizes a collection of {@link DataSource} instances.
      * @alias DataSourceDisplay
