@@ -85,8 +85,8 @@ defineSuite([
         expect(label.getHorizontalOrigin()).toEqual(HorizontalOrigin.LEFT);
         expect(label.getVerticalOrigin()).toEqual(VerticalOrigin.BOTTOM);
         expect(label.getScale()).toEqual(1.0);
-        expect(label.getTranslucencyByDistance()).not.toBeDefined();
         expect(label.getId()).not.toBeDefined();
+        expect(label.getTranslucencyByDistance()).not.toBeDefined();
     });
 
     it('can add a label with specified values', function() {
@@ -129,8 +129,8 @@ defineSuite([
             horizontalOrigin : horizontalOrigin,
             verticalOrigin : verticalOrigin,
             scale : scale,
-            translucencyByDistance : translucency,
-            id : 'id'
+            id : 'id',
+            translucencyByDistance : translucency
         });
 
         expect(label.getShow()).toEqual(show);
@@ -146,8 +146,8 @@ defineSuite([
         expect(label.getHorizontalOrigin()).toEqual(horizontalOrigin);
         expect(label.getVerticalOrigin()).toEqual(verticalOrigin);
         expect(label.getScale()).toEqual(scale);
-        expect(label.getTranslucencyByDistance()).toEqual(translucency);
         expect(label.getId()).toEqual('id');
+        expect(label.getTranslucencyByDistance()).toEqual(translucency);
     });
 
     it('can specify font using units other than pixels', function() {
@@ -657,10 +657,8 @@ defineSuite([
             translucencyByDistance: new NearFarScalar(1.0, 1.0, 3.0, 0.0)
         });
 
-        // verify basis
         ClearCommand.ALL.execute(context);
         expect(context.readPixels()).toEqual([0, 0, 0, 0]);
-        // camera at 1.0 above label, expect label to be rendered, as translucency is near 1.0
         var us = context.getUniformState();
         var eye = new Cartesian3(0.0, 0.0, 1.0);
         var target = Cartesian3.ZERO;
@@ -668,15 +666,13 @@ defineSuite([
         us.update(context, createFrameState(createCamera(context, eye, target, up, 0.1, 10.0)));
         render(context, frameState, labels);
         expect(context.readPixels()).not.toEqual([0, 0, 0, 0]);
-        // clear screen
         ClearCommand.ALL.execute(context);
         expect(context.readPixels()).toEqual([0, 0, 0, 0]);
-        // camera at 6.0 above label, expect no pixels to be rendered, as translucency is 0.0
+
         eye = new Cartesian3(0.0, 0.0, 6.0);
         us.update(context, createFrameState(createCamera(context, eye, target, up, 0.1, 10.0)));
         render(context, frameState, labels);
         expect(context.readPixels()).toEqual([0, 0, 0, 0]);
-        // revert framestate
         us.update(context, createFrameState(createCamera(context)));
     });
 
