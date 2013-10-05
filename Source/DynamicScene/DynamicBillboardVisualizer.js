@@ -33,6 +33,7 @@ define([
             if (defined(currentIndex)) {
                 var cbBillboard = billboardCollection.get(currentIndex);
                 if (cbBillboard._visualizerUrl === textureValue) {
+                    cbBillboard.setShow(cbBillboard._showShow);
                     cbBillboard._visualizerTextureAvailable = true;
                     cbBillboard.setImageIndex(imageIndex);
                 }
@@ -259,6 +260,7 @@ define([
         } else {
             billboard = dynamicBillboardVisualizer._billboardCollection.get(billboardVisualizerIndex);
         }
+        billboard._showShow = show;
 
         var textureValue = textureProperty.getValue(time);
         if (textureValue !== billboard._visualizerUrl) {
@@ -268,9 +270,6 @@ define([
         }
 
         billboard.setShow(billboard._visualizerTextureAvailable);
-        if (!billboard._visualizerTextureAvailable) {
-            return;
-        }
 
         position = positionProperty.getValue(time, position);
         if (defined(position)) {

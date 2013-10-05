@@ -30,6 +30,8 @@ define([
     var SampledPositionProperty = function(referenceFrame) {
         this._property = new SampledProperty(Cartesian3);
         this._referenceFrame = defaultValue(referenceFrame, ReferenceFrame.FIXED);
+        this._lastTime = undefined;
+        this._lastValue = new Cartesian3();
     };
 
     defineProperties(SampledPositionProperty.prototype, {
@@ -110,10 +112,16 @@ define([
             throw new DeveloperError('referenceFrame is required.');
         }
 
+        if (time === this._lastTime) {
+            return this._lastValue.clone(result);
+        }
+
         result = this._property.getValue(time, result);
         if (defined(result)) {
             return PositionProperty.convertToReferenceFrame(time, result, this._referenceFrame, referenceFrame, result);
         }
+        result.clone(this._lastValue);
+        this._lastTime = time;
         return result;
     };
 
@@ -128,6 +136,7 @@ define([
      * @exception {DeveloperError} value is required.
      */
     SampledPositionProperty.prototype.addSample = function(time, value) {
+        this._lastTime = undefined;
         this._property.addSample(time, value);
     };
 
@@ -143,6 +152,7 @@ define([
      * @exception {DeveloperError} times and values must be the same length..
      */
     SampledPositionProperty.prototype.addSamples = function(times, values) {
+        this._lastTime = undefined;
         this._property.addSamples(times, values);
     };
 
@@ -156,6 +166,7 @@ define([
      * @exception {DeveloperError} packedSamples is required.
      */
     SampledPositionProperty.prototype.addSamplesPackedArray = function(data, epoch) {
+        this._lastTime = undefined;
         this._property.addSamplesPackedArray(data, epoch);
     };
 
