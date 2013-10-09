@@ -23,6 +23,10 @@ define(['../Core/defaultValue',
     var DynamicPolygon = function() {
         this._show = undefined;
         this._material = undefined;
+        this._height = undefined;
+        this._extrudedHeight = undefined;
+        this._granularity = undefined;
+        this._stRotation = undefined;
         this._propertyChanged = new Event();
     };
 
@@ -50,7 +54,40 @@ define(['../Core/defaultValue',
          * @memberof DynamicPolygon.prototype
          * @type {MaterialProperty}
          */
-        material : createDynamicPropertyDescriptor('material', '_material')
+        material : createDynamicPropertyDescriptor('material', '_material'),
+
+        /**
+         * Gets or sets the Number {@link Property} specifying the height of the polygon.
+         * If undefined, the polygon will be on the surface.
+         * @memberof DynamicPolygon.prototype
+         * @type {Property}
+         */
+        height : createDynamicPropertyDescriptor('height', '_height'),
+
+        /**
+         * Gets or sets the Number {@link Property} specifying the extruded height of the polygon.
+         * Setting this property creates a polygon shaped volume starting at height and ending
+         * at the extruded height.
+         * @memberof DynamicPolygon.prototype
+         * @type {Property}
+         */
+        extrudedHeight : createDynamicPropertyDescriptor('extrudedHeight', '_extrudedHeight'),
+
+        /**
+         * Gets or sets the Number {@link Property} specifying the sampling distance, in radians,
+         * between each latitude and longitude point. 
+         * @memberof DynamicPolygon.prototype
+         * @type {Property}
+         */
+        granularity : createDynamicPropertyDescriptor('granularity', '_granularity'),
+
+        /**
+         * Gets or sets the Number {@link Property} specifying the rotation of the texture coordinates,
+         * in radians. A positive rotation is counter-clockwise.
+         * @memberof DynamicPolygon.prototype
+         * @type {Property}
+         */
+        stRotation : createDynamicPropertyDescriptor('stRotation', '_stRotation')
     });
 
     /**
@@ -66,6 +103,10 @@ define(['../Core/defaultValue',
         }
         result.show = this.show;
         result.material = this.material;
+        result.height = this.height;
+        result.extrudedHeight = this.extrudedHeight;
+        result.granularity = this.granularity;
+        result.stRotation = this.stRotation;
         return result;
     };
 
@@ -83,6 +124,10 @@ define(['../Core/defaultValue',
         }
         this.show = defaultValue(this.show, source.show);
         this.material = defaultValue(this.material, source.material);
+        this.height = defaultValue(this.height, source.height);
+        this.extrudedHeight = defaultValue(this.extrudedHeight, source.extrudedHeight);
+        this.granularity = defaultValue(this.granularity, source.granularity);
+        this.stRotation = defaultValue(this.stRotation, source.stRotation);
     };
 
     return DynamicPolygon;

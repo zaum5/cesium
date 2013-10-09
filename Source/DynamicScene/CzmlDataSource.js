@@ -1025,6 +1025,10 @@ define([
 
         processPacketData(Boolean, polygon, 'show', polygonData.show, interval, sourceUri);
         processMaterialPacketData(polygon, 'material', polygonData.material, interval, sourceUri);
+        processPacketData(Number, polygon, 'height', polygonData.height, interval, sourceUri);
+        processPacketData(Number, polygon, 'extrudedHeight', polygonData.extrudedHeight, interval, sourceUri);
+        processPacketData(Number, polygon, 'granularity', polygonData.granularity, interval, sourceUri);
+        processPacketData(Number, polygon, 'stRotation', polygonData.stRotation, interval, sourceUri);
     }
 
     function processPolyline(dynamicObject, packet, dynamicObjectCollection, sourceUri) {
