@@ -39,25 +39,29 @@ define([
          MaterialProperty) {
     "use strict";
 
-    var HashMap = function() {
+    var emptyArray = [];
+    var cachedPosition = new Cartesian3();
+    var scratchColor = new Color();
+
+    var DynamicObjectPolygonGeometryMap = function() {
         this._array = [];
         this._hash = {};
     };
 
-    HashMap.prototype.getArray = function() {
+    DynamicObjectPolygonGeometryMap.prototype.getArray = function() {
         return this._array;
     };
 
-    HashMap.prototype.getById = function(id) {
+    DynamicObjectPolygonGeometryMap.prototype.getById = function(id) {
         return this._hash[id];
     };
 
-    HashMap.prototype.add = function(value) {
+    DynamicObjectPolygonGeometryMap.prototype.add = function(value) {
         this._hash[value.id.id] = value;
         this._array.push(value);
     };
 
-    HashMap.prototype.removeById = function(id) {
+    DynamicObjectPolygonGeometryMap.prototype.removeById = function(id) {
         var hasValue = defined(this._hash[id]);
         if (hasValue) {
             var array = this._array;
@@ -67,14 +71,12 @@ define([
         return hasValue;
     };
 
-    HashMap.prototype.removeAll = function() {
+    DynamicObjectPolygonGeometryMap.prototype.removeAll = function() {
         this._hash = {};
         this._array.length = 0;
     };
 
-    var emptyArray = [];
-
-    var StaticGeometryPolygonVisualizer = function(scene) {
+    var PerInstaceColorBatch = function(scene, translucent) {
         if (!defined(scene)) {
             throw new DeveloperError('scene is required.');
         }
@@ -82,12 +84,44 @@ define([
         this._scene = scene;
         this._primitives = scene.getPrimitives();
 
-        this._colorGeometries = new HashMap();
+        this._colorGeometries = new DynamicObjectPolygonGeometryMap();
         this._colorPrimitive = undefined;
         this._createColorPrimitive = false;
+        this._translucent = translucent;
     };
 
-    StaticGeometryPolygonVisualizer.prototype.add = function(time, dynamicObject) {
+    PerInstaceColorBatch.prototype.matches = function(time, dynamicObject) {
+        var vertexPositions = dynamicObject.vertexPositions;
+        if (!(vertexPositions instanceof ConstantProperty)) {
+            return false;
+        }
+        var polygon = dynamicObject.polygon;
+
+        if (!defined(polygon)) {
+            return false;
+        }
+
+        var material = polygon.material;
+        if (!defined(material)) {
+            return !this._translucent;
+        }
+
+        if (!(polygon.material instanceof ColorMaterialProperty)) {
+            return false;
+        }
+
+        var color = polygon.material.color;
+        if (!defined(color.getValue(time, scratchColor))) {
+            return true;
+        }
+
+        if (this._translucent) {
+            return scratchColor.alpha < 1.0;
+        }
+        return scratchColor.alpha === 1.0;
+    };
+
+    PerInstaceColorBatch.prototype.add = function(time, dynamicObject) {
         var polygon = dynamicObject.polygon;
         var material = polygon.material;
 
@@ -99,11 +133,19 @@ define([
         var colorProperty = material.color;
         var color = defined(colorProperty) ? colorProperty.getValue(time) : Color.WHITE;
 
+        var heightProperty = polygon.height;
+        var height = defined(heightProperty) ? heightProperty.getValue(time) : undefined;
+
+        var extrudedHeightProperty = polygon.extrudedHeight;
+        var extrudedHeight = defined(heightProperty) ? extrudedHeightProperty.getValue(time) : undefined;
+
         var instance = new GeometryInstance({
             id : dynamicObject,
             geometry : PolygonGeometry.fromPositions({
                 positions : positions,
-                vertexFormat : PerInstanceColorAppearance.VERTEX_FORMAT
+                vertexFormat : PerInstanceColorAppearance.VERTEX_FORMAT,
+                height : height,
+                extrudedHeight : extrudedHeight
             }),
             attributes : {
                 show : new ShowGeometryInstanceAttribute(show),
@@ -121,11 +163,11 @@ define([
         this._createColorPrimitive = true;
     };
 
-    StaticGeometryPolygonVisualizer.prototype.remove = function(dynamicObject) {
+    PerInstaceColorBatch.prototype.remove = function(dynamicObject) {
         this._createColorPrimitive = this._colorGeometries.removeById(dynamicObject.id) || this._createColorPrimitive;
     };
 
-    StaticGeometryPolygonVisualizer.prototype.update = function(time) {
+    PerInstaceColorBatch.prototype.update = function(time) {
         var i;
         var show;
         var instance;
@@ -141,7 +183,7 @@ define([
                 asynchronous : false,
                 geometryInstances : this._colorGeometries.getArray(),
                 appearance : new PerInstanceColorAppearance({
-                    translucent : true
+                    translucent : this._translucent
                 })
             });
 
@@ -173,7 +215,7 @@ define([
         }
     };
 
-    StaticGeometryPolygonVisualizer.prototype.removeAllPrimitives = function() {
+    PerInstaceColorBatch.prototype.removeAllPrimitives = function() {
         if (defined(this._colorPrimitive)) {
             var primitives = this._primitives;
             primitives.remove(this._colorPrimitive);
@@ -182,19 +224,23 @@ define([
         }
     };
 
-    var DynamicGeometryVisualizer = function(scene) {
+    var DynamicBatch = function(scene) {
         this._scene = scene;
         this._primitives = scene.getPrimitives();
-        this._polygons = new HashMap();
+        this._polygons = new DynamicObjectPolygonGeometryMap();
         this._unusedPolygons = [];
         this._dynamicObjects = new DynamicObjectCollection();
     };
 
-    DynamicGeometryVisualizer.prototype.add = function(dynamicObject) {
+    DynamicBatch.prototype.matches = function(time, dynamicObject) {
+        return true;
+    };
+
+    DynamicBatch.prototype.add = function(time, dynamicObject) {
         this._dynamicObjects.add(dynamicObject);
     };
 
-    DynamicGeometryVisualizer.prototype.remove = function(dynamicObject) {
+    DynamicBatch.prototype.remove = function(dynamicObject) {
         var polygon = this._polygons.getById(dynamicObject.id);
         if (defined(polygon)) {
             polygon.show = false;
@@ -204,8 +250,7 @@ define([
         }
     };
 
-    var cachedPosition = new Cartesian3();
-    DynamicGeometryVisualizer.prototype.update = function(time) {
+    DynamicBatch.prototype.update = function(time) {
         var dynamicObjects = this._dynamicObjects.getObjects();
 
         for ( var i = 0, len = dynamicObjects.length; i < len; i++) {
@@ -261,7 +306,7 @@ define([
         }
     };
 
-    DynamicGeometryVisualizer.prototype.removeAllPrimitives = function() {
+    DynamicBatch.prototype.removeAllPrimitives = function() {
         var i;
         var primitives = this._primitives;
         var polygons = this._polygons.getArray();
@@ -316,8 +361,7 @@ define([
         this._dynamicObjectCollection = undefined;
         this._addedObjects = new DynamicObjectCollection();
         this._removedObjects = new DynamicObjectCollection();
-        this._staticGeometry = new StaticGeometryPolygonVisualizer(scene);
-        this._dynamicGeometry = new DynamicGeometryVisualizer(scene);
+        this._batches = [new PerInstaceColorBatch(scene, true), new PerInstaceColorBatch(scene, false), new DynamicBatch(scene)];
         this.setDynamicObjectCollection(dynamicObjectCollection);
     };
 
@@ -373,20 +417,23 @@ define([
         }
 
         var polygon;
-        var staticGeometry = this._staticGeometry;
-        var dynamicGeometry = this._dynamicGeometry;
 
         var addedObjects = this._addedObjects;
         var added = addedObjects.getObjects();
         var removedObjects = this._removedObjects;
         var removed = removedObjects.getObjects();
+        var batches = this._batches;
+        var batchesLength = batches.length;
 
         var i;
+        var g;
         var dynamicObject;
         for (i = removed.length - 1; i > -1; i--) {
             dynamicObject = removed[i];
-            staticGeometry.remove(dynamicObject);
-            dynamicGeometry.remove(dynamicObject);
+
+            for (g = 0; g < batchesLength; g++) {
+                batches[g].remove(dynamicObject);
+            }
 
             dynamicObject.propertyChanged.removeEventListener(DynamicPolygonVisualizer._onPropertyChanged, this);
             polygon = dynamicObject.polygon;
@@ -406,10 +453,12 @@ define([
             if (defined(polygon)) {
                 polygon.propertyChanged.addEventListener(DynamicPolygonVisualizer._onPolygonPropertyChanged, this);
 
-                if (vertexPositions instanceof ConstantProperty && polygon.material instanceof ColorMaterialProperty) {
-                    staticGeometry.add(time, dynamicObject);
-                } else {
-                    dynamicGeometry.add(dynamicObject);
+                for (g = 0; g < batchesLength; g++) {
+                    var batch = batches[g];
+                    if (batch.matches(time, dynamicObject)) {
+                        batch.add(time, dynamicObject);
+                        continue;
+                    }
                 }
             }
         }
@@ -417,8 +466,9 @@ define([
         addedObjects.removeAll();
         removedObjects.removeAll();
 
-        staticGeometry.update(time);
-        dynamicGeometry.update(time);
+        for (g = 0; g < batchesLength; g++) {
+            batches[g].update(time);
+        }
     };
 
     /**
@@ -438,8 +488,12 @@ define([
 
         this._addedObjects.removeAll();
         this._removedObjects.removeAll();
-        this._staticGeometry.removeAllPrimitives();
-        this._dynamicGeometry.removeAllPrimitives();
+
+        var batches = this._batches;
+        var batchesLength = batches.length;
+        for (var g = 0; g < batchesLength; g++) {
+            batches[g].removeAllPrimitives();
+        }
     };
 
     /**
