@@ -636,29 +636,29 @@ define([
             combinedInterval = constrainedInterval;
         }
 
-        combinedInterval = defaultValue(combinedInterval, Iso8601.MAXIMUM_INTERVAL);
-
-        var propertyCreated = false;
         var property = object[propertyName];
-        if (!defined(property)) {
-            property = new CompositeMaterialProperty();
-            object[propertyName] = property;
-            propertyCreated = true;
-        }
-
-        //See if we already have data at that interval.
-        var thisIntervals = property.intervals;
-        var existingInterval = thisIntervals.findInterval(combinedInterval.start, combinedInterval.stop);
         var existingMaterial;
+        var existingInterval;
 
-        if (defined(existingInterval)) {
-            //We have an interval, but we need to make sure the
-            //new data is the same type of material as the old data.
-            existingMaterial = existingInterval.data;
+        if (defined(combinedInterval)) {
+            if (!(property instanceof CompositeMaterialProperty)) {
+                property = new CompositeMaterialProperty();
+                object[propertyName] = property;
+                //See if we already have data at that interval.
+                var thisIntervals = property.intervals;
+                existingInterval = thisIntervals.findInterval(combinedInterval.start, combinedInterval.stop);
+                if (defined(existingInterval)) {
+                    //We have an interval, but we need to make sure the
+                    //new data is the same type of material as the old data.
+                    existingMaterial = existingInterval.data;
+                } else {
+                    //If not, create it.
+                    existingInterval = combinedInterval.clone();
+                    thisIntervals.addInterval(existingInterval);
+                }
+            }
         } else {
-            //If not, create it.
-            existingInterval = combinedInterval.clone();
-            thisIntervals.addInterval(existingInterval);
+            existingMaterial = property;
         }
 
         var materialData;
@@ -685,9 +685,12 @@ define([
             processPacketData(Image, existingMaterial, 'image', materialData.image, undefined, sourceUri);
             existingMaterial.repeat = combineIntoCartesian2(existingMaterial.repeat, materialData.horizontalRepeat, materialData.verticalRepeat);
         }
-        existingInterval.data = existingMaterial;
 
-        return propertyCreated;
+        if (defined(existingInterval)) {
+            existingInterval.data = existingMaterial;
+        } else {
+            object[propertyName] = existingMaterial;
+        }
     }
 
     function processMaterialPacketData(object, propertyName, packetData, interval, sourceUri) {
@@ -735,11 +738,44 @@ define([
             return;
         }
 
-        var vertexPositions = dynamicObject.vertexPositions;
-        if (!defined(vertexPositions)) {
-            dynamicObject.vertexPositions = vertexPositions = new DynamicVertexPositionsProperty();
+        var cartesian;
+        var cartographic;
+        var i, len, values = [], tmp;
+        tmp = vertexPositionsData.cartesian;
+        if (defined(tmp)) {
+            for (i = 0, len = tmp.length; i < len; i += 3) {
+                values.push(new Cartesian3(tmp[i], tmp[i + 1], tmp[i + 2]));
+            }
+            cartesian = values;
+        } else {
+            tmp = vertexPositionsData.cartographicRadians;
+            if (defined(tmp)) {
+                for (i = 0, len = tmp.length; i < len; i += 3) {
+                    values.push(new Cartographic(tmp[i], tmp[i + 1], tmp[i + 2]));
+                }
+                cartographic = values;
+            } else if (defined(vertexPositionsData.cartographicDegrees)) {
+                tmp = vertexPositionsData.cartographicDegrees;
+                if (defined(tmp)) {
+                    for (i = 0, len = tmp.length; i < len; i += 3) {
+                        values.push(Cartographic.fromDegrees(tmp[i], tmp[i + 1], tmp[i + 2]));
+                    }
+                    cartographic = values;
+                }
+            }
         }
-        vertexPositions.processCzmlIntervals(vertexPositionsData, undefined, dynamicObjectCollection);
+        if (defined(cartographic) || defined(cartesian)) {
+            if (!defined(cartesian)) {
+                cartesian = Ellipsoid.WGS84.cartographicArrayToCartesianArray(cartographic);
+            }
+            dynamicObject.vertexPositions = new ConstantProperty(cartesian);
+        } else {
+            var vertexPositions = dynamicObject.vertexPositions;
+            if (!defined(vertexPositions)) {
+                dynamicObject.vertexPositions = vertexPositions = new DynamicVertexPositionsProperty();
+            }
+            vertexPositions.processCzmlIntervals(vertexPositionsData, undefined, dynamicObjectCollection);
+        }
     }
 
     function processAvailability(dynamicObject, packet, dynamicObjectCollection, sourceUri) {
