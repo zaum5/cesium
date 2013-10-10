@@ -376,7 +376,7 @@ define([
     };
 
     DynamicBatch.prototype.matches = function(time, dynamicObject) {
-        return true;
+        return defined(dynamicObject.vertexPositions) && defined(dynamicObject.polygon);
     };
 
     DynamicBatch.prototype.add = function(time, dynamicObject) {
