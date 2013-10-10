@@ -43,25 +43,21 @@ define([
     var cachedPosition = new Cartesian3();
     var scratchColor = new Color();
 
-    var DynamicObjectPolygonGeometryMap = function() {
+    var GeometryHashSet = function() {
         this._array = [];
         this._hash = {};
     };
 
-    DynamicObjectPolygonGeometryMap.prototype.getArray = function() {
+    GeometryHashSet.prototype.getArray = function() {
         return this._array;
     };
 
-    DynamicObjectPolygonGeometryMap.prototype.getById = function(id) {
-        return this._hash[id];
-    };
-
-    DynamicObjectPolygonGeometryMap.prototype.add = function(value) {
-        this._hash[value.id.id] = value;
+    GeometryHashSet.prototype.add = function(id, value) {
+        this._hash[id] = value;
         this._array.push(value);
     };
 
-    DynamicObjectPolygonGeometryMap.prototype.removeById = function(id) {
+    GeometryHashSet.prototype.removeById = function(id) {
         var hasValue = defined(this._hash[id]);
         if (hasValue) {
             var array = this._array;
@@ -71,7 +67,7 @@ define([
         return hasValue;
     };
 
-    DynamicObjectPolygonGeometryMap.prototype.removeAll = function() {
+    GeometryHashSet.prototype.removeAll = function() {
         this._hash = {};
         this._array.length = 0;
     };
@@ -83,7 +79,7 @@ define([
 
         this._scene = scene;
         this._primitives = scene.getPrimitives();
-        this._geometry = new DynamicObjectPolygonGeometryMap();
+        this._geometry = new GeometryHashSet();
         this._primitive = undefined;
         this._createPrimitive = false;
         this._translucent = translucent;
@@ -181,7 +177,7 @@ define([
         instance.show = showProperty;
         instance.dynamicObject = dynamicObject;
 
-        this._geometry.add(instance);
+        this._geometry.add(dynamicObject.id, instance);
         this._createPrimitive = true;
     };
 
@@ -197,14 +193,15 @@ define([
 
         var colorPrimitive = this._primitive;
         var primitives = this._primitives;
+        var geometries = this._geometry.getArray();
         if (this._createPrimitive) {
             if (defined(colorPrimitive)) {
                 primitives.remove(colorPrimitive);
             }
-            if (this._geometry.getArray().length > 0) {
+            if (geometries.length > 0) {
                 colorPrimitive = new Primitive({
                     asynchronous : false,
-                    geometryInstances : this._geometry.getArray(),
+                    geometryInstances : geometries,
                     appearance : new PerInstanceColorAppearance({
                         translucent : this._translucent
                     })
@@ -215,7 +212,6 @@ define([
             this._primitive = colorPrimitive;
             this._createPrimitive = false;
         } else {
-            var geometries = this._geometry.getArray();
             for (i = geometries.length - 1; i > -1; i--) {
                 instance = geometries[i];
                 var attributes = instance.dynamicAttributes;
@@ -498,6 +494,7 @@ define([
             this._dynamicObjectCollection = dynamicObjectCollection;
             if (defined(dynamicObjectCollection)) {
                 dynamicObjectCollection.collectionChanged.addEventListener(DynamicPolygonVisualizer.prototype.onCollectionChanged, this);
+                //Add all existing items to the collection.
                 this.onCollectionChanged(dynamicObjectCollection, dynamicObjectCollection.getObjects(), emptyArray);
             }
         }
@@ -650,14 +647,16 @@ define([
         var dynamicObject;
         for (i = removed.length - 1; i > -1; i--) {
             dynamicObject = removed[i];
-            addedObjects.remove(dynamicObject);
-            removedObjects.add(dynamicObject);
+            if (!addedObjects.remove(dynamicObject)) {
+                removedObjects.add(dynamicObject);
+            }
         }
 
         for (i = added.length - 1; i > -1; i--) {
             dynamicObject = added[i];
-            addedObjects.add(dynamicObject);
-            removedObjects.remove(dynamicObject);
+            if (!removedObjects.remove(dynamicObject)) {
+                addedObjects.add(dynamicObject);
+            }
         }
     };
 
