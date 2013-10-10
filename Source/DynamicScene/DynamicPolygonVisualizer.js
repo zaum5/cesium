@@ -108,7 +108,7 @@ define([
 
         this.geometryType = GeometryType.NONE;
         this.color = Color.WHITE.clone();
-        this.material = undefined;
+        this.material = Material.fromType('Color');
         this.show = true;
         this.needEvaluation = true;
         this.geometryOptions = new GeometryOptions(dynamicObject);
@@ -142,7 +142,7 @@ define([
             if (defined(colorProperty)) {
                 this.color = defaultValue(colorProperty.getValue(time, this.color), this.color);
             }
-        } else if (type === GeometryType.DYNAMIC || type === GeometryType.PER_MATERIAL) {
+        } else if (type === GeometryType.DYNAMIC) {
             var options = this.geometryOptions;
             var vertexPositionsProperty = this.vertexPositionsProperty;
             if (defined(vertexPositionsProperty)) {
@@ -169,12 +169,10 @@ define([
                 options.extrudedHeight = extrudedHeightProperty.getValue(time);
             }
 
-           // if (type === GeometryType.DYNAMIC) {
-                var materialProperty = this.materialProperty;
-                if (defined(materialProperty)) {
-                    this.material = MaterialProperty.getValue(time, materialProperty, this.material);
-                }
-          //  }
+            var materialProperty = this.materialProperty;
+            if (defined(materialProperty)) {
+                this.material = MaterialProperty.getValue(time, materialProperty, this.material);
+            }
         }
     };
 
@@ -249,7 +247,8 @@ define([
         }
 
         var material = polygon.material;
-        if (defined(material) && (material instanceof ColorMaterialProperty)) {
+        var isColorMaterial = material instanceof ColorMaterialProperty;
+        if (isColorMaterial) {
             var colorProperty = material.color;
             if (defined(colorProperty) && colorProperty instanceof ConstantProperty) {
                 this.colorProperty = undefined;
@@ -260,12 +259,12 @@ define([
         }
         this.materialProperty = material;
 
-        if (defined(this.vertexPositionsProperty)) {
+        if (defined(this.vertexPositionsProperty) || defined(this.granularityProperty) || defined(this.stRotationProperty) || defined(this.heightProperty) || defined(this.extrudedHeightProperty)) {
             this.geometryType = GeometryType.DYNAMIC;
             options.vertexFormat = MaterialAppearance.VERTEX_FORMAT;
             return;
         }
-        if (defined(this.granularityProperty) || defined(this.stRotationProperty) || defined(this.heightProperty) || defined(this.extrudedHeightProperty)) {
+        if (!isColorMaterial) {
             this.geometryType = GeometryType.PER_MATERIAL;
             options.vertexFormat = MaterialAppearance.VERTEX_FORMAT;
             return;
@@ -375,6 +374,132 @@ define([
             this._primitive = undefined;
             this._geometry.removeAll();
             this._updaters.removeAll();
+        }
+    };
+
+    var PerMaterialBatch = function(scene) {
+        this.items = [];
+        this._scene = scene;
+    };
+
+    PerMaterialBatch.prototype.add = function(updater) {
+        var items = this.items;
+        var length = items.length;
+        for (var i = 0; i < length; i++) {
+            var item = items[i];
+            if (item.isMaterial(updater)) {
+                item.add(updater);
+                return;
+            }
+        }
+        items.push(new PerMaterialBatchItem(this._scene, updater));
+    };
+
+    PerMaterialBatch.prototype.remove = function(updater) {
+        var items = this.items;
+        var length = items.length;
+        for (var i = 0; i < length; i++) {
+            var item = items[i];
+            if (item.remove(updater)) {
+                break;
+            }
+        }
+    };
+
+    PerMaterialBatch.prototype.update = function(time) {
+        var items = this.items;
+        var length = items.length;
+        for (var i = 0; i < length; i++) {
+            items[i].update(time);
+        }
+    };
+
+    PerMaterialBatch.prototype.removeAllPrimitives = function() {
+        var items = this.items;
+        var length = items.length;
+        for (var i = 0; i < length; i++) {
+            items[i].destroy();
+        }
+        items = [];
+    };
+
+    var PerMaterialBatchItem = function(scene, updater) {
+        this._firstUpdater = updater;
+        this._updaters = new GeometryHashSet();
+        this._createPrimitive = true;
+        this._primitive = undefined;
+        this._primitives = scene.getPrimitives();
+        this._geometries = new GeometryHashSet();
+        this._material = Material.fromType('Color');
+        this.add(updater);
+    };
+
+    PerMaterialBatchItem.prototype.isMaterial = function(updater) {
+        var protoMaterial = this._firstUpdater.materialProperty;
+        var updaterMaterial = updater.materialProperty;
+        if (updaterMaterial === protoMaterial) {
+            return true;
+        }
+        if (defined(protoMaterial)) {
+            return protoMaterial.equals(updaterMaterial);
+        }
+        return false;
+    };
+
+    PerMaterialBatchItem.prototype.add = function(updater) {
+        this._updaters.add(updater.id, updater);
+        this._geometries.add(updater.id, new GeometryInstance({
+            id : updater.dynamicObject,
+            geometry : PolygonGeometry.fromPositions(updater.geometryOptions),
+            attributes : {
+                show : new ShowGeometryInstanceAttribute(updater.show)
+            }
+        }));
+        this._createPrimitive = true;
+    };
+
+    PerMaterialBatchItem.prototype.remove = function(updater) {
+        if (updater === this._firstUpdater) {
+            this._firstUpdater = this._updaters.getArray()[0];
+        }
+        this._createPrimitive = this._updaters.removeById(updater.id);
+        this._geometries.removeById(updater.id);
+        return this._createPrimitive;
+    };
+
+    PerMaterialBatchItem.prototype.update = function(time) {
+        var primitive = this._primitive;
+        var primitives = this._primitives;
+        var geometries = this._geometries.getArray();
+        if (this._createPrimitive) {
+            if (defined(primitive)) {
+                primitives.remove(primitive);
+            }
+            if (geometries.length > 0) {
+                primitive = new Primitive({
+                    asynchronous : false,
+                    geometryInstances : geometries,
+                    appearance : new MaterialAppearance({
+                        material : MaterialProperty.getValue(time, this._firstUpdater.materialProperty, this._material),
+                        faceForward : true,
+                        translucent : false
+                    })
+                });
+
+                primitives.add(primitive);
+            }
+            this._primitive = primitive;
+            this._createPrimitive = false;
+        } else {
+            this._primitive.appearance.material = MaterialProperty.getValue(time, this._firstUpdater.materialProperty, this._material);
+        }
+    };
+
+    PerMaterialBatchItem.prototype.destroy = function(time) {
+        var primitive = this._primitive;
+        var primitives = this._primitives;
+        if (defined(primitive)) {
+            primitives.remove(primitive);
         }
     };
 
@@ -525,8 +650,8 @@ define([
 
         this._batches = [];
         this._batches[GeometryType.PER_INSTANCE] = new PerInstaceColorBatch(scene, true);
-        this._batches[GeometryType.PER_MATERIAL] = new DynamicBatch(scene);
         this._batches[GeometryType.DYNAMIC] = new DynamicBatch(scene);
+        this._batches[GeometryType.PER_MATERIAL] = new PerMaterialBatch(scene);
 
         this._updaters = new GeometryHashSet();
         this.setDynamicObjectCollection(dynamicObjectCollection);
