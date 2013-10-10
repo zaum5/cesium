@@ -211,13 +211,12 @@ defineSuite([
         expect(scene.getPrimitives().getLength()).toEqual(1);
         var primitive = scene.getPrimitives().get(0);
 
+        scene.render();
         visualizer.update(time);
 
-        //Clearing won't actually remove the primitive because of the
-        //internal cache used by the visualizer, instead it just hides it.
         dynamicObjectCollection.removeAll();
         visualizer.update(time);
-        expect(primitive.show).toEqual(false);
+        expect(scene.getPrimitives().getLength()).toEqual(0);
     });
 
     it('Visualizer sets dynamicObject property.', function() {
@@ -237,7 +236,7 @@ defineSuite([
         visualizer.update(time);
         expect(scene.getPrimitives().getLength()).toEqual(1);
         var primitive = scene.getPrimitives().get(0);
-        expect(primitive.id).toEqual(testObject);
+        expect(primitive.geometryInstances[0].id).toEqual(testObject);
     });
 
     it('setDynamicObjectCollection removes old objects and add new ones.', function() {
@@ -260,12 +259,12 @@ defineSuite([
         visualizer.update(time);
         expect(scene.getPrimitives().getLength()).toEqual(1);
         var primitive = scene.getPrimitives().get(0);
-        expect(primitive.id).toEqual(testObject);
+        expect(primitive.geometryInstances[0].id).toEqual(testObject);
 
         visualizer.setDynamicObjectCollection(dynamicObjectCollection2);
         visualizer.update(time);
         expect(scene.getPrimitives().getLength()).toEqual(1);
         primitive = scene.getPrimitives().get(0);
-        expect(primitive.id).toEqual(testObject2);
+        expect(primitive.geometryInstances[0].id).toEqual(testObject2);
     });
 }, 'WebGL');

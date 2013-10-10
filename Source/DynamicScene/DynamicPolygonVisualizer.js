@@ -83,10 +83,9 @@ define([
 
         this._scene = scene;
         this._primitives = scene.getPrimitives();
-
-        this._colorGeometries = new DynamicObjectPolygonGeometryMap();
-        this._colorPrimitive = undefined;
-        this._createColorPrimitive = false;
+        this._geometry = new DynamicObjectPolygonGeometryMap();
+        this._primitive = undefined;
+        this._createPrimitive = false;
         this._translucent = translucent;
     };
 
@@ -98,6 +97,21 @@ define([
         var polygon = dynamicObject.polygon;
 
         if (!defined(polygon)) {
+            return false;
+        }
+
+        var height = polygon.height;
+        if (defined(height) && !(height instanceof ConstantProperty)) {
+            return false;
+        }
+
+        var extrudedHeight = polygon.extrudedHeight;
+        if (defined(extrudedHeight) && !(extrudedHeight instanceof ConstantProperty)) {
+            return false;
+        }
+
+        var stRotation = polygon.stRotation;
+        if (defined(stRotation) && !(stRotation instanceof ConstantProperty)) {
             return false;
         }
 
@@ -130,20 +144,28 @@ define([
 
         var positions = dynamicObject.vertexPositions.getValue(time);
 
-        var colorProperty = material.color;
+        var colorProperty = defined(material) ? material.color : undefined;
         var color = defined(colorProperty) ? colorProperty.getValue(time) : Color.WHITE;
 
         var heightProperty = polygon.height;
-        var height = defined(heightProperty) ? heightProperty.getValue(time) : undefined;
+        var height = defined(heightProperty) ? heightProperty.getValue() : undefined;
 
         var extrudedHeightProperty = polygon.extrudedHeight;
-        var extrudedHeight = defined(heightProperty) ? extrudedHeightProperty.getValue(time) : undefined;
+        var extrudedHeight = defined(heightProperty) ? extrudedHeightProperty.getValue() : undefined;
+
+        var stRotationProperty = polygon.stRotation;
+        var stRotation = defined(heightProperty) ? stRotationProperty.getValue() : undefined;
+
+        var granularityProperty = polygon.granularity;
+        var granularity = defined(heightProperty) ? granularityProperty.getValue() : undefined;
 
         var instance = new GeometryInstance({
             id : dynamicObject,
             geometry : PolygonGeometry.fromPositions({
                 positions : positions,
                 vertexFormat : PerInstanceColorAppearance.VERTEX_FORMAT,
+                granularity : granularity,
+                stRotation : stRotation,
                 height : height,
                 extrudedHeight : extrudedHeight
             }),
@@ -159,12 +181,12 @@ define([
         instance.show = showProperty;
         instance.dynamicObject = dynamicObject;
 
-        this._colorGeometries.add(instance);
-        this._createColorPrimitive = true;
+        this._geometry.add(instance);
+        this._createPrimitive = true;
     };
 
     PerInstaceColorBatch.prototype.remove = function(dynamicObject) {
-        this._createColorPrimitive = this._colorGeometries.removeById(dynamicObject.id) || this._createColorPrimitive;
+        this._createPrimitive = this._geometry.removeById(dynamicObject.id) || this._createPrimitive;
     };
 
     PerInstaceColorBatch.prototype.update = function(time) {
@@ -173,25 +195,27 @@ define([
         var instance;
         var color;
 
-        var colorPrimitive = this._colorPrimitive;
+        var colorPrimitive = this._primitive;
         var primitives = this._primitives;
-        if (this._createColorPrimitive) {
+        if (this._createPrimitive) {
             if (defined(colorPrimitive)) {
                 primitives.remove(colorPrimitive);
             }
-            colorPrimitive = new Primitive({
-                asynchronous : false,
-                geometryInstances : this._colorGeometries.getArray(),
-                appearance : new PerInstanceColorAppearance({
-                    translucent : this._translucent
-                })
-            });
+            if (this._geometry.getArray().length > 0) {
+                colorPrimitive = new Primitive({
+                    asynchronous : false,
+                    geometryInstances : this._geometry.getArray(),
+                    appearance : new PerInstanceColorAppearance({
+                        translucent : this._translucent
+                    })
+                });
 
-            primitives.add(colorPrimitive);
-            this._colorPrimitive = colorPrimitive;
-            this._createColorPrimitive = false;
+                primitives.add(colorPrimitive);
+            }
+            this._primitive = colorPrimitive;
+            this._createPrimitive = false;
         } else {
-            var geometries = this._colorGeometries.getArray();
+            var geometries = this._geometry.getArray();
             for (i = geometries.length - 1; i > -1; i--) {
                 instance = geometries[i];
                 var attributes = instance.dynamicAttributes;
@@ -216,11 +240,11 @@ define([
     };
 
     PerInstaceColorBatch.prototype.removeAllPrimitives = function() {
-        if (defined(this._colorPrimitive)) {
+        if (defined(this._primitive)) {
             var primitives = this._primitives;
-            primitives.remove(this._colorPrimitive);
-            this._colorPrimitive = undefined;
-            this._colorGeometries.removeAll();
+            primitives.remove(this._primitive);
+            this._primitive = undefined;
+            this._geometry.removeAll();
         }
     };
 
@@ -303,6 +327,40 @@ define([
             }
 
             polygon.material = MaterialProperty.getValue(time, dynamicPolygon._material, polygon.material);
+
+
+            var value;
+            var property = dynamicPolygon._height;
+            if (defined(property)) {
+                value = property.getValue(time);
+                if (defined(value)) {
+                    polygon.height = value;
+                }
+            }
+
+            property = dynamicPolygon._extrudedHeight;
+            if (defined(property)) {
+                value = property.getValue(time);
+                if (defined(value)) {
+                    polygon.extrudedHeight = value;
+                }
+            }
+
+            property = dynamicPolygon._granularity;
+            if (defined(property)) {
+                value = property.getValue(time);
+                if (defined(value)) {
+                    polygon.granularity = value;
+                }
+            }
+
+            property = dynamicPolygon._stRotation;
+            if (defined(property)) {
+                value = property.getValue(time);
+                if (defined(value)) {
+                    polygon.textureRotationAngle = value;
+                }
+            }
         }
     };
 
@@ -457,7 +515,7 @@ define([
                     var batch = batches[g];
                     if (batch.matches(time, dynamicObject)) {
                         batch.add(time, dynamicObject);
-                        continue;
+                        break;
                     }
                 }
             }
