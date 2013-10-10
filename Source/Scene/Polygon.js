@@ -113,14 +113,6 @@ define([
         this._height = undefined;
 
         /**
-         * The height, in meters, that the polygon is extruded in relation to height.
-         *
-         * @type Number
-         */
-        this.extrudedHeight = options.height;
-        this._extrudedHeight = undefined;
-
-        /**
          * The angle, in radians, relative to north that the polygon's texture is rotated.
          * Positive angles rotate counter-clockwise.
          *
@@ -325,7 +317,6 @@ define([
             (this._ellipsoid !== this.ellipsoid) ||
             (this._granularity !== this.granularity) ||
             (this._height !== this.height) ||
-            (this._extrudedHeight !== this.extrudedHeight) ||
             (this._textureRotationAngle !== this.textureRotationAngle) ||
             (this._id !== this.id)) {
 
@@ -333,7 +324,6 @@ define([
             this._ellipsoid = this.ellipsoid;
             this._granularity = this.granularity;
             this._height = this.height;
-            this._extrudedHeight = this.extrudedHeight;
             this._textureRotationAngle = this.textureRotationAngle;
             this._id = this.id;
 
@@ -349,7 +339,6 @@ define([
                     geometry : PolygonGeometry.fromPositions({
                         positions : this._positions,
                         height : this.height,
-                        extrudedHeight : this.extrudedHeight,
                         vertexFormat : EllipsoidSurfaceAppearance.VERTEX_FORMAT,
                         stRotation : this.textureRotationAngle,
                         ellipsoid : this.ellipsoid,
@@ -363,7 +352,6 @@ define([
                     geometry : new PolygonGeometry({
                         polygonHierarchy : this._polygonHierarchy,
                         height : this.height,
-                        extrudedHeight : this.extrudedHeight,
                         vertexFormat : EllipsoidSurfaceAppearance.VERTEX_FORMAT,
                         stRotation : this.textureRotationAngle,
                         ellipsoid : this.ellipsoid,
