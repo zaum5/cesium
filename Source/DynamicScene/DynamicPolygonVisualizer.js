@@ -6,13 +6,15 @@ define([
         '../Core/defined',
         '../Core/DeveloperError',
         '../Core/destroyObject',
+        '../Core/Dictionary',
         '../Core/GeometryInstance',
         '../Core/PolygonGeometry',
-        '../Core/ColorGeometryInstanceAttribute',
         '../Core/ShowGeometryInstanceAttribute',
         './ConstantProperty',
         './ColorMaterialProperty',
         './DynamicObjectCollection',
+        './StaticGeometryColorBatch',
+        './StaticGeometryPerMaterialBatch',
         '../Scene/Primitive',
         '../Scene/MaterialAppearance',
         '../Scene/PerInstanceColorAppearance',
@@ -25,13 +27,15 @@ define([
          defined,
          DeveloperError,
          destroyObject,
+         Dictionary,
          GeometryInstance,
          PolygonGeometry,
-         ColorGeometryInstanceAttribute,
          ShowGeometryInstanceAttribute,
          ConstantProperty,
          ColorMaterialProperty,
          DynamicObjectCollection,
+         StaticGeometryColorBatch,
+         StaticGeometryPerMaterialBatch,
          Primitive,
          MaterialAppearance,
          PerInstanceColorAppearance,
@@ -58,39 +62,6 @@ define([
         this.vertexFormat = undefined;
     };
 
-    var GeometryHashSet = function() {
-        this._array = [];
-        this._hash = {};
-    };
-
-    GeometryHashSet.prototype.getArray = function() {
-        return this._array;
-    };
-
-    GeometryHashSet.prototype.add = function(id, value) {
-        this._hash[id] = value;
-        this._array.push(value);
-    };
-
-    GeometryHashSet.prototype.getById = function(id) {
-        return this._hash[id];
-    };
-
-    GeometryHashSet.prototype.removeById = function(id) {
-        var hasValue = defined(this._hash[id]);
-        if (hasValue) {
-            var array = this._array;
-            array.splice(array.indexOf(this._hash[id]), 1);
-            this._hash[id] = undefined;
-        }
-        return hasValue;
-    };
-
-    GeometryHashSet.prototype.removeAll = function() {
-        this._hash = {};
-        this._array.length = 0;
-    };
-
     var PolygonGeometryUpdater = function(dynamicObject) {
         dynamicObject.propertyChanged.addEventListener(PolygonGeometryUpdater.onDynamicObjectPropertyChanged, this);
 
@@ -112,6 +83,10 @@ define([
         this.show = true;
         this.needEvaluation = true;
         this.geometryOptions = new GeometryOptions(dynamicObject);
+    };
+
+    PolygonGeometryUpdater.prototype.createGeometry = function() {
+        return PolygonGeometry.fromPositions(this.geometryOptions);
     };
 
     PolygonGeometryUpdater.prototype.update = function(time) {
@@ -290,223 +265,10 @@ define([
         }
     };
 
-    var PerInstaceColorBatch = function(scene, translucent) {
-        if (!defined(scene)) {
-            throw new DeveloperError('scene is required.');
-        }
-
-        this._scene = scene;
-        this._primitives = scene.getPrimitives();
-        this._geometry = new GeometryHashSet();
-        this._updaters = new GeometryHashSet();
-        this._primitive = undefined;
-        this._createPrimitive = false;
-        this._translucent = translucent;
-    };
-
-    PerInstaceColorBatch.prototype.add = function(updater) {
-        var instance = new GeometryInstance({
-            id : updater.dynamicObject,
-            geometry : PolygonGeometry.fromPositions(updater.geometryOptions),
-            attributes : {
-                show : new ShowGeometryInstanceAttribute(updater.show),
-                color : ColorGeometryInstanceAttribute.fromColor(updater.color)
-            }
-        });
-        this._geometry.add(updater.id, instance);
-        this._updaters.add(updater.id, updater);
-        this._createPrimitive = true;
-    };
-
-    PerInstaceColorBatch.prototype.remove = function(updater) {
-        this._createPrimitive = this._geometry.removeById(updater.id) || this._createPrimitive;
-        this._updaters.removeById(updater.id);
-    };
-
-    PerInstaceColorBatch.prototype.update = function() {
-        var primitive = this._primitive;
-        var primitives = this._primitives;
-        var geometries = this._geometry.getArray();
-        if (this._createPrimitive) {
-            if (defined(primitive)) {
-                primitives.remove(primitive);
-            }
-            if (geometries.length > 0) {
-                primitive = new Primitive({
-                    asynchronous : false,
-                    geometryInstances : geometries,
-                    appearance : new PerInstanceColorAppearance({
-                        translucent : this._translucent
-                    })
-                });
-
-                primitives.add(primitive);
-            }
-            this._primitive = primitive;
-            this._createPrimitive = false;
-        } else {
-            var updaters = this._updaters.getArray();
-            for (var i = geometries.length - 1; i > -1; i--) {
-                var instance = geometries[i];
-                var updater = updaters[i];
-
-                var attributes = instance.dynamicAttributes;
-                if (!defined(attributes)) {
-                    attributes = primitive.getGeometryInstanceAttributes(instance.id);
-                    instance.dynamicAttributes = attributes;
-                }
-                var color = updater.color;
-                if (defined(color)) {
-                    attributes.color = ColorGeometryInstanceAttribute.toValue(color, attributes.color);
-                }
-                var show = updater.show;
-                if (defined(show)) {
-                    attributes.show = ShowGeometryInstanceAttribute.toValue(show, attributes.show);
-                }
-            }
-        }
-    };
-
-    PerInstaceColorBatch.prototype.removeAllPrimitives = function() {
-        if (defined(this._primitive)) {
-            var primitives = this._primitives;
-            primitives.remove(this._primitive);
-            this._primitive = undefined;
-            this._geometry.removeAll();
-            this._updaters.removeAll();
-        }
-    };
-
-    var PerMaterialBatch = function(scene) {
-        this.items = [];
-        this._scene = scene;
-    };
-
-    PerMaterialBatch.prototype.add = function(updater) {
-        var items = this.items;
-        var length = items.length;
-        for (var i = 0; i < length; i++) {
-            var item = items[i];
-            if (item.isMaterial(updater)) {
-                item.add(updater);
-                return;
-            }
-        }
-        items.push(new PerMaterialBatchItem(this._scene, updater));
-    };
-
-    PerMaterialBatch.prototype.remove = function(updater) {
-        var items = this.items;
-        var length = items.length;
-        for (var i = 0; i < length; i++) {
-            var item = items[i];
-            if (item.remove(updater)) {
-                break;
-            }
-        }
-    };
-
-    PerMaterialBatch.prototype.update = function(time) {
-        var items = this.items;
-        var length = items.length;
-        for (var i = 0; i < length; i++) {
-            items[i].update(time);
-        }
-    };
-
-    PerMaterialBatch.prototype.removeAllPrimitives = function() {
-        var items = this.items;
-        var length = items.length;
-        for (var i = 0; i < length; i++) {
-            items[i].destroy();
-        }
-        items = [];
-    };
-
-    var PerMaterialBatchItem = function(scene, updater) {
-        this._firstUpdater = updater;
-        this._updaters = new GeometryHashSet();
-        this._createPrimitive = true;
-        this._primitive = undefined;
-        this._primitives = scene.getPrimitives();
-        this._geometries = new GeometryHashSet();
-        this._material = Material.fromType('Color');
-        this.add(updater);
-    };
-
-    PerMaterialBatchItem.prototype.isMaterial = function(updater) {
-        var protoMaterial = this._firstUpdater.materialProperty;
-        var updaterMaterial = updater.materialProperty;
-        if (updaterMaterial === protoMaterial) {
-            return true;
-        }
-        if (defined(protoMaterial)) {
-            return protoMaterial.equals(updaterMaterial);
-        }
-        return false;
-    };
-
-    PerMaterialBatchItem.prototype.add = function(updater) {
-        this._updaters.add(updater.id, updater);
-        this._geometries.add(updater.id, new GeometryInstance({
-            id : updater.dynamicObject,
-            geometry : PolygonGeometry.fromPositions(updater.geometryOptions),
-            attributes : {
-                show : new ShowGeometryInstanceAttribute(updater.show)
-            }
-        }));
-        this._createPrimitive = true;
-    };
-
-    PerMaterialBatchItem.prototype.remove = function(updater) {
-        if (updater === this._firstUpdater) {
-            this._firstUpdater = this._updaters.getArray()[0];
-        }
-        this._createPrimitive = this._updaters.removeById(updater.id);
-        this._geometries.removeById(updater.id);
-        return this._createPrimitive;
-    };
-
-    PerMaterialBatchItem.prototype.update = function(time) {
-        var primitive = this._primitive;
-        var primitives = this._primitives;
-        var geometries = this._geometries.getArray();
-        if (this._createPrimitive) {
-            if (defined(primitive)) {
-                primitives.remove(primitive);
-            }
-            if (geometries.length > 0) {
-                primitive = new Primitive({
-                    asynchronous : false,
-                    geometryInstances : geometries,
-                    appearance : new MaterialAppearance({
-                        material : MaterialProperty.getValue(time, this._firstUpdater.materialProperty, this._material),
-                        faceForward : true,
-                        translucent : false
-                    })
-                });
-
-                primitives.add(primitive);
-            }
-            this._primitive = primitive;
-            this._createPrimitive = false;
-        } else {
-            this._primitive.appearance.material = MaterialProperty.getValue(time, this._firstUpdater.materialProperty, this._material);
-        }
-    };
-
-    PerMaterialBatchItem.prototype.destroy = function(time) {
-        var primitive = this._primitive;
-        var primitives = this._primitives;
-        if (defined(primitive)) {
-            primitives.remove(primitive);
-        }
-    };
-
     var DynamicBatch = function(scene) {
         this._scene = scene;
         this._primitives = scene.getPrimitives();
-        this._items = new GeometryHashSet();
+        this._items = new Dictionary();
     };
 
     DynamicBatch.prototype.add = function(updater) {
@@ -515,20 +277,20 @@ define([
 
     DynamicBatch.prototype.remove = function(updater) {
         var id = updater.id;
-        var primitive = this._items.getById(id);
+        var primitive = this._items.getValue(id);
         primitive.destroy();
-        this._items.removeById(id);
+        this._items.remove(id);
     };
 
     DynamicBatch.prototype.update = function() {
-        var geometries = this._items.getArray();
+        var geometries = this._items.getValues();
         for (var i = 0, len = geometries.length; i < len; i++) {
             geometries[i].update();
         }
     };
 
     DynamicBatch.prototype.removeAllPrimitives = function() {
-        var geometries = this._items.getArray();
+        var geometries = this._items.getValues();
         for (var i = 0, len = geometries.length; i < len; i++) {
             geometries[i].destroy();
         }
@@ -649,11 +411,11 @@ define([
         this._removedObjects = new DynamicObjectCollection();
 
         this._batches = [];
-        this._batches[GeometryType.PER_INSTANCE] = new PerInstaceColorBatch(scene, true);
+        this._batches[GeometryType.PER_INSTANCE] = new StaticGeometryColorBatch(scene, true);
         this._batches[GeometryType.DYNAMIC] = new DynamicBatch(scene);
-        this._batches[GeometryType.PER_MATERIAL] = new PerMaterialBatch(scene);
+        this._batches[GeometryType.PER_MATERIAL] = new StaticGeometryPerMaterialBatch(scene);
 
-        this._updaters = new GeometryHashSet();
+        this._updaters = new Dictionary();
         this.setDynamicObjectCollection(dynamicObjectCollection);
     };
 
@@ -726,13 +488,13 @@ define([
         for (i = removed.length - 1; i > -1; i--) {
             dynamicObject = removed[i];
             id = dynamicObject.id;
-            updater = this._updaters.getById(id);
+            updater = this._updaters.getValue(id);
             batch = batches[updater.geometryType];
             if (defined(batch)) {
                 batch.remove(updater);
             }
             updater.destroy();
-            this._updaters.removeById(id);
+            this._updaters.remove(id);
         }
 
         for (i = added.length - 1; i > -1; i--) {
@@ -744,7 +506,7 @@ define([
         addedObjects.removeAll();
         removedObjects.removeAll();
 
-        var updaters = this._updaters.getArray();
+        var updaters = this._updaters.getValues();
 
         for (g = 0; g < updaters.length; g++) {
             updater = updaters[g];
