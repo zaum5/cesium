@@ -237,16 +237,13 @@ define([
         if (defined(this.vertexPositionsProperty) || defined(this.granularityProperty) || defined(this.stRotationProperty) || defined(this.heightProperty) || defined(this.extrudedHeightProperty)) {
             this.geometryType = GeometryType.DYNAMIC;
             options.vertexFormat = MaterialAppearance.VERTEX_FORMAT;
-            return;
-        }
-        if (!isColorMaterial) {
+        } else if (!isColorMaterial) {
             this.geometryType = GeometryType.PER_MATERIAL;
             options.vertexFormat = MaterialAppearance.VERTEX_FORMAT;
-            return;
+        } else {
+            this.geometryType = GeometryType.PER_INSTANCE;
+            options.vertexFormat = PerInstanceColorAppearance.VERTEX_FORMAT;
         }
-
-        this.geometryType = GeometryType.PER_INSTANCE;
-        options.vertexFormat = PerInstanceColorAppearance.VERTEX_FORMAT;
     };
 
     PolygonGeometryUpdater.onDynamicObjectPropertyChanged = function(dyamicObject, name, value, oldValue) {
@@ -581,12 +578,6 @@ define([
     DynamicPolygonVisualizer.prototype.destroy = function() {
         this.removeAllPrimitives();
         return destroyObject(this);
-    };
-
-    DynamicPolygonVisualizer._onPropertyChanged = function(dyamicObject, name, value, oldValue) {
-    };
-
-    DynamicPolygonVisualizer._onPolygonPropertyChanged = function(polygon, name, value, oldValue) {
     };
 
     DynamicPolygonVisualizer.prototype.onCollectionChanged = function(dynamicObjectCollection, added, removed) {
