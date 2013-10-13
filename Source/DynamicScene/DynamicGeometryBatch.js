@@ -2,9 +2,8 @@
 define(['../Core/Dictionary'], function(Dictionary) {
     "use strict";
 
-    var DynamicGeometryBatch = function(scene) {
-        this._scene = scene;
-        this._primitives = scene.getPrimitives();
+    var DynamicGeometryBatch = function(primitives) {
+        this._primitives = primitives;
         this._items = new Dictionary();
     };
 

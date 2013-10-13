@@ -18,12 +18,12 @@ define(['../Core/defined',
         MaterialProperty) {
     "use strict";
 
-    var Batch = function(scene, updater) {
+    var Batch = function(primitives, updater) {
         this._firstUpdater = updater;
         this._updaters = new Dictionary();
         this._createPrimitive = true;
         this._primitive = undefined;
-        this._primitives = scene.getPrimitives();
+        this._primitives = primitives;
         this._geometries = new Dictionary();
         this._material = Material.fromType('Color');
         this.add(updater);
@@ -99,9 +99,9 @@ define(['../Core/defined',
         }
     };
 
-    var StaticGeometryPerMaterialBatch = function(scene) {
+    var StaticGeometryPerMaterialBatch = function(primitives) {
         this.items = [];
-        this._scene = scene;
+        this._primitives = primitives;
     };
 
     StaticGeometryPerMaterialBatch.prototype.add = function(updater) {
@@ -114,7 +114,7 @@ define(['../Core/defined',
                 return;
             }
         }
-        items.push(new Batch(this._scene, updater));
+        items.push(new Batch(this._primitives, updater));
     };
 
     StaticGeometryPerMaterialBatch.prototype.remove = function(updater) {

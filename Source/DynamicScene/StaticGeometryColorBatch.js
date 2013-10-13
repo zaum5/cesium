@@ -1,30 +1,25 @@
 /*global define*/
-define(['../Core/defined',
+define(['../Core/ColorGeometryInstanceAttribute',
+        '../Core/defined',
         '../Core/DeveloperError',
         '../Core/Dictionary',
         '../Core/GeometryInstance',
-        '../Core/ColorGeometryInstanceAttribute',
         '../Core/ShowGeometryInstanceAttribute',
-        '../Scene/Primitive',
-        '../Scene/PerInstanceColorAppearance'
+        '../Scene/PerInstanceColorAppearance',
+        '../Scene/Primitive'
     ], function(
+        ColorGeometryInstanceAttribute,
         defined,
         DeveloperError,
         Dictionary,
         GeometryInstance,
-        ColorGeometryInstanceAttribute,
         ShowGeometryInstanceAttribute,
-        Primitive,
-        PerInstanceColorAppearance) {
+        PerInstanceColorAppearance,
+        Primitive) {
     "use strict";
 
-    var StaticGeometryColorBatch = function(scene, translucent) {
-        if (!defined(scene)) {
-            throw new DeveloperError('scene is required.');
-        }
-
-        this._scene = scene;
-        this._primitives = scene.getPrimitives();
+    var StaticGeometryColorBatch = function(primitives, translucent) {
+        this._primitives = primitives;
         this._geometry = new Dictionary();
         this._updaters = new Dictionary();
         this._primitive = undefined;
@@ -41,14 +36,17 @@ define(['../Core/defined',
                 color : ColorGeometryInstanceAttribute.fromColor(updater.color)
             }
         });
-        this._geometry.add(updater.id, instance);
-        this._updaters.add(updater.id, updater);
+
+        var id = updater.id;
+        this._geometry.add(id, instance);
+        this._updaters.add(id, updater);
         this._createPrimitive = true;
     };
 
     StaticGeometryColorBatch.prototype.remove = function(updater) {
-        this._createPrimitive = this._geometry.remove(updater.id) || this._createPrimitive;
-        this._updaters.remove(updater.id);
+        var id = updater.id;
+        this._createPrimitive = this._geometry.remove(id) || this._createPrimitive;
+        this._updaters.remove(id);
     };
 
     StaticGeometryColorBatch.prototype.update = function() {

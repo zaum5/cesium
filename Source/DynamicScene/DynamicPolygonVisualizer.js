@@ -43,8 +43,8 @@ define(['../Core/Color',
     var emptyArray = [];
 
     var GeometryType = {
-        PER_INSTANCE : 0,
-        PER_MATERIAL : 1,
+        COLOR : 0,
+        MATERIAL : 1,
         DYNAMIC : 2,
         NONE : 3
     };
@@ -109,7 +109,7 @@ define(['../Core/Color',
             return;
         }
 
-        if (type === GeometryType.PER_INSTANCE) {
+        if (type === GeometryType.COLOR) {
             var colorProperty = this._colorProperty;
             if (defined(colorProperty)) {
                 this.color = defaultValue(colorProperty.getValue(time, this.color), this.color);
@@ -235,10 +235,10 @@ define(['../Core/Color',
             this.geometryType = GeometryType.DYNAMIC;
             options.vertexFormat = MaterialAppearance.VERTEX_FORMAT;
         } else if (!isColorMaterial) {
-            this.geometryType = GeometryType.PER_MATERIAL;
+            this.geometryType = GeometryType.MATERIAL;
             options.vertexFormat = MaterialAppearance.VERTEX_FORMAT;
         } else {
-            this.geometryType = GeometryType.PER_INSTANCE;
+            this.geometryType = GeometryType.COLOR;
             options.vertexFormat = PerInstanceColorAppearance.VERTEX_FORMAT;
         }
     };
@@ -371,16 +371,17 @@ define(['../Core/Color',
             throw new DeveloperError('scene is required.');
         }
 
+        var primitives = scene.getPrimitives();
         this._scene = scene;
-        this._primitives = scene.getPrimitives();
+        this._primitives = primitives;
         this._dynamicObjectCollection = undefined;
         this._addedObjects = new DynamicObjectCollection();
         this._removedObjects = new DynamicObjectCollection();
 
         this._batches = [];
-        this._batches[GeometryType.PER_INSTANCE] = new StaticGeometryColorBatch(scene, true);
-        this._batches[GeometryType.DYNAMIC] = new DynamicGeometryBatch(scene);
-        this._batches[GeometryType.PER_MATERIAL] = new StaticGeometryPerMaterialBatch(scene);
+        this._batches[GeometryType.COLOR] = new StaticGeometryColorBatch(primitives, true);
+        this._batches[GeometryType.DYNAMIC] = new DynamicGeometryBatch(primitives);
+        this._batches[GeometryType.MATERIAL] = new StaticGeometryPerMaterialBatch(primitives);
 
         this._updaters = new Dictionary();
         this.setDynamicObjectCollection(dynamicObjectCollection);
