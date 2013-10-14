@@ -142,7 +142,7 @@ define(['../Core/defined',
         for (var i = 0; i < length; i++) {
             items[i].destroy();
         }
-        items = [];
+        this.items = [];
     };
 
     return StaticGeometryPerMaterialBatch;

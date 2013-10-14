@@ -98,64 +98,6 @@ defineSuite([
         expect(scene.getPrimitives().getLength()).toEqual(0);
     });
 
-    it('object with ellipse and no position does not create a polygon.', function() {
-        var dynamicObjectCollection = new DynamicObjectCollection();
-        visualizer = new DynamicPolygonVisualizer(scene, dynamicObjectCollection);
-
-        var testObject = dynamicObjectCollection.getOrCreateObject('test');
-        testObject.ellipse = new DynamicEllipse();
-        var polygon = testObject.polygon = new DynamicPolygon();
-        polygon.show = new ConstantProperty(true);
-
-        visualizer.update(new JulianDate());
-        expect(scene.getPrimitives().getLength()).toEqual(0);
-    });
-
-    it('object with ellipse and position properties and no ellipse properties does not create positions.', function() {
-        var dynamicObjectCollection = new DynamicObjectCollection();
-        visualizer = new DynamicPolygonVisualizer(scene, dynamicObjectCollection);
-
-        var testObject = dynamicObjectCollection.getOrCreateObject('test');
-        testObject.position = new ConstantProperty(new Cartesian3(1234, 5678, 9101112));
-        testObject.ellipse = new DynamicEllipse();
-        var polygon = testObject.polygon = new DynamicPolygon();
-        polygon.show = new ConstantProperty(true);
-
-        visualizer.update(new JulianDate());
-        expect(scene.getPrimitives().getLength()).toEqual(1);
-        var primitive = scene.getPrimitives().get(0);
-        expect(primitive.getPositions()).toBeUndefined();
-    });
-
-    it('DynamicPolygon with ellipse and position creates a primitive and updates it.', function() {
-        var time = new JulianDate();
-
-        var dynamicObjectCollection = new DynamicObjectCollection();
-        visualizer = new DynamicPolygonVisualizer(scene, dynamicObjectCollection);
-        expect(scene.getPrimitives().getLength()).toEqual(0);
-
-        var testObject = dynamicObjectCollection.getOrCreateObject('test');
-        testObject.position = new ConstantProperty(new Cartesian3(1234, 5678, 9101112));
-        var polygon = testObject.polygon = new DynamicPolygon();
-        polygon.show = new ConstantProperty(true);
-        polygon.material = new ColorMaterialProperty();
-
-        var ellipse = testObject.ellipse = new DynamicEllipse();
-        ellipse.bearing = new ConstantProperty(0);
-        ellipse.semiMajorAxis = new ConstantProperty(1000);
-        ellipse.semiMinorAxis = new ConstantProperty(1000);
-        visualizer.update(new JulianDate());
-
-        expect(scene.getPrimitives().getLength()).toEqual(1);
-
-        var primitive = scene.getPrimitives().get(0);
-
-        visualizer.update(time);
-        expect(primitive.show).toEqual(testObject.polygon.show.getValue(time));
-        expect(primitive.material.uniforms).toEqual(testObject.polygon.material.getValue(time));
-        expect(primitive.getPositions().length > 0);
-
-    });
 
     it('A DynamicPolygon causes a primtive to be created and updated.', function() {
         var time = new JulianDate();
@@ -193,7 +135,8 @@ defineSuite([
 
         polygon.show = new ConstantProperty(false);
         visualizer.update(time);
-        expect(attributes.show[0]).toEqual(0);
+        scene.render();
+        expect(scene.getPrimitives().getLength()).toEqual(0);
     });
 
     it('clear hides primitives.', function() {
@@ -257,14 +200,17 @@ defineSuite([
         var time = new JulianDate();
 
         visualizer.update(time);
+        scene.render();
         expect(scene.getPrimitives().getLength()).toEqual(1);
         var primitive = scene.getPrimitives().get(0);
-        expect(primitive.geometryInstances[0].id).toEqual(testObject);
+        expect(primitive.getGeometryInstanceAttributes(testObject)).toBeDefined();
 
         visualizer.setDynamicObjectCollection(dynamicObjectCollection2);
         visualizer.update(time);
+        scene.render();
         expect(scene.getPrimitives().getLength()).toEqual(1);
         primitive = scene.getPrimitives().get(0);
-        expect(primitive.geometryInstances[0].id).toEqual(testObject2);
+        expect(primitive.getGeometryInstanceAttributes(testObject)).toBeUndefined();
+        expect(primitive.getGeometryInstanceAttributes(testObject2)).toBeDefined();
     });
 }, 'WebGL');
