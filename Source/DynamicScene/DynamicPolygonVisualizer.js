@@ -259,7 +259,7 @@ define(['../Core/Color',
         }
     };
 
-    PolygonGeometryUpdater.createDynamicUpdater = function(primitives){
+    PolygonGeometryUpdater.prototype.createDynamicUpdater = function(primitives){
         return new DynamicGeometryBatchItem(primitives, this);
     };
 
