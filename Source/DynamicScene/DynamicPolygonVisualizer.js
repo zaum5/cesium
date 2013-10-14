@@ -448,8 +448,6 @@ define(['../Core/Color',
             throw new DeveloperError('time is requied.');
         }
 
-        var polygon;
-
         var addedObjects = this._addedObjects;
         var added = addedObjects.getObjects();
         var removedObjects = this._removedObjects;

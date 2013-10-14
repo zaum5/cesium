@@ -19,7 +19,7 @@ define(['../Core/defined',
     "use strict";
 
     var Batch = function(primitives, updater) {
-        this._firstUpdater = updater;
+        this._materialProperty = updater.materialProperty;
         this._updaters = new Dictionary();
         this._createPrimitive = true;
         this._primitive = undefined;
@@ -30,7 +30,7 @@ define(['../Core/defined',
     };
 
     Batch.prototype.isMaterial = function(updater) {
-        var protoMaterial = this._firstUpdater.materialProperty;
+        var protoMaterial = this._materialProperty;
         var updaterMaterial = updater.materialProperty;
         if (updaterMaterial === protoMaterial) {
             return true;
@@ -54,9 +54,6 @@ define(['../Core/defined',
     };
 
     Batch.prototype.remove = function(updater) {
-        if (updater === this._firstUpdater) {
-            this._firstUpdater = this._updaters.getValues()[0];
-        }
         this._createPrimitive = this._updaters.remove(updater.id);
         this._geometries.remove(updater.id);
         return this._createPrimitive;
@@ -75,7 +72,7 @@ define(['../Core/defined',
                     asynchronous : false,
                     geometryInstances : geometries,
                     appearance : new MaterialAppearance({
-                        material : MaterialProperty.getValue(time, this._firstUpdater.materialProperty, this._material),
+                        material : MaterialProperty.getValue(time, this._materialProperty, this._material),
                         faceForward : true,
                         translucent : false
                     })
@@ -86,8 +83,23 @@ define(['../Core/defined',
             this._primitive = primitive;
             this._createPrimitive = false;
         } else {
-            this._primitive.appearance.material = MaterialProperty.getValue(time, this._firstUpdater.materialProperty, this._material);
-            //TODO show
+            this._primitive.appearance.material = MaterialProperty.getValue(time, this._materialProperty, this._material);
+
+            var updaters = this._updaters.getValues();
+            for (var i = geometries.length - 1; i > -1; i--) {
+                var instance = geometries[i];
+                var updater = updaters[i];
+
+                var attributes = updater.attributes;
+                if (!defined(attributes)) {
+                    attributes = primitive.getGeometryInstanceAttributes(instance.id);
+                    updater.attributes = attributes;
+                }
+                var show = updater.show;
+                if (defined(show)) {
+                    attributes.show = ShowGeometryInstanceAttribute.toValue(show, attributes.show);
+                }
+            }
         }
     };
 

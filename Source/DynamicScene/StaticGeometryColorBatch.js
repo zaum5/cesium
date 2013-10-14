@@ -76,10 +76,10 @@ define(['../Core/ColorGeometryInstanceAttribute',
                 var instance = geometries[i];
                 var updater = updaters[i];
 
-                var attributes = instance.dynamicAttributes;
+                var attributes = updater.attributes;
                 if (!defined(attributes)) {
                     attributes = primitive.getGeometryInstanceAttributes(instance.id);
-                    instance.dynamicAttributes = attributes;
+                    updater.attributes = attributes;
                 }
                 var color = updater.color;
                 if (defined(color)) {
