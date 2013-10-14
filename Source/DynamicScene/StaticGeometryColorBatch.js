@@ -28,15 +28,7 @@ define(['../Core/ColorGeometryInstanceAttribute',
     };
 
     StaticGeometryColorBatch.prototype.add = function(updater) {
-        var instance = new GeometryInstance({
-            id : updater.dynamicObject,
-            geometry : updater.createGeometry(),
-            attributes : {
-                show : new ShowGeometryInstanceAttribute(updater.show),
-                color : ColorGeometryInstanceAttribute.fromColor(updater.color)
-            }
-        });
-
+        var instance = updater.createGeometryInstance();
         var id = updater.id;
         this._geometry.add(id, instance);
         this._updaters.add(id, updater);

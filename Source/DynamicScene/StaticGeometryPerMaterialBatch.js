@@ -43,13 +43,7 @@ define(['../Core/defined',
 
     Batch.prototype.add = function(updater) {
         this._updaters.add(updater.id, updater);
-        this._geometries.add(updater.id, new GeometryInstance({
-            id : updater.dynamicObject,
-            geometry : updater.createGeometry(),
-            attributes : {
-                show : new ShowGeometryInstanceAttribute(updater.show)
-            }
-        }));
+        this._geometries.add(updater.id, updater.createGeometryInstance());
         this._createPrimitive = true;
     };
 

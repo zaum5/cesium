@@ -1,6 +1,7 @@
 /*global defineSuite*/
 defineSuite([
-         'DynamicScene/DynamicPolygonVisualizer',
+         'DynamicScene/PolygonGeometryUpdater',
+         'DynamicScene/GeometryVisualizer',
          'Specs/createScene',
          'Specs/destroyScene',
          'DynamicScene/ConstantProperty',
@@ -12,7 +13,8 @@ defineSuite([
          'DynamicScene/DynamicObjectCollection',
          'DynamicScene/ColorMaterialProperty'
      ], function(
-         DynamicPolygonVisualizer,
+             PolygonGeometryUpdater,
+         GeometryVisualizer,
          createScene,
          destroyScene,
          ConstantProperty,
@@ -43,13 +45,13 @@ defineSuite([
 
     it('constructor throws if no scene is passed.', function() {
         expect(function() {
-            return new DynamicPolygonVisualizer();
+            return new GeometryVisualizer(PolygonGeometryUpdater);
         }).toThrow();
     });
 
     it('constructor sets expected parameters and adds collection to scene.', function() {
         var dynamicObjectCollection = new DynamicObjectCollection();
-        visualizer = new DynamicPolygonVisualizer(scene, dynamicObjectCollection);
+        visualizer = new GeometryVisualizer(PolygonGeometryUpdater, scene, dynamicObjectCollection);
         expect(visualizer.getScene()).toEqual(scene);
         expect(visualizer.getDynamicObjectCollection()).toEqual(dynamicObjectCollection);
         expect(scene.getPrimitives().getLength()).toEqual(0);
@@ -57,19 +59,19 @@ defineSuite([
 
     it('update throws if no time specified.', function() {
         var dynamicObjectCollection = new DynamicObjectCollection();
-        visualizer = new DynamicPolygonVisualizer(scene, dynamicObjectCollection);
+        visualizer = new GeometryVisualizer(PolygonGeometryUpdater, scene, dynamicObjectCollection);
         expect(function() {
             visualizer.update();
         }).toThrow();
     });
 
     it('update does nothing if no dynamicObjectCollection.', function() {
-        visualizer = new DynamicPolygonVisualizer(scene);
+        visualizer = new GeometryVisualizer(PolygonGeometryUpdater, scene);
         visualizer.update(new JulianDate());
     });
 
     it('isDestroy returns false until destroyed.', function() {
-        visualizer = new DynamicPolygonVisualizer(scene);
+        visualizer = new GeometryVisualizer(PolygonGeometryUpdater, scene);
         expect(visualizer.isDestroyed()).toEqual(false);
         visualizer.destroy();
         expect(visualizer.isDestroyed()).toEqual(true);
@@ -78,7 +80,7 @@ defineSuite([
 
     it('object with no polygon does not create one.', function() {
         var dynamicObjectCollection = new DynamicObjectCollection();
-        visualizer = new DynamicPolygonVisualizer(scene, dynamicObjectCollection);
+        visualizer = new GeometryVisualizer(PolygonGeometryUpdater, scene, dynamicObjectCollection);
 
         var testObject = dynamicObjectCollection.getOrCreateObject('test');
         testObject.vertexPositions = new ConstantProperty([new Cartesian3(1234, 5678, 9101112), new Cartesian3(5678, 1234, 1101112), new Cartesian3(1234, 5678, 910111)]);
@@ -88,7 +90,7 @@ defineSuite([
 
     it('object with no vertexPosition does not create a polygon.', function() {
         var dynamicObjectCollection = new DynamicObjectCollection();
-        visualizer = new DynamicPolygonVisualizer(scene, dynamicObjectCollection);
+        visualizer = new GeometryVisualizer(PolygonGeometryUpdater, scene, dynamicObjectCollection);
 
         var testObject = dynamicObjectCollection.getOrCreateObject('test');
         var polygon = testObject.polygon = new DynamicPolygon();
@@ -103,7 +105,7 @@ defineSuite([
         var time = new JulianDate();
 
         var dynamicObjectCollection = new DynamicObjectCollection();
-        visualizer = new DynamicPolygonVisualizer(scene, dynamicObjectCollection);
+        visualizer = new GeometryVisualizer(PolygonGeometryUpdater, scene, dynamicObjectCollection);
 
         expect(scene.getPrimitives().getLength()).toEqual(0);
 
@@ -141,7 +143,7 @@ defineSuite([
 
     it('clear hides primitives.', function() {
         var dynamicObjectCollection = new DynamicObjectCollection();
-        visualizer = new DynamicPolygonVisualizer(scene, dynamicObjectCollection);
+        visualizer = new GeometryVisualizer(PolygonGeometryUpdater, scene, dynamicObjectCollection);
         expect(scene.getPrimitives().getLength()).toEqual(0);
         var testObject = dynamicObjectCollection.getOrCreateObject('test');
         var time = new JulianDate();
@@ -164,7 +166,7 @@ defineSuite([
 
     it('Visualizer sets dynamicObject property.', function() {
         var dynamicObjectCollection = new DynamicObjectCollection();
-        visualizer = new DynamicPolygonVisualizer(scene, dynamicObjectCollection);
+        visualizer = new GeometryVisualizer(PolygonGeometryUpdater, scene, dynamicObjectCollection);
 
         expect(scene.getPrimitives().getLength()).toEqual(0);
 
@@ -195,7 +197,7 @@ defineSuite([
         testObject2.polygon = new DynamicPolygon();
         testObject2.polygon.show = new ConstantProperty(true);
 
-        visualizer = new DynamicPolygonVisualizer(scene, dynamicObjectCollection);
+        visualizer = new GeometryVisualizer(PolygonGeometryUpdater, scene, dynamicObjectCollection);
 
         var time = new JulianDate();
 

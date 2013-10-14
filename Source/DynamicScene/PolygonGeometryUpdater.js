@@ -1,18 +1,14 @@
 /*global define*/
 define(['../Core/Color',
+        '../Core/ColorGeometryInstanceAttribute',
+        '../Core/ShowGeometryInstanceAttribute',
         '../Core/defaultValue',
         '../Core/defined',
-        '../Core/DeveloperError',
-        '../Core/destroyObject',
-        '../Core/Dictionary',
         '../Core/GeometryInstance',
         '../Core/PolygonGeometry',
         './ConstantProperty',
         './ColorMaterialProperty',
-        './DynamicGeometryBatch',
-        './DynamicObjectCollection',
-        './StaticGeometryColorBatch',
-        './StaticGeometryPerMaterialBatch',
+        './GeometryBatchType',
         '../Scene/Primitive',
         '../Scene/MaterialAppearance',
         '../Scene/PerInstanceColorAppearance',
@@ -20,34 +16,22 @@ define(['../Core/Color',
         './MaterialProperty'
     ], function(
         Color,
+        ColorGeometryInstanceAttribute,
+        ShowGeometryInstanceAttribute,
         defaultValue,
         defined,
-        DeveloperError,
-        destroyObject,
-        Dictionary,
         GeometryInstance,
         PolygonGeometry,
         ConstantProperty,
         ColorMaterialProperty,
-        DynamicGeometryBatch,
-        DynamicObjectCollection,
-        StaticGeometryColorBatch,
-        StaticGeometryPerMaterialBatch,
+        GeometryBatchType,
         Primitive,
         MaterialAppearance,
         PerInstanceColorAppearance,
         Material,
-        MaterialProperty) {
+        MaterialProperty
+        ) {
     "use strict";
-
-    var emptyArray = [];
-
-    var GeometryType = {
-        COLOR : 0,
-        MATERIAL : 1,
-        DYNAMIC : 2,
-        NONE : 3
-    };
 
     var GeometryOptions = function(dynamicObject) {
         this.id = dynamicObject;
@@ -68,7 +52,7 @@ define(['../Core/Color',
         this.color = Color.WHITE.clone();
         this.materialProperty = undefined;
         this.material = Material.fromType('Color');
-        this.geometryType = GeometryType.NONE;
+        this.geometryType = GeometryBatchType.NONE;
 
         this._polygon = undefined;
         this._vertexPositionsProperty = undefined;
@@ -82,8 +66,24 @@ define(['../Core/Color',
         this._geometryOptions = new GeometryOptions(dynamicObject);
     };
 
-    PolygonGeometryUpdater.prototype.createGeometry = function() {
-        return PolygonGeometry.fromPositions(this._geometryOptions);
+    PolygonGeometryUpdater.prototype.createGeometryInstance = function() {
+        var attributes;
+        if (this.geometryType === GeometryBatchType.COLOR) {
+            attributes = {
+                show : new ShowGeometryInstanceAttribute(this.show),
+                color : ColorGeometryInstanceAttribute.fromColor(this.color)
+            };
+        } else {
+            attributes = {
+                show : new ShowGeometryInstanceAttribute(this.show)
+            };
+        }
+
+        return new GeometryInstance({
+            id : this.dynamicObject,
+            geometry : PolygonGeometry.fromPositions(this._geometryOptions),
+            attributes : attributes
+        });
     };
 
     PolygonGeometryUpdater.prototype.update = function(time) {
@@ -92,7 +92,7 @@ define(['../Core/Color',
         }
 
         var type = this.geometryType;
-        if (type === GeometryType.NONE) {
+        if (type === GeometryBatchType.NONE) {
             return;
         }
 
@@ -109,12 +109,12 @@ define(['../Core/Color',
             return;
         }
 
-        if (type === GeometryType.COLOR) {
+        if (type === GeometryBatchType.COLOR) {
             var colorProperty = this._colorProperty;
             if (defined(colorProperty)) {
                 this.color = defaultValue(colorProperty.getValue(time, this.color), this.color);
             }
-        } else if (type === GeometryType.DYNAMIC) {
+        } else if (type === GeometryBatchType.DYNAMIC) {
             var options = this._geometryOptions;
             var vertexPositionsProperty = this._vertexPositionsProperty;
             if (defined(vertexPositionsProperty)) {
@@ -166,7 +166,7 @@ define(['../Core/Color',
 
         var vertexPositionsProperty = dynamicObject.vertexPositions;
         if (!defined(polygon) || !defined(vertexPositionsProperty)) {
-            this.geometryType = GeometryType.NONE;
+            this.geometryType = GeometryBatchType.NONE;
             return;
         }
 
@@ -183,7 +183,7 @@ define(['../Core/Color',
             this._showProperty = undefined;
             this.show = showProperty.getValue();
             if (!this.show) {
-                this.geometryType = GeometryType.NONE;
+                this.geometryType = GeometryBatchType.NONE;
                 return;
             }
         } else {
@@ -241,13 +241,13 @@ define(['../Core/Color',
         this.materialProperty = material;
 
         if (defined(this._vertexPositionsProperty) || defined(this._granularityProperty) || defined(this._stRotationProperty) || defined(this._heightProperty) || defined(this._extrudedHeightProperty)) {
-            this.geometryType = GeometryType.DYNAMIC;
+            this.geometryType = GeometryBatchType.DYNAMIC;
             options.vertexFormat = MaterialAppearance.VERTEX_FORMAT;
         } else if (!isColorMaterial) {
-            this.geometryType = GeometryType.MATERIAL;
+            this.geometryType = GeometryBatchType.MATERIAL;
             options.vertexFormat = MaterialAppearance.VERTEX_FORMAT;
         } else {
-            this.geometryType = GeometryType.COLOR;
+            this.geometryType = GeometryBatchType.COLOR;
             options.vertexFormat = PerInstanceColorAppearance.VERTEX_FORMAT;
         }
     };
@@ -350,234 +350,5 @@ define(['../Core/Color',
         this._primitives.remove(this._primitive);
     };
 
-    /**
-     * A DynamicObject visualizer which maps the DynamicPolygon instance
-     * in DynamicObject.polygon to a Polygon primitive.
-     * @alias DynamicPolygonVisualizer
-     * @constructor
-     *
-     * @param {Scene} scene The scene the primitives will be rendered in.
-     * @param {DynamicObjectCollection} [dynamicObjectCollection] The dynamicObjectCollection to visualize.
-     *
-     * @exception {DeveloperError} scene is required.
-     *
-     * @see DynamicPolygon
-     * @see Scene
-     * @see DynamicObject
-     * @see DynamicObjectCollection
-     * @see CompositeDynamicObjectCollection
-     * @see VisualizerCollection
-     * @see DynamicBillboardVisualizer
-     * @see DynamicConeVisualizer
-     * @see DynamicConeVisualizerUsingCustomSensorr
-     * @see DynamicLabelVisualizer
-     * @see DynamicPointVisualizer
-     * @see DynamicPolylineVisualizer
-     * @see DynamicPyramidVisualizer
-     */
-    var DynamicPolygonVisualizer = function(scene, dynamicObjectCollection) {
-        if (!defined(scene)) {
-            throw new DeveloperError('scene is required.');
-        }
-
-        var primitives = scene.getPrimitives();
-        this._scene = scene;
-        this._primitives = primitives;
-        this._dynamicObjectCollection = undefined;
-        this._addedObjects = new DynamicObjectCollection();
-        this._removedObjects = new DynamicObjectCollection();
-
-        this._batches = [];
-        this._batches[GeometryType.COLOR] = new StaticGeometryColorBatch(primitives, true);
-        this._batches[GeometryType.DYNAMIC] = new DynamicGeometryBatch(primitives);
-        this._batches[GeometryType.MATERIAL] = new StaticGeometryPerMaterialBatch(primitives);
-
-        this._updaters = new Dictionary();
-        this.setDynamicObjectCollection(dynamicObjectCollection);
-    };
-
-    /**
-     * Returns the scene being used by this visualizer.
-     *
-     * @returns {Scene} The scene being used by this visualizer.
-     */
-    DynamicPolygonVisualizer.prototype.getScene = function() {
-        return this._scene;
-    };
-
-    /**
-     * Gets the DynamicObjectCollection being visualized.
-     *
-     * @returns {DynamicObjectCollection} The DynamicObjectCollection being visualized.
-     */
-    DynamicPolygonVisualizer.prototype.getDynamicObjectCollection = function() {
-        return this._dynamicObjectCollection;
-    };
-
-    /**
-     * Sets the DynamicObjectCollection to visualize.
-     *
-     * @param dynamicObjectCollection The DynamicObjectCollection to visualizer.
-     */
-    DynamicPolygonVisualizer.prototype.setDynamicObjectCollection = function(dynamicObjectCollection) {
-        var oldCollection = this._dynamicObjectCollection;
-        if (oldCollection !== dynamicObjectCollection) {
-            if (defined(oldCollection)) {
-                oldCollection.collectionChanged.removeEventListener(DynamicPolygonVisualizer.prototype.onCollectionChanged, this);
-                this.removeAllPrimitives();
-            }
-            this._dynamicObjectCollection = dynamicObjectCollection;
-            if (defined(dynamicObjectCollection)) {
-                dynamicObjectCollection.collectionChanged.addEventListener(DynamicPolygonVisualizer.prototype.onCollectionChanged, this);
-                //Add all existing items to the collection.
-                this.onCollectionChanged(dynamicObjectCollection, dynamicObjectCollection.getObjects(), emptyArray);
-            }
-        }
-    };
-
-    /**
-     * Updates all of the primitives created by this visualizer to match their
-     * DynamicObject counterpart at the given time.
-     *
-     * @param {JulianDate} time The time to update to.
-     *
-     * @exception {DeveloperError} time is required.
-     */
-    DynamicPolygonVisualizer.prototype.update = function(time) {
-        if (!defined(time)) {
-            throw new DeveloperError('time is requied.');
-        }
-
-        var addedObjects = this._addedObjects;
-        var added = addedObjects.getObjects();
-        var removedObjects = this._removedObjects;
-        var removed = removedObjects.getObjects();
-
-        var i;
-        var g;
-        var dynamicObject;
-        var id;
-        var updater;
-        var batch;
-        var batches = this._batches;
-        for (i = removed.length - 1; i > -1; i--) {
-            dynamicObject = removed[i];
-            id = dynamicObject.id;
-            updater = this._updaters.getValue(id);
-            batch = batches[updater.geometryType];
-            if (defined(batch)) {
-                batch.remove(updater);
-            }
-            updater.destroy();
-            this._updaters.remove(id);
-        }
-
-        for (i = added.length - 1; i > -1; i--) {
-            dynamicObject = added[i];
-            id = dynamicObject.id;
-            updater = this._updaters.add(id, new PolygonGeometryUpdater(dynamicObject));
-        }
-
-        addedObjects.removeAll();
-        removedObjects.removeAll();
-
-        var updaters = this._updaters.getValues();
-
-        for (g = 0; g < updaters.length; g++) {
-            updater = updaters[g];
-            var oldType = updater.geometryType;
-            updater.update(time);
-            var newType = updater.geometryType;
-            if (oldType !== newType) {
-                batch = batches[oldType];
-                if (defined(batch)) {
-                    batch.remove(updater);
-                }
-                batch = batches[newType];
-                if (defined(batch)) {
-                    batch.add(updater);
-                }
-            }
-        }
-        for (g = 0; g < batches.length; g++) {
-            batches[g].update(time);
-        }
-    };
-
-    /**
-     * Removes all primitives from the scene.
-     */
-    DynamicPolygonVisualizer.prototype.removeAllPrimitives = function() {
-        this._addedObjects.removeAll();
-        this._removedObjects.removeAll();
-
-        var batches = this._batches;
-        var batchesLength = batches.length;
-        for (var g = 0; g < batchesLength; g++) {
-            batches[g].removeAllPrimitives();
-        }
-    };
-
-    /**
-     * Returns true if this object was destroyed; otherwise, false.
-     * <br /><br />
-     * If this object was destroyed, it should not be used; calling any function other than
-     * <code>isDestroyed</code> will result in a {@link DeveloperError} exception.
-     *
-     * @memberof DynamicPolygonVisualizer
-     *
-     * @returns {Boolean} True if this object was destroyed; otherwise, false.
-     *
-     * @see DynamicPolygonVisualizer#destroy
-     */
-    DynamicPolygonVisualizer.prototype.isDestroyed = function() {
-        return false;
-    };
-
-    /**
-     * Destroys the WebGL resources held by this object.  Destroying an object allows for deterministic
-     * release of WebGL resources, instead of relying on the garbage collector to destroy this object.
-     * <br /><br />
-     * Once an object is destroyed, it should not be used; calling any function other than
-     * <code>isDestroyed</code> will result in a {@link DeveloperError} exception.  Therefore,
-     * assign the return value (<code>undefined</code>) to the object as done in the example.
-     *
-     * @memberof DynamicPolygonVisualizer
-     *
-     * @returns {undefined}
-     *
-     * @exception {DeveloperError} This object was destroyed, i.e., destroy() was called.
-     *
-     * @see DynamicPolygonVisualizer#isDestroyed
-     *
-     * @example
-     * visualizer = visualizer && visualizer.destroy();
-     */
-    DynamicPolygonVisualizer.prototype.destroy = function() {
-        this.removeAllPrimitives();
-        return destroyObject(this);
-    };
-
-    DynamicPolygonVisualizer.prototype.onCollectionChanged = function(dynamicObjectCollection, added, removed) {
-        var addedObjects = this._addedObjects;
-        var removedObjects = this._removedObjects;
-
-        var i;
-        var dynamicObject;
-        for (i = removed.length - 1; i > -1; i--) {
-            dynamicObject = removed[i];
-            if (!addedObjects.remove(dynamicObject)) {
-                removedObjects.add(dynamicObject);
-            }
-        }
-
-        for (i = added.length - 1; i > -1; i--) {
-            dynamicObject = added[i];
-            if (!removedObjects.remove(dynamicObject)) {
-                addedObjects.add(dynamicObject);
-            }
-        }
-    };
-
-    return DynamicPolygonVisualizer;
+    return PolygonGeometryUpdater;
 });

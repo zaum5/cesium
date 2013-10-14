@@ -66,7 +66,9 @@ defineSuite([
     };
 
     it('constructor sets expected values', function() {
-        var visualizerTypes = [MockVisualizer];
+        var visualizerTypes = [function(scene) {
+            return new MockVisualizer(scene);
+        }];
         var display = new DataSourceDisplay(scene, dataSourceCollection, visualizerTypes);
         expect(display.getScene()).toBe(scene);
         expect(display.getVisualizerTypes()).toEqual(visualizerTypes);
@@ -94,7 +96,9 @@ defineSuite([
         var dynamicSource = new MockDataSource();
         dynamicSource.isTimeVarying = true;
 
-        var display = new DataSourceDisplay(scene, dataSourceCollection, [MockVisualizer]);
+        var display = new DataSourceDisplay(scene, dataSourceCollection, [function(scene) {
+            return new MockVisualizer(scene);
+        }]);
         dataSourceCollection.add(staticSource);
         dataSourceCollection.add(dynamicSource);
 
@@ -139,7 +143,9 @@ defineSuite([
         var source = new MockDataSource();
         dataSourceCollection.add(source);
 
-        var display = new DataSourceDisplay(scene, dataSourceCollection, [MockVisualizer]);
+        var display = new DataSourceDisplay(scene, dataSourceCollection, [function(scene) {
+            return new MockVisualizer(scene);
+        }]);
 
         var sourceVisualizer = source._visualizerCollection.getVisualizers()[0];
         expect(sourceVisualizer).toBeInstanceOf(MockVisualizer);
