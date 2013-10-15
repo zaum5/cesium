@@ -1,6 +1,6 @@
 /*global defineSuite*/
 defineSuite([
-             'DynamicScene/DynamicPolylineVisualizer',
+             'DynamicScene/PolylineGeometryUpdater',
              'DynamicScene/GeometryVisualizer',
              'Specs/createScene',
              'Specs/destroyScene',

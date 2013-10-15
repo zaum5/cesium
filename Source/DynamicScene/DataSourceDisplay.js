@@ -13,7 +13,7 @@ define([
         './DynamicPointVisualizer',
         './GeometryVisualizer',
         './PolygonGeometryUpdater',
-        './DynamicPolylineVisualizer',
+        './PolylineGeometryUpdater',
         './DynamicPyramidVisualizer',
         './VisualizerCollection'
     ], function(
