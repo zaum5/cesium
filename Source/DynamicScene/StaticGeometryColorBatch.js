@@ -5,7 +5,6 @@ define(['../Core/ColorGeometryInstanceAttribute',
         '../Core/Dictionary',
         '../Core/GeometryInstance',
         '../Core/ShowGeometryInstanceAttribute',
-        '../Scene/PerInstanceColorAppearance',
         '../Scene/Primitive'
     ], function(
         ColorGeometryInstanceAttribute,
@@ -14,12 +13,12 @@ define(['../Core/ColorGeometryInstanceAttribute',
         Dictionary,
         GeometryInstance,
         ShowGeometryInstanceAttribute,
-        PerInstanceColorAppearance,
         Primitive) {
     "use strict";
 
-    var Batch = function(primitives, translucent) {
+    var Batch = function(primitives, translucent, appearanceType) {
         this.translucent = translucent;
+        this.appearanceType = appearanceType;
         this.primitives = primitives;
         this.createPrimitive = false;
         this.primitive = undefined;
@@ -53,7 +52,7 @@ define(['../Core/ColorGeometryInstanceAttribute',
                 primitive = new Primitive({
                     asynchronous : false,
                     geometryInstances : geometry,
-                    appearance : new PerInstanceColorAppearance({
+                    appearance : new this.appearanceType({
                         translucent : this.translucent,
                         closed : true
                     })
@@ -97,9 +96,9 @@ define(['../Core/ColorGeometryInstanceAttribute',
         }
     };
 
-    var StaticGeometryColorBatch = function(primitives) {
-        this._solidBatch = new Batch(primitives, false);
-        this._translucentBatch = new Batch(primitives, true);
+    var StaticGeometryColorBatch = function(primitives, appearanceType) {
+        this._solidBatch = new Batch(primitives, false, appearanceType);
+        this._translucentBatch = new Batch(primitives, true, appearanceType);
     };
 
     StaticGeometryColorBatch.prototype.add = function(updater) {

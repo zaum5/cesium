@@ -3,6 +3,10 @@ define(['../Core/defined',
         '../Core/DeveloperError',
         '../Core/destroyObject',
         '../Core/Dictionary',
+        '../Scene/PerInstanceColorAppearance',
+        '../Scene/PolylineColorAppearance',
+        '../Scene/MaterialAppearance',
+        '../Scene/PolylineMaterialAppearance',
         './DynamicGeometryBatch',
         './DynamicObjectCollection',
         './GeometryBatchType',
@@ -13,6 +17,10 @@ define(['../Core/defined',
         DeveloperError,
         destroyObject,
         Dictionary,
+        PerInstanceColorAppearance,
+        PolylineColorAppearance,
+        MaterialAppearance,
+        PolylineMaterialAppearance,
         DynamicGeometryBatch,
         DynamicObjectCollection,
         GeometryBatchType,
@@ -62,9 +70,11 @@ define(['../Core/defined',
         this._removedObjects = new DynamicObjectCollection();
 
         this._batches = [];
-        this._batches[GeometryBatchType.COLOR.value] = new StaticGeometryColorBatch(primitives);
+        this._batches[GeometryBatchType.COLOR.value] = new StaticGeometryColorBatch(primitives, PerInstanceColorAppearance);
+        this._batches[GeometryBatchType.POLYLINE_COLOR.value] = new StaticGeometryColorBatch(primitives, PolylineColorAppearance);
+        this._batches[GeometryBatchType.MATERIAL.value] = new StaticGeometryPerMaterialBatch(primitives, MaterialAppearance);
+        this._batches[GeometryBatchType.POLYLINE_MATERIAL.value] = new StaticGeometryPerMaterialBatch(primitives, PolylineMaterialAppearance);
         this._batches[GeometryBatchType.DYNAMIC.value] = new DynamicGeometryBatch(primitives);
-        this._batches[GeometryBatchType.MATERIAL.value] = new StaticGeometryPerMaterialBatch(primitives);
 
         this._updaters = new Dictionary();
         this.setDynamicObjectCollection(dynamicObjectCollection);

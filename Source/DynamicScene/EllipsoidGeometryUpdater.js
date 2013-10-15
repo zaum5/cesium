@@ -262,7 +262,6 @@ define(['../Core/Color',
         this._position = undefined;
         this._orientation = undefined;
         this._primitive = undefined;
-        this._translucent = false;
     };
 
     DynamicGeometryBatchItem.prototype.update = function() {
@@ -282,15 +281,7 @@ define(['../Core/Color',
 
         var material = geometryUpdater.material;
 
-        var translucent = this._translucent;
-        if (defined(material) && defined(material.uniforms.color)) {
-            translucent = material.uniforms.color.alpha !== 1.0;
-        }
-
-        if (!defined(this._primitive) || this._translucent !== translucent || //
-            this._radii !== radii || this._position !== position || this._orientation !== orientation) {
-
-            this._translucent = translucent;
+        if (!defined(this._primitive) || this._radii !== radii || this._position !== position || this._orientation !== orientation) {
             this._material = material;
             this._radii = radii;
             this._position = position;
@@ -303,7 +294,7 @@ define(['../Core/Color',
                 geometryInstances : geometryUpdater.createGeometryInstance(),
                 appearance : new EllipsoidSurfaceAppearance({
                     material : material,
-                    translucent : translucent,
+                    translucent : true,
                     closed : true
                 }),
                 asynchronous : false

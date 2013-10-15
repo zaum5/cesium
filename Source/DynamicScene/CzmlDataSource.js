@@ -1068,12 +1068,14 @@ define([
                 materialToProcess = materialInterval.data;
             } else {
                 materialToProcess = new PolylineOutlineMaterialProperty();
+                materialToProcess.outlineWidth = new ConstantProperty(0.0);
                 materialInterval = interval.clone();
                 materialInterval.data = materialToProcess;
                 composite.intervals.addInterval(materialInterval);
             }
         } else if (!(materialToProcess instanceof PolylineOutlineMaterialProperty)) {
             materialToProcess = new PolylineOutlineMaterialProperty();
+            materialToProcess.outlineWidth = new ConstantProperty(0.0);
             polyline.material = materialToProcess;
         }
 

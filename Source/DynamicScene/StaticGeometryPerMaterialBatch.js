@@ -4,7 +4,6 @@ define(['../Core/defined',
         '../Core/GeometryInstance',
         '../Core/ShowGeometryInstanceAttribute',
         '../Scene/Primitive',
-        '../Scene/MaterialAppearance',
         '../Scene/Material',
         './MaterialProperty'
     ], function(
@@ -13,19 +12,19 @@ define(['../Core/defined',
         GeometryInstance,
         ShowGeometryInstanceAttribute,
         Primitive,
-        MaterialAppearance,
         Material,
         MaterialProperty) {
     "use strict";
 
-    var Batch = function(primitives, updater) {
-        this._materialProperty = updater.materialProperty;
+    var Batch = function(primitives, appearanceType, updater) {
+        this._materialProperty = updater._materialProperty;
         this._updaters = new Dictionary();
         this._createPrimitive = true;
         this._primitive = undefined;
         this._primitives = primitives;
         this._geometries = new Dictionary();
         this._material = Material.fromType('Color');
+        this._appearanceType = appearanceType;
         this.add(updater);
     };
 
@@ -65,10 +64,10 @@ define(['../Core/defined',
                 primitive = new Primitive({
                     asynchronous : false,
                     geometryInstances : geometries,
-                    appearance : new MaterialAppearance({
+                    appearance : new this._appearanceType({
                         material : MaterialProperty.getValue(time, this._materialProperty, this._material),
                         faceForward : true,
-                        translucent : false,
+                        translucent : true,
                         closed : true
                     })
                 });
@@ -106,9 +105,10 @@ define(['../Core/defined',
         }
     };
 
-    var StaticGeometryPerMaterialBatch = function(primitives) {
+    var StaticGeometryPerMaterialBatch = function(primitives, appearanceType) {
         this.items = [];
         this._primitives = primitives;
+        this._appearanceType = appearanceType;
     };
 
     StaticGeometryPerMaterialBatch.prototype.add = function(updater) {
@@ -121,7 +121,7 @@ define(['../Core/defined',
                 return;
             }
         }
-        items.push(new Batch(this._primitives, updater));
+        items.push(new Batch(this._primitives, this._appearanceType, updater));
     };
 
     StaticGeometryPerMaterialBatch.prototype.remove = function(updater) {

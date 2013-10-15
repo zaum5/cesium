@@ -30,7 +30,7 @@ define([
         DynamicPointVisualizer,
         GeometryVisualizer,
         PolygonGeometryUpdater,
-        DynamicPolylineVisualizer,
+        PolylineGeometryUpdater,
         DynamicPyramidVisualizer,
         VisualizerCollection) {
     "use strict";
@@ -48,7 +48,7 @@ define([
     }, function(scene) {
         return new GeometryVisualizer(PolygonGeometryUpdater, scene);
     }, function(scene) {
-        return new DynamicPolylineVisualizer(scene);
+        return new GeometryVisualizer(PolylineGeometryUpdater, scene);
     }, function(scene) {
         return new DynamicPyramidVisualizer(scene);
     }, function(scene) {
