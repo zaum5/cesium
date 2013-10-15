@@ -57,7 +57,7 @@ define(['../Core/Color',
         this.color = Color.WHITE.clone();
         this.position = undefined;
         this.orientation = undefined;
-        this.materialProperty = undefined;
+        this._materialProperty = undefined;
         this.material = Material.fromType('Color');
         this.geometryType = GeometryBatchType.NONE;
 
@@ -137,7 +137,7 @@ define(['../Core/Color',
                 this.orientation = orientationProperty.getValue(time);
             }
 
-            var materialProperty = this.materialProperty;
+            var materialProperty = this._materialProperty;
             if (defined(materialProperty)) {
                 this.material = MaterialProperty.getValue(time, materialProperty, this.material);
             }
@@ -219,7 +219,7 @@ define(['../Core/Color',
                 this.color = Color.WHITE.clone();
             }
         }
-        this.materialProperty = material;
+        this._materialProperty = material;
 
         if (defined(this._radiiProperty)) {
             this.geometryType = GeometryBatchType.DYNAMIC;

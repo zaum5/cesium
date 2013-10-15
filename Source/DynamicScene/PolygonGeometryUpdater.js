@@ -43,26 +43,43 @@ define(['../Core/Color',
     };
 
     var PolygonGeometryUpdater = function(dynamicObject) {
-        dynamicObject.propertyChanged.addEventListener(PolygonGeometryUpdater.prototype.onDynamicObjectPropertyChanged, this);
+        dynamicObject.propertyChanged.addEventListener(PolygonGeometryUpdater.prototype._onDynamicObjectPropertyChanged, this);
 
         this.id = dynamicObject.id;
         this.dynamicObject = dynamicObject;
         this.show = true;
         this.color = Color.WHITE.clone();
-        this.materialProperty = undefined;
         this.material = Material.fromType('Color');
         this.geometryType = GeometryBatchType.NONE;
 
         this._polygon = undefined;
-        this._vertexPositionsProperty = undefined;
-        this._showProperty = undefined;
-        this._granularityProperty = undefined;
-        this._stRotationProperty = undefined;
-        this._heightProperty = undefined;
-        this._extrudedHeightProperty = undefined;
-        this._colorProperty = undefined;
-        this._needEvaluation = true;
         this._geometryOptions = new GeometryOptions(dynamicObject);
+
+        this._needEvaluation = true;
+
+        this._dynamicVertexPositions = false;
+        this._vertexPositionsProperty = undefined;
+
+        this._dynamicShow = false;
+        this._showProperty = undefined;
+
+        this._dynamicGranularity = false;
+        this._granularityProperty = undefined;
+
+        this._dynamicMaterial = false;
+        this._materialProperty = undefined;
+
+        this._dynamicStRotation = false;
+        this._stRotationProperty = undefined;
+
+        this._dynamicHeight = false;
+        this._heightProperty = undefined;
+
+        this._dynamicExtrudedHeight = false;
+        this._extrudedHeightProperty = undefined;
+
+        this._dynamicColor = false;
+        this._colorProperty = undefined;
     };
 
     PolygonGeometryUpdater.prototype.createGeometryInstance = function() {
@@ -108,39 +125,31 @@ define(['../Core/Color',
             return;
         }
 
-        if (type === GeometryBatchType.COLOR) {
-            var colorProperty = this._colorProperty;
-            if (defined(colorProperty)) {
-                this.color = defaultValue(colorProperty.getValue(time, this.color), this.color);
-            }
+        if (type === GeometryBatchType.COLOR && this._dynamicColor) {
+            this.color = defaultValue(this._colorProperty.getValue(time, this.color), this.color);
         } else if (type === GeometryBatchType.DYNAMIC) {
             var options = this._geometryOptions;
-            var vertexPositionsProperty = this._vertexPositionsProperty;
-            if (defined(vertexPositionsProperty)) {
-                options.positions = vertexPositionsProperty.getValue(time);
+            if (this._dynamicVertexPositions) {
+                options.positions = this._vertexPositionsProperty.getValue(time);
             }
 
-            var granularityProperty = this._granularityProperty;
-            if (defined(granularityProperty)) {
-                options.granularity = granularityProperty.getValue(time);
+            if (this._dynamicGranularity) {
+                options.granularity = this._granularityProperty.getValue(time);
             }
 
-            var stRotationProperty = this._stRotationProperty;
-            if (defined(stRotationProperty)) {
-                options.stRotation = stRotationProperty.getValue(time);
+            if (this._dynamicStRotation) {
+                options.stRotation = this._stRotationProperty.getValue(time);
             }
 
-            var heightProperty = this._heightProperty;
-            if (defined(heightProperty)) {
-                options.height = heightProperty.getValue(time);
+            if (this._dynamicHeight) {
+                options.height = this._heightProperty.getValue(time);
             }
 
-            var extrudedHeightProperty = this._extrudedHeightProperty;
-            if (defined(extrudedHeightProperty)) {
-                options.extrudedHeight = extrudedHeightProperty.getValue(time);
+            if (this._dynamicExtrudedHeight) {
+                options.extrudedHeight = this._extrudedHeightProperty.getValue(time);
             }
 
-            var materialProperty = this.materialProperty;
+            var materialProperty = this._materialProperty;
             if (defined(materialProperty)) {
                 this.material = MaterialProperty.getValue(time, materialProperty, this.material);
             }
@@ -155,11 +164,11 @@ define(['../Core/Color',
 
         if (polygon !== dynamicObject._polygon) {
             if (defined(polygon)) {
-                polygon.propertyChanged.removeEventListener(PolygonGeometryUpdater.prototype.onPolygonPropertyChanged, this);
+                polygon.propertyChanged.removeEventListener(PolygonGeometryUpdater.prototype._onPolygonPropertyChanged, this);
             }
             polygon = dynamicObject._polygon;
             if (defined(polygon)) {
-                polygon.propertyChanged.addEventListener(PolygonGeometryUpdater.prototype.onPolygonPropertyChanged, this);
+                polygon.propertyChanged.addEventListener(PolygonGeometryUpdater.prototype._onPolygonPropertyChanged, this);
             }
         }
 
@@ -169,63 +178,76 @@ define(['../Core/Color',
             return;
         }
 
+        var isConstant;
         var options = this._geometryOptions;
-        if (vertexPositionsProperty instanceof ConstantProperty) {
-            this._vertexPositionsProperty = undefined;
-            options.positions = vertexPositionsProperty.getValue();
-        } else {
+
+        if (this._vertexPositionsProperty !== vertexPositionsProperty) {
+            isConstant = vertexPositionsProperty instanceof ConstantProperty;
+            if (isConstant) {
+                options.positions = vertexPositionsProperty.getValue();
+            }
+            this._dynamicVertexPositions = defined(vertexPositionsProperty) && !isConstant;
             this._vertexPositionsProperty = vertexPositionsProperty;
         }
 
         var showProperty = polygon.show;
-        if (defined(showProperty) && showProperty instanceof ConstantProperty) {
-            this._showProperty = undefined;
-            this.show = showProperty.getValue();
-            if (!this.show) {
-                this.geometryType = GeometryBatchType.NONE;
-                return;
+        if (this._showProperty !== showProperty) {
+            isConstant = showProperty instanceof ConstantProperty;
+            if (isConstant) {
+                if (!showProperty.getValue()) {
+                    this.geometryType = GeometryBatchType.NONE;
+                    return;
+                }
             }
-        } else {
+            this._dynamicShow = defined(showProperty) && !isConstant;
             this._showProperty = showProperty;
         }
 
         var heightProperty = polygon.height;
-        if (heightProperty instanceof ConstantProperty) {
-            this._heightProperty = undefined;
-            options.height = heightProperty.getValue();
-        } else {
+        if (this._heightProperty !== heightProperty) {
+            isConstant = heightProperty instanceof ConstantProperty;
+            if (isConstant) {
+                options.height = heightProperty.getValue();
+            }
+            this._dynamicHeight = defined(heightProperty) && !isConstant;
             this._heightProperty = heightProperty;
         }
 
         var extrudedHeightProperty = polygon.extrudedHeight;
-        if (extrudedHeightProperty instanceof ConstantProperty) {
-            this._extrudedHeightProperty = undefined;
-            options.extrudedHeight = extrudedHeightProperty.getValue();
-        } else {
+        if (this._extrudedHeightProperty !== extrudedHeightProperty) {
+            isConstant = extrudedHeightProperty instanceof ConstantProperty;
+            if (isConstant) {
+                options.extrudedHeight = extrudedHeightProperty.getValue();
+            }
+            this._dynamicExtrudedHeight = defined(extrudedHeightProperty) && !isConstant;
             this._extrudedHeightProperty = extrudedHeightProperty;
         }
 
         var stRotationProperty = polygon.stRotation;
-        if (stRotationProperty instanceof ConstantProperty) {
-            this._stRotationProperty = undefined;
-            options.stRotation = stRotationProperty.getValue();
-        } else {
+        if (this._stRotationProperty !== stRotationProperty) {
+            isConstant = stRotationProperty instanceof ConstantProperty;
+            if (isConstant) {
+                options.stRotation = stRotationProperty.getValue();
+            }
+            this._dynamicStRotation = defined(stRotationProperty) && !isConstant;
             this._stRotationProperty = stRotationProperty;
         }
 
         var granularityProperty = polygon.granularity;
-        if (granularityProperty instanceof ConstantProperty) {
-            this._granularityProperty = undefined;
-            options.granularity = granularityProperty.getValue();
-        } else {
+        if (this._granularityProperty !== granularityProperty) {
+            isConstant = granularityProperty instanceof ConstantProperty;
+            if (isConstant) {
+                options.granularity = granularityProperty.getValue();
+            }
+            this._dynamicGranularity = defined(granularityProperty) && !isConstant;
             this._granularityProperty = granularityProperty;
         }
 
-        var material = polygon.material;
-        var isColorMaterial = !defined(material) || material instanceof ColorMaterialProperty;
+        var materialProperty = polygon.material;
+        var isColorMaterial = !defined(materialProperty) || materialProperty instanceof ColorMaterialProperty;
         if (isColorMaterial) {
-            if (defined(material)) {
-                var colorProperty = material.color;
+            if (defined(materialProperty)) {
+                var colorProperty = materialProperty.color;
                 if (defined(colorProperty) && colorProperty instanceof ConstantProperty) {
                     this._colorProperty = undefined;
                     this.color = colorProperty.getValue(undefined, this.color);
@@ -237,7 +259,7 @@ define(['../Core/Color',
                 this.color = Color.WHITE.clone();
             }
         }
-        this.materialProperty = material;
+        this._materialProperty = materialProperty;
 
         if (defined(this._vertexPositionsProperty) || defined(this._granularityProperty) || defined(this._stRotationProperty) || defined(this._heightProperty) || defined(this._extrudedHeightProperty)) {
             this.geometryType = GeometryBatchType.DYNAMIC;
@@ -251,19 +273,19 @@ define(['../Core/Color',
         }
     };
 
-    PolygonGeometryUpdater.prototype.onDynamicObjectPropertyChanged = function(dyamicObject, name, value, oldValue) {
+    PolygonGeometryUpdater.prototype._onDynamicObjectPropertyChanged = function(dyamicObject, name, value, oldValue) {
         this._needEvaluation = name === 'vertexPositions' || name === 'polygon';
     };
 
-    PolygonGeometryUpdater.prototype.onPolygonPropertyChanged = function(polygon, name, value, oldValue) {
+    PolygonGeometryUpdater.prototype._onPolygonPropertyChanged = function(polygon, name, value, oldValue) {
         this._needEvaluation = true;
     };
 
     PolygonGeometryUpdater.prototype.destroy = function() {
-        this.dynamicObject.propertyChanged.removeEventListener(PolygonGeometryUpdater.prototype.onDynamicObjectPropertyChanged, this);
+        this.dynamicObject.propertyChanged.removeEventListener(PolygonGeometryUpdater.prototype._onDynamicObjectPropertyChanged, this);
         var polygon = this._polygon;
         if (defined(polygon)) {
-            polygon.propertyChanged.removeEventListener(PolygonGeometryUpdater.prototype.onPolygonPropertyChanged, this);
+            polygon.propertyChanged.removeEventListener(PolygonGeometryUpdater.prototype._onPolygonPropertyChanged, this);
         }
     };
 

@@ -97,14 +97,14 @@ define(['../Core/defined',
         var oldCollection = this._dynamicObjectCollection;
         if (oldCollection !== dynamicObjectCollection) {
             if (defined(oldCollection)) {
-                oldCollection.collectionChanged.removeEventListener(GeometryVisualizer.prototype.onCollectionChanged, this);
+                oldCollection.collectionChanged.removeEventListener(GeometryVisualizer.prototype._onCollectionChanged, this);
                 this.removeAllPrimitives();
             }
             this._dynamicObjectCollection = dynamicObjectCollection;
             if (defined(dynamicObjectCollection)) {
-                dynamicObjectCollection.collectionChanged.addEventListener(GeometryVisualizer.prototype.onCollectionChanged, this);
+                dynamicObjectCollection.collectionChanged.addEventListener(GeometryVisualizer.prototype._onCollectionChanged, this);
                 //Add all existing items to the collection.
-                this.onCollectionChanged(dynamicObjectCollection, dynamicObjectCollection.getObjects(), emptyArray);
+                this._onCollectionChanged(dynamicObjectCollection, dynamicObjectCollection.getObjects(), emptyArray);
             }
         }
     };
@@ -232,7 +232,7 @@ define(['../Core/defined',
         return destroyObject(this);
     };
 
-    GeometryVisualizer.prototype.onCollectionChanged = function(dynamicObjectCollection, added, removed) {
+    GeometryVisualizer.prototype._onCollectionChanged = function(dynamicObjectCollection, added, removed) {
         var addedObjects = this._addedObjects;
         var removedObjects = this._removedObjects;
 

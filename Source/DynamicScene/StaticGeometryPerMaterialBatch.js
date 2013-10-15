@@ -31,7 +31,7 @@ define(['../Core/defined',
 
     Batch.prototype.isMaterial = function(updater) {
         var protoMaterial = this._materialProperty;
-        var updaterMaterial = updater.materialProperty;
+        var updaterMaterial = updater._materialProperty;
         if (updaterMaterial === protoMaterial) {
             return true;
         }

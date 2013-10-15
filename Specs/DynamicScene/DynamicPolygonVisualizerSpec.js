@@ -123,17 +123,20 @@ defineSuite([
 
         var primitive = scene.getPrimitives().get(0);
         visualizer.update(time);
+        scene.render();
 
         var attributes = primitive.getGeometryInstanceAttributes(testObject);
-        expect(attributes.show[0]).toEqual(1);
-        expect(attributes.color).toEqual(testObject.polygon.material.getValue(time).color.toBytes());
+        expect(attributes).toBeDefined();
 
         testObject.vertexPositions = new ConstantProperty([new Cartesian3(5678, 1234, 1101112), new Cartesian3(1234, 5678, 9101112), new Cartesian3(1234, 5678, 910111)]);
         polygon.material = new ColorMaterialProperty();
 
         visualizer.update(time);
-        expect(attributes.show[0]).toEqual(1);
-        expect(attributes.color).toEqual(testObject.polygon.material.getValue(time).color.toBytes());
+        scene.render();
+
+        primitive = scene.getPrimitives().get(0);
+        attributes = primitive.getGeometryInstanceAttributes(testObject);
+        expect(attributes).toBeDefined();
 
         polygon.show = new ConstantProperty(false);
         visualizer.update(time);
@@ -181,7 +184,7 @@ defineSuite([
         visualizer.update(time);
         expect(scene.getPrimitives().getLength()).toEqual(1);
         var primitive = scene.getPrimitives().get(0);
-        expect(primitive.geometryInstances[0].id).toEqual(testObject);
+        expect(primitive.geometryInstances.id).toEqual(testObject);
     });
 
     it('setDynamicObjectCollection removes old objects and add new ones.', function() {
