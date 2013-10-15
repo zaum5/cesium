@@ -29,8 +29,7 @@ define(['../Core/Color',
         MaterialAppearance,
         PerInstanceColorAppearance,
         Material,
-        MaterialProperty
-        ) {
+        MaterialProperty) {
     "use strict";
 
     var GeometryOptions = function(dynamicObject) {
@@ -73,7 +72,7 @@ define(['../Core/Color',
                 show : new ShowGeometryInstanceAttribute(this.show),
                 color : ColorGeometryInstanceAttribute.fromColor(this.color)
             };
-        } else {
+        } else if (this.geometryType === GeometryBatchType.MATERIAL) {
             attributes = {
                 show : new ShowGeometryInstanceAttribute(this.show)
             };
@@ -268,7 +267,7 @@ define(['../Core/Color',
         }
     };
 
-    PolygonGeometryUpdater.prototype.createDynamicUpdater = function(primitives){
+    PolygonGeometryUpdater.prototype.createDynamicUpdater = function(primitives) {
         return new DynamicGeometryBatchItem(primitives, this);
     };
 
@@ -329,14 +328,9 @@ define(['../Core/Color',
             this._primitive = undefined;
 
             this._primitive = new Primitive({
-                geometryInstances : new GeometryInstance({
-                    geometry : PolygonGeometry.fromPositions(options),
-                    id : this.id,
-                    pickPrimitive : this
-                }),
+                geometryInstances : geometryUpdater.createGeometryInstance(),
                 appearance : new MaterialAppearance({
                     material : material,
-                    faceForward : true,
                     translucent : translucent
                 }),
                 asynchronous : false

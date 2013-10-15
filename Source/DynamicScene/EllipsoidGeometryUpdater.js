@@ -78,7 +78,7 @@ define(['../Core/Color',
                 show : new ShowGeometryInstanceAttribute(this.show),
                 color : ColorGeometryInstanceAttribute.fromColor(this.color)
             };
-        } else {
+        } else if (this.geometryType === GeometryBatchType.MATERIAL) {
             attributes = {
                 show : new ShowGeometryInstanceAttribute(this.show)
             };
@@ -249,7 +249,7 @@ define(['../Core/Color',
         }
     };
 
-    EllipsoidGeometryUpdater.prototype.createDynamicUpdater = function(primitives){
+    EllipsoidGeometryUpdater.prototype.createDynamicUpdater = function(primitives) {
         return new DynamicGeometryBatchItem(primitives, this);
     };
 
