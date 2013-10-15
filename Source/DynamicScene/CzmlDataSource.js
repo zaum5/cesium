@@ -338,6 +338,12 @@ define([
         var propertyCreated = false;
         var property = object[propertyName];
 
+        var epoch;
+        var packetEpoch = packetData.epoch;
+        if (defined(packetEpoch)) {
+            epoch = JulianDate.fromIso8601(packetEpoch);
+        }
+
         //Without an interval, any sampled value is infinite, meaning it completely
         //replaces any non-sampled property that may exist.
         if (isSampled && !hasInterval) {
@@ -345,11 +351,6 @@ define([
                 property = new SampledProperty(type);
                 object[propertyName] = property;
                 propertyCreated = true;
-            }
-            var epoch;
-            var packetEpoch = packetData.epoch;
-            if (defined(packetEpoch)) {
-                epoch = JulianDate.fromIso8601(packetEpoch);
             }
             property.addSamplesPackedArray(unwrappedInterval, epoch);
             updateInterpolationSettings(packetData, property);
@@ -438,7 +439,7 @@ define([
             interval.data = new SampledProperty(type);
             intervals.addInterval(interval);
         }
-        interval.data.addSamplesPackedArray(unwrappedInterval, JulianDate.fromIso8601(packetData.epoch));
+        interval.data.addSamplesPackedArray(unwrappedInterval, epoch);
         updateInterpolationSettings(packetData, interval.data);
         return propertyCreated;
     }
@@ -485,6 +486,12 @@ define([
         var propertyCreated = false;
         var property = object[propertyName];
 
+        var epoch;
+        var packetEpoch = packetData.epoch;
+        if (defined(packetEpoch)) {
+            epoch = JulianDate.fromIso8601(packetEpoch);
+        }
+
         //Without an interval, any sampled value is infinite, meaning it completely
         //replaces any non-sampled property that may exist.
         if (isSampled && !hasInterval) {
@@ -492,11 +499,6 @@ define([
                 property = new SampledPositionProperty(referenceFrame);
                 object[propertyName] = property;
                 propertyCreated = true;
-            }
-            var epoch;
-            var packetEpoch = packetData.epoch;
-            if (defined(packetEpoch)) {
-                epoch = JulianDate.fromIso8601(packetEpoch);
             }
             property.addSamplesPackedArray(unwrappedInterval, epoch);
             updateInterpolationSettings(packetData, property);
@@ -579,7 +581,7 @@ define([
             interval.data = new SampledPositionProperty(referenceFrame);
             intervals.addInterval(interval);
         }
-        interval.data.addSamplesPackedArray(unwrappedInterval, JulianDate.fromIso8601(packetData.epoch));
+        interval.data.addSamplesPackedArray(unwrappedInterval, epoch);
         updateInterpolationSettings(packetData, interval.data);
         return propertyCreated;
     }

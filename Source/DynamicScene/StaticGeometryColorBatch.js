@@ -54,7 +54,8 @@ define(['../Core/ColorGeometryInstanceAttribute',
                     asynchronous : false,
                     geometryInstances : geometry,
                     appearance : new PerInstanceColorAppearance({
-                        translucent : this.translucent
+                        translucent : this.translucent,
+                        closed : true
                     })
                 });
 

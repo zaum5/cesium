@@ -68,7 +68,8 @@ define(['../Core/defined',
                     appearance : new MaterialAppearance({
                         material : MaterialProperty.getValue(time, this._materialProperty, this._material),
                         faceForward : true,
-                        translucent : false
+                        translucent : false,
+                        closed : true
                     })
                 });
 

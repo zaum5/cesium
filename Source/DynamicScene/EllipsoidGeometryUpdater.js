@@ -303,8 +303,8 @@ define(['../Core/Color',
                 geometryInstances : geometryUpdater.createGeometryInstance(),
                 appearance : new EllipsoidSurfaceAppearance({
                     material : material,
-                    faceForward : true,
-                    translucent : true
+                    translucent : translucent,
+                    closed : true
                 }),
                 asynchronous : false
             });

@@ -352,7 +352,8 @@ define(['../Core/Color',
                 geometryInstances : geometryUpdater.createGeometryInstance(),
                 appearance : new MaterialAppearance({
                     material : material,
-                    translucent : translucent
+                    translucent : translucent,
+                    closed : true
                 }),
                 asynchronous : false
             });
