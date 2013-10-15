@@ -62,7 +62,7 @@ define(['../Core/defined',
         this._removedObjects = new DynamicObjectCollection();
 
         this._batches = [];
-        this._batches[GeometryBatchType.COLOR.value] = new StaticGeometryColorBatch(primitives, true);
+        this._batches[GeometryBatchType.COLOR.value] = new StaticGeometryColorBatch(primitives);
         this._batches[GeometryBatchType.DYNAMIC.value] = new DynamicGeometryBatch(primitives);
         this._batches[GeometryBatchType.MATERIAL.value] = new StaticGeometryPerMaterialBatch(primitives);
 
@@ -157,6 +157,8 @@ define(['../Core/defined',
 
         var updaters = this._updaters.getValues();
 
+        //Update each updater and if it has changed batch types,
+        //re-bit it into a new batch.
         for (g = 0; g < updaters.length; g++) {
             updater = updaters[g];
             var oldType = updater.geometryType;
@@ -173,6 +175,7 @@ define(['../Core/defined',
                 }
             }
         }
+
         for (g = 0; g < batches.length; g++) {
             batches[g].update(time);
         }

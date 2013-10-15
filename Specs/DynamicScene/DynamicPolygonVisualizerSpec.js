@@ -182,9 +182,10 @@ defineSuite([
         polygon.show = new ConstantProperty(true);
 
         visualizer.update(time);
+        scene.render();
         expect(scene.getPrimitives().getLength()).toEqual(1);
         var primitive = scene.getPrimitives().get(0);
-        expect(primitive.geometryInstances.id).toEqual(testObject);
+        expect(primitive.getGeometryInstanceAttributes(testObject)).toBeDefined();
     });
 
     it('setDynamicObjectCollection removes old objects and add new ones.', function() {

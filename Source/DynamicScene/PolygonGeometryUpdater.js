@@ -112,15 +112,8 @@ define(['../Core/Color',
             return;
         }
 
-        var show = this.show;
-        var showProperty = this._showProperty;
-        if (defined(showProperty)) {
-            show = this.dynamicObject.isAvailable(time) && showProperty.getValue(time);
-        } else {
-            show = this.dynamicObject.isAvailable(time);
-        }
+        var show = (!this._dynamicShow || this._showProperty.getValue(time)) && this.dynamicObject.isAvailable(time);
         this.show = show;
-
         if (!show) {
             return;
         }
@@ -248,10 +241,12 @@ define(['../Core/Color',
         if (isColorMaterial) {
             if (defined(materialProperty)) {
                 var colorProperty = materialProperty.color;
-                if (defined(colorProperty) && colorProperty instanceof ConstantProperty) {
-                    this._colorProperty = undefined;
-                    this.color = colorProperty.getValue(undefined, this.color);
-                } else {
+                if (this._colorProperty !== colorProperty) {
+                    isConstant = colorProperty instanceof ConstantProperty;
+                    if (isConstant) {
+                        this.color = colorProperty.getValue();
+                    }
+                    this._dynamicColor = defined(colorProperty) && !isConstant;
                     this._colorProperty = colorProperty;
                 }
             } else {
@@ -261,16 +256,20 @@ define(['../Core/Color',
         }
         this._materialProperty = materialProperty;
 
-        if (defined(this._vertexPositionsProperty) || defined(this._granularityProperty) || defined(this._stRotationProperty) || defined(this._heightProperty) || defined(this._extrudedHeightProperty)) {
-            this.geometryType = GeometryBatchType.DYNAMIC;
+        var geometryType;
+        if (this._dynamicVertexPositions || this._dynamicGranularity || this._dynamicStRotation || this._dynamicHeight || this._dynamicExtrudedHeight) {
             options.vertexFormat = MaterialAppearance.VERTEX_FORMAT;
+            geometryType = GeometryBatchType.DYNAMIC;
         } else if (!isColorMaterial) {
-            this.geometryType = GeometryBatchType.MATERIAL;
             options.vertexFormat = MaterialAppearance.VERTEX_FORMAT;
+            geometryType = GeometryBatchType.MATERIAL;
         } else {
-            this.geometryType = GeometryBatchType.COLOR;
             options.vertexFormat = PerInstanceColorAppearance.VERTEX_FORMAT;
+            geometryType = GeometryBatchType.COLOR;
         }
+
+        this.geometryType = geometryType;
+        return geometryType;
     };
 
     PolygonGeometryUpdater.prototype._onDynamicObjectPropertyChanged = function(dyamicObject, name, value, oldValue) {

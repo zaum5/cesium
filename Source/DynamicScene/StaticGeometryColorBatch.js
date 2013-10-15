@@ -18,54 +18,55 @@ define(['../Core/ColorGeometryInstanceAttribute',
         Primitive) {
     "use strict";
 
-    var StaticGeometryColorBatch = function(primitives, translucent) {
-        this._primitives = primitives;
-        this._geometry = new Dictionary();
-        this._updaters = new Dictionary();
-        this._primitive = undefined;
-        this._createPrimitive = false;
-        this._translucent = translucent;
+    var Batch = function(primitives, translucent) {
+        this.translucent = translucent;
+        this.primitives = primitives;
+        this.createPrimitive = false;
+        this.primitive = undefined;
+        this.geometry = new Dictionary();
+        this.updaters = new Dictionary();
     };
 
-    StaticGeometryColorBatch.prototype.add = function(updater) {
+    Batch.prototype.add = function(updater) {
         var instance = updater.createGeometryInstance();
         var id = updater.id;
-        this._geometry.add(id, instance);
-        this._updaters.add(id, updater);
-        this._createPrimitive = true;
+        this.createPrimitive = true;
+        this.geometry.add(id, instance);
+        this.updaters.add(id, updater);
     };
 
-    StaticGeometryColorBatch.prototype.remove = function(updater) {
+    Batch.prototype.remove = function(updater) {
         var id = updater.id;
-        this._createPrimitive = this._geometry.remove(id) || this._createPrimitive;
-        this._updaters.remove(id);
+        this.createPrimitive = this.geometry.remove(id) || this.createPrimitive;
+        this.updaters.remove(id);
     };
 
-    StaticGeometryColorBatch.prototype.update = function() {
-        var primitive = this._primitive;
-        var primitives = this._primitives;
-        var geometries = this._geometry.getValues();
-        if (this._createPrimitive) {
+    Batch.prototype.update = function() {
+        var primitive = this.primitive;
+        var primitives = this.primitives;
+        var geometry = this.geometry.getValues();
+        if (this.createPrimitive) {
             if (defined(primitive)) {
                 primitives.remove(primitive);
             }
-            if (geometries.length > 0) {
+            if (geometry.length > 0) {
                 primitive = new Primitive({
                     asynchronous : false,
-                    geometryInstances : geometries,
+                    geometryInstances : geometry,
                     appearance : new PerInstanceColorAppearance({
-                        translucent : this._translucent
+                        translucent : this.translucent
                     })
                 });
 
                 primitives.add(primitive);
             }
-            this._primitive = primitive;
-            this._createPrimitive = false;
+            this.primitive = primitive;
+            this.createPrimitive = false;
         } else {
-            var updaters = this._updaters.getValues();
-            for (var i = geometries.length - 1; i > -1; i--) {
-                var instance = geometries[i];
+            var updaters = this.updaters.getValues();
+            var length = geometry.length;
+            for (var i = 0; i < length; i++) {
+                var instance = geometry[i];
                 var updater = updaters[i];
 
                 var attributes = updater.attributes;
@@ -85,14 +86,74 @@ define(['../Core/ColorGeometryInstanceAttribute',
         }
     };
 
-    StaticGeometryColorBatch.prototype.removeAllPrimitives = function() {
-        if (defined(this._primitive)) {
-            var primitives = this._primitives;
-            primitives.remove(this._primitive);
-            this._primitive = undefined;
-            this._geometry.removeAll();
-            this._updaters.removeAll();
+    Batch.prototype.removeAllPrimitives = function() {
+        var primitive = this.primitive;
+        if (defined(primitive)) {
+            this.primitives.remove(primitive);
+            this.primitive = undefined;
+            this.geometry.removeAll();
+            this.updaters.removeAll();
         }
+    };
+
+    var StaticGeometryColorBatch = function(primitives) {
+        this._solidBatch = new Batch(primitives, false);
+        this._translucentBatch = new Batch(primitives, true);
+    };
+
+    StaticGeometryColorBatch.prototype.add = function(updater) {
+        var color = updater.color;
+        if (defined(color) && color.alpha === 1.0) {
+            this._solidBatch.add(updater);
+        } else {
+            this._translucentBatch.add(updater);
+        }
+    };
+
+    StaticGeometryColorBatch.prototype.remove = function(updater) {
+        if (!this._solidBatch.remove(updater)) {
+            this._translucentBatch.remove(updater);
+        }
+    };
+
+    StaticGeometryColorBatch.prototype.update = function() {
+        var i;
+        var color;
+        var length;
+        var updater;
+        var updaters;
+
+        //Iterate over each of the current updaters
+        //to check if a color swapped from solid to translucent.
+        updaters = this._solidBatch.updaters.getValues();
+        length = updaters.length;
+        for (i = 0; i < length; i++) {
+            updater = updaters[i];
+            color = updater.color;
+            if (!defined(color) || color.alpha !== 1.0) {
+                this._solidBatch.remove(updater);
+                this._translucentBatch.add(updater);
+            }
+        }
+
+        updaters = this._translucentBatch.updaters.getValues();
+        length = updaters.length;
+        for (i = 0; i < length; i++) {
+            updater = updaters[i];
+            color = updater.color;
+            if (defined(color) && color.alpha === 1.0) {
+                this._translucentBatch.remove(updater);
+                this._solidBatch.add(updater);
+            }
+        }
+
+        this._solidBatch.update();
+        this._translucentBatch.update();
+    };
+
+    StaticGeometryColorBatch.prototype.removeAllPrimitives = function() {
+        this._solidBatch.removeAllPrimitives();
+        this._translucentBatch.removeAllPrimitives();
     };
 
     return StaticGeometryColorBatch;
