@@ -904,9 +904,15 @@ define([
             dynamicObject.ellipse = ellipse = new DynamicEllipse();
         }
 
+        processPacketData(Boolean, ellipse, 'show', ellipseData.show, interval, sourceUri);
         processPacketData(Number, ellipse, 'bearing', ellipseData.bearing, interval, sourceUri);
         processPacketData(Number, ellipse, 'semiMajorAxis', ellipseData.semiMajorAxis, interval, sourceUri);
         processPacketData(Number, ellipse, 'semiMinorAxis', ellipseData.semiMinorAxis, interval, sourceUri);
+        processPacketData(Number, ellipse, 'height', ellipseData.height, interval, sourceUri);
+        processPacketData(Number, ellipse, 'extrudedHeight', ellipseData.extrudedHeight, interval, sourceUri);
+        processPacketData(Number, ellipse, 'granularity', ellipseData.granularity, interval, sourceUri);
+        processPacketData(Number, ellipse, 'stRotation', ellipseData.stRotation, interval, sourceUri);
+        processMaterialPacketData(ellipse, 'material', ellipseData.material, interval, sourceUri);
     }
 
     function processEllipsoid(dynamicObject, packet, dynamicObjectCollection, sourceUri) {

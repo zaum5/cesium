@@ -30,11 +30,12 @@ define(['../Core/Cartesian3',
         this._semiMajorAxis = undefined;
         this._semiMinorAxis = undefined;
         this._bearing = undefined;
-        this._lastPosition = undefined;
-        this._lastSemiMajorAxis = undefined;
-        this._lastSemiMinorAxis = undefined;
-        this._lastBearing = undefined;
-        this._cachedVertexPositions = undefined;
+        this._show = undefined;
+        this._material = undefined;
+        this._height = undefined;
+        this._extrudedHeight = undefined;
+        this._granularity = undefined;
+        this._stRotation = undefined;
         this._propertyChanged = new Event();
     };
 
@@ -69,7 +70,54 @@ define(['../Core/Cartesian3',
          * @memberof DynamicEllipse.prototype
          * @type {Property}
          */
-        bearing : createDynamicPropertyDescriptor('bearing', '_bearing')
+        bearing : createDynamicPropertyDescriptor('bearing', '_bearing'),
+
+        /**
+         * Gets or sets the boolean {@link Property} specifying the polygon's visibility.
+         * @memberof DynamicPolygon.prototype
+         * @type {Property}
+         */
+        show : createDynamicPropertyDescriptor('show', '_show'),
+
+        /**
+         * Gets or sets the {@link MaterialProperty} specifying the appearance of the polygon.
+         * @memberof DynamicPolygon.prototype
+         * @type {MaterialProperty}
+         */
+        material : createDynamicPropertyDescriptor('material', '_material'),
+
+        /**
+         * Gets or sets the Number {@link Property} specifying the height of the polygon.
+         * If undefined, the polygon will be on the surface.
+         * @memberof DynamicPolygon.prototype
+         * @type {Property}
+         */
+        height : createDynamicPropertyDescriptor('height', '_height'),
+
+        /**
+         * Gets or sets the Number {@link Property} specifying the extruded height of the polygon.
+         * Setting this property creates a polygon shaped volume starting at height and ending
+         * at the extruded height.
+         * @memberof DynamicPolygon.prototype
+         * @type {Property}
+         */
+        extrudedHeight : createDynamicPropertyDescriptor('extrudedHeight', '_extrudedHeight'),
+
+        /**
+         * Gets or sets the Number {@link Property} specifying the sampling distance, in radians,
+         * between each latitude and longitude point.
+         * @memberof DynamicPolygon.prototype
+         * @type {Property}
+         */
+        granularity : createDynamicPropertyDescriptor('granularity', '_granularity'),
+
+        /**
+         * Gets or sets the Number {@link Property} specifying the rotation of the texture coordinates,
+         * in radians. A positive rotation is counter-clockwise.
+         * @memberof DynamicPolygon.prototype
+         * @type {Property}
+         */
+        stRotation : createDynamicPropertyDescriptor('stRotation', '_stRotation')
     });
 
     /**
@@ -86,6 +134,12 @@ define(['../Core/Cartesian3',
         result.bearing = this.bearing;
         result.semiMajorAxis = this.semiMajorAxis;
         result.semiMinorAxis = this.semiMinorAxis;
+        result.show = this.show;
+        result.material = this.material;
+        result.height = this.height;
+        result.extrudedHeight = this.extrudedHeight;
+        result.granularity = this.granularity;
+        result.stRotation = this.stRotation;
         return result;
     };
 
@@ -104,60 +158,12 @@ define(['../Core/Cartesian3',
         this.bearing = defaultValue(this.bearing, source.bearing);
         this.semiMajorAxis = defaultValue(this.semiMajorAxis, source.semiMajorAxis);
         this.semiMinorAxis = defaultValue(this.semiMinorAxis, source.semiMinorAxis);
-    };
-
-    /**
-     * Gets an array of vertex positions for the ellipse at the provided time.
-     *
-     * @param {JulianDate} time The desired time.
-     * @param {Ellipsoid} ellipsoid The ellipsoid on which the ellipse will be on.
-     * @param {Cartesian3} position The position of the ellipsoid.
-     * @returns An array of vertex positions.
-     */
-    DynamicEllipse.prototype.getValue = function(time, position) {
-        var semiMajorAxisProperty = this._semiMajorAxis;
-        var semiMinorAxisProperty = this._semiMinorAxis;
-
-        if (!defined(position) || //
-            !defined(semiMajorAxisProperty) || //
-            !defined(semiMinorAxisProperty)) {
-            return undefined;
-        }
-
-        var semiMajorAxis = semiMajorAxisProperty.getValue(time);
-        var semiMinorAxis = semiMinorAxisProperty.getValue(time);
-
-        var bearing = 0.0;
-        var bearingProperty = this._bearing;
-        if (defined(bearingProperty)) {
-            bearing = bearingProperty.getValue(time);
-        }
-
-        if (!defined(semiMajorAxis) || //
-            !defined(semiMinorAxis) || //
-            semiMajorAxis === 0.0 || //
-            semiMinorAxis === 0.0) {
-            return undefined;
-        }
-
-        var lastPosition = this._lastPosition;
-        var lastSemiMajorAxis = this._lastSemiMajorAxis;
-        var lastSemiMinorAxis = this._lastSemiMinorAxis;
-        var lastBearing = this._lastBearing;
-        if (bearing !== lastBearing || //
-            lastSemiMajorAxis !== semiMajorAxis || //
-            lastSemiMinorAxis !== semiMinorAxis || //
-            !Cartesian3.equals(lastPosition, position)) {
-
-            //CZML_TODO The surface reference should come from CZML and not be hard-coded to Ellipsoid.WGS84.
-            this._cachedVertexPositions = Shapes.computeEllipseBoundary(Ellipsoid.WGS84, position, semiMajorAxis, semiMinorAxis, bearing);
-            this._lastPosition = Cartesian3.clone(position, this._lastPosition);
-            this._lastBearing = bearing;
-            this._lastSemiMajorAxis = semiMajorAxis;
-            this._lastSemiMinorAxis = semiMinorAxis;
-        }
-
-        return this._cachedVertexPositions;
+        this.show = defaultValue(this.show, source.show);
+        this.material = defaultValue(this.material, source.material);
+        this.height = defaultValue(this.height, source.height);
+        this.extrudedHeight = defaultValue(this.extrudedHeight, source.extrudedHeight);
+        this.granularity = defaultValue(this.granularity, source.granularity);
+        this.stRotation = defaultValue(this.stRotation, source.stRotation);
     };
 
     return DynamicEllipse;

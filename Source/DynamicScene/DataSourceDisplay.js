@@ -6,6 +6,7 @@ define([
         '../Core/DeveloperError',
         '../Core/EventHelper',
         './DynamicBillboardVisualizer',
+        './EllipseGeometryUpdater',
         './EllipsoidGeometryUpdater',
         './DynamicConeVisualizerUsingCustomSensor',
         './DynamicLabelVisualizer',
@@ -23,6 +24,7 @@ define([
         DeveloperError,
         EventHelper,
         DynamicBillboardVisualizer,
+        EllipseGeometryUpdater,
         EllipsoidGeometryUpdater,
         DynamicConeVisualizerUsingCustomSensor,
         DynamicLabelVisualizer,
@@ -37,6 +39,8 @@ define([
 
     var defaultVisualizerTypes = [function(scene) {
         return new DynamicBillboardVisualizer(scene);
+    }, function(scene) {
+        return new GeometryVisualizer(EllipseGeometryUpdater, scene);
     }, function(scene) {
         return new GeometryVisualizer(EllipsoidGeometryUpdater, scene);
     }, function(scene) {
