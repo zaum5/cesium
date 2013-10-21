@@ -6,7 +6,9 @@ defineSuite([
          'DynamicScene/ConstantProperty',
          'DynamicScene/DynamicObject',
          'Scene/CameraFlightPath',
-         'Widgets/Viewer/Viewer'
+         'DynamicScene/ConstantProperty',
+         'Widgets/Viewer/Viewer',
+         'Specs/MockDataSource'
      ], function(
          viewerDynamicObjectMixin,
          Cartesian3,
@@ -14,7 +16,9 @@ defineSuite([
          ConstantProperty,
          DynamicObject,
          CameraFlightPath,
-         Viewer) {
+         ConstantProperty,
+         Viewer,
+         MockDataSource) {
     "use strict";
     /*global jasmine,describe,xdescribe,it,xit,expect,beforeEach,afterEach,beforeAll,afterAll,spyOn,runs,waits,waitsFor*/
 
@@ -134,6 +138,7 @@ defineSuite([
             viewer.onObjectTracked.removeEventListener(spyListener);
         });
     });
+
     it('throws if balloonedObject property already added by another mixin.', function() {
         var viewer = new Viewer(container);
         viewer.balloonedObject = true;
@@ -141,5 +146,69 @@ defineSuite([
             viewer.extend(viewerDynamicObjectMixin);
         }).toThrow();
         viewer.destroy();
+    });
+
+    it('returns to home when a tracked object is removed', function() {
+        viewer = new Viewer(container);
+
+        //one data source that is added before mixing in
+        var preMixinDataSource = new MockDataSource();
+        viewer.dataSources.add(preMixinDataSource);
+
+        var beforeDynamicObject = new DynamicObject();
+        beforeDynamicObject.position = new ConstantProperty(new Cartesian3(123456, 123456, 123456));
+        preMixinDataSource.dynamicObjectCollection.add(beforeDynamicObject);
+
+        viewer.extend(viewerDynamicObjectMixin);
+
+        //one data source that is added after mixing in
+        var postMixinDataSource = new MockDataSource();
+        viewer.dataSources.add(postMixinDataSource);
+
+        var dynamicObject = new DynamicObject();
+        dynamicObject.position = new ConstantProperty(new Cartesian3(123456, 123456, 123456));
+        postMixinDataSource.dynamicObjectCollection.add(dynamicObject);
+
+        viewer.trackedObject = dynamicObject;
+        expect(viewer.trackedObject).toBe(dynamicObject);
+
+        // spy on the home button's command
+        Object.defineProperty(viewer.homeButton.viewModel, 'command', {
+            value : jasmine.createSpy('command')
+        });
+
+        postMixinDataSource.dynamicObjectCollection.remove(dynamicObject);
+
+        expect(viewer.homeButton.viewModel.command).toHaveBeenCalled();
+
+        // reset the spy before removing the other dynamic object
+        viewer.homeButton.viewModel.command.reset();
+
+        viewer.trackedObject = beforeDynamicObject;
+        preMixinDataSource.dynamicObjectCollection.remove(beforeDynamicObject);
+
+        expect(viewer.homeButton.viewModel.command).toHaveBeenCalled();
+    });
+
+    it('removes data source listeners when destroyed', function() {
+        viewer = new Viewer(container);
+
+        //one data source that is added before mixing in
+        var preMixinDataSource = new MockDataSource();
+        viewer.dataSources.add(preMixinDataSource);
+
+        viewer.extend(viewerDynamicObjectMixin);
+
+        //one data source that is added after mixing in
+        var postMixinDataSource = new MockDataSource();
+        viewer.dataSources.add(postMixinDataSource);
+
+        var preMixinListenerCount = preMixinDataSource.dynamicObjectCollection.collectionChanged._listeners.length;
+        var postMixinListenerCount = postMixinDataSource.dynamicObjectCollection.collectionChanged._listeners.length;
+
+        viewer = viewer.destroy();
+
+        expect(preMixinDataSource.dynamicObjectCollection.collectionChanged._listeners.length).not.toEqual(preMixinListenerCount);
+        expect(postMixinDataSource.dynamicObjectCollection.collectionChanged._listeners.length).not.toEqual(postMixinListenerCount);
     });
 });

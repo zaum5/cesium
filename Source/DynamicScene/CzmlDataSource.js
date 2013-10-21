@@ -36,6 +36,7 @@ define([
         './DynamicBillboard',
         './DynamicClock',
         './ColorMaterialProperty',
+        './PolylineOutlineMaterialProperty',
         './DynamicCone',
         './DynamicLabel',
         './DynamicDirectionsProperty',
@@ -43,6 +44,7 @@ define([
         './DynamicEllipsoid',
         './GridMaterialProperty',
         './ImageMaterialProperty',
+        './DynamicObject',
         './DynamicObjectCollection',
         './DynamicPath',
         './DynamicPoint',
@@ -94,6 +96,7 @@ define([
         DynamicBillboard,
         DynamicClock,
         ColorMaterialProperty,
+        PolylineOutlineMaterialProperty,
         DynamicCone,
         DynamicLabel,
         DynamicDirectionsProperty,
@@ -101,6 +104,7 @@ define([
         DynamicEllipsoid,
         GridMaterialProperty,
         ImageMaterialProperty,
+        DynamicObject,
         DynamicObjectCollection,
         DynamicPath,
         DynamicPoint,
@@ -270,16 +274,18 @@ define([
             return HorizontalOrigin[defaultValue(czmlInterval.horizontalOrigin, czmlInterval)];
         case Image:
             return unwrapImageInterval(czmlInterval, sourceUri);
+        case JulianDate:
+            return JulianDate.fromIso8601(defaultValue(czmlInterval.date, czmlInterval));
         case LabelStyle:
             return LabelStyle[defaultValue(czmlInterval.labelStyle, czmlInterval)];
         case JulianDate:
             return JulianDate.fromIso8601(defaultValue(czmlInterval['iso8601'], czmlInterval));
         case Number:
-            return defaultValue(czmlInterval['number'], czmlInterval);
+            return defaultValue(czmlInterval.number, czmlInterval);
         case String:
-            return defaultValue(czmlInterval['string'], czmlInterval);
+            return defaultValue(czmlInterval.string, czmlInterval);
         case Array:
-            return czmlInterval['array'];
+            return czmlInterval.array;
         case Quaternion:
             return czmlInterval.unitQuaternion;
         case VerticalOrigin:
@@ -887,13 +893,6 @@ define([
         processMaterialPacketData(ellipsoid, 'material', ellipsoidData.material, interval, sourceUri);
     }
 
-    function processDescription(dynamicObject, packet, dynamicObjectCollection, sourceUri) {
-        var descriptionData = packet.description;
-        if (defined(descriptionData)) {
-            processPacketData(String, dynamicObject, 'balloon', descriptionData, undefined, sourceUri);
-        }
-    }
-
     function processLabel(dynamicObject, packet, dynamicObjectCollection, sourceUri) {
         var labelData = packet.label;
         if (!defined(labelData)) {
@@ -1009,11 +1008,39 @@ define([
             dynamicObject.polyline = polyline = new DynamicPolyline();
         }
 
-        processPacketData(Color, polyline, 'color', polylineData.color, interval, sourceUri);
-        processPacketData(Number, polyline, 'width', polylineData.width, interval, sourceUri);
-        processPacketData(Color, polyline, 'outlineColor', polylineData.outlineColor, interval, sourceUri);
-        processPacketData(Number, polyline, 'outlineWidth', polylineData.outlineWidth, interval, sourceUri);
+        //Since CZML does not support PolylineOutlineMaterial, we map it's properties into one.
+        var materialToProcess = polyline.material;
+        if (defined(interval)) {
+            var materialInterval;
+            var composite = materialToProcess;
+            if (!(composite instanceof CompositeMaterialProperty)) {
+                composite = new CompositeMaterialProperty();
+                polyline.material = composite;
+                if (defined(materialToProcess)) {
+                    materialInterval = Iso8601.MAXIMUM_INTERVAL.clone();
+                    materialInterval.data = materialToProcess;
+                    composite.intervals.addInterval(materialInterval);
+                }
+            }
+            materialInterval = composite.intervals.findInterval(interval.start, interval.stop, interval.isStartIncluded, interval.isStopIncluded);
+            if (defined(materialInterval)) {
+                materialToProcess = materialInterval.data;
+            } else {
+                materialToProcess = new PolylineOutlineMaterialProperty();
+                materialInterval = interval.clone();
+                materialInterval.data = materialToProcess;
+                composite.intervals.addInterval(materialInterval);
+            }
+        } else if (!(materialToProcess instanceof PolylineOutlineMaterialProperty)) {
+            materialToProcess = new PolylineOutlineMaterialProperty();
+            polyline.material = materialToProcess;
+        }
+
         processPacketData(Boolean, polyline, 'show', polylineData.show, interval, sourceUri);
+        processPacketData(Number, polyline, 'width', polylineData.width, interval, sourceUri);
+        processPacketData(Color, materialToProcess, 'color', polylineData.color, interval, sourceUri);
+        processPacketData(Color, materialToProcess, 'outlineColor', polylineData.outlineColor, interval, sourceUri);
+        processPacketData(Number, materialToProcess, 'outlineWidth', polylineData.outlineWidth, interval, sourceUri);
     }
 
     function processPyramid(dynamicObject, packet, dynamicObjectCollection, sourceUri) {
@@ -1080,35 +1107,19 @@ define([
         if (packet['delete'] === true) {
             dynamicObjectCollection.removeById(objectId);
         } else {
-            var dynamicObject = dynamicObjectCollection.getOrCreateObject(objectId);
-
-            var i;
-            var unresolvedParents;
-            var parentId = packet.parent;
-            if (defined(parentId)) {
-                var parent = dynamicObjectCollection.getById(parentId);
-
-                //If we have already loaded the parent, resolve it,
-                if (defined(parent)) {
-                    dynamicObject.parent = parent;
-                } else {
-                    unresolvedParents = dataSource._unresolvedParents[parentId];
-                    if (!defined(unresolvedParents)) {
-                        dataSource._unresolvedParents[parentId] = [dynamicObject];
-                    } else {
-                        unresolvedParents.push(dynamicObject);
-                    }
-                }
-                unresolvedParents = dataSource._unresolvedParents[objectId];
-                if (defined(unresolvedParents)) {
-                    for (i = 0; i < unresolvedParents.length; i++) {
-                        unresolvedParents[i].parent = dynamicObject;
-                    }
-                    dataSource._unresolvedParents[objectId] = undefined;
-                }
+            var dynamicObject;
+            if (objectId === 'document') {
+                dynamicObject = dataSource._document;
+            } else {
+                dynamicObject = dynamicObjectCollection.getOrCreateObject(objectId);
             }
 
-            for (i = updaterFunctions.length - 1; i > -1; i--) {
+            var parentId = packet.parent;
+            if (defined(parentId)) {
+                dynamicObject.parent = dynamicObjectCollection.getOrCreateObject(parentId);
+            }
+
+            for (var i = updaterFunctions.length - 1; i > -1; i--) {
                 updaterFunctions[i](dynamicObject, packet, dynamicObjectCollection, sourceUri);
             }
         }
@@ -1120,7 +1131,7 @@ define([
         var availability = dynamicObjectCollection.computeAvailability();
 
         var clock;
-        var documentObject = dynamicObjectCollection.getById('document');
+        var documentObject = dataSource._document;
         if (defined(documentObject) && defined(documentObject.clock)) {
             clock = new DynamicClock();
             clock.startTime = documentObject.clock.startTime;
@@ -1152,8 +1163,6 @@ define([
 
         dataSource._name = name;
 
-        //FIXME This is a temporary hack to sstop the document from showing up in the DataSourceBrowser.
-        dynamicObjectCollection.removeById('document');
         return clock;
     }
 
@@ -1180,7 +1189,7 @@ define([
         this._clock = undefined;
         this._dynamicObjectCollection = new DynamicObjectCollection();
         this._timeVarying = true;
-        this._unresolvedParents = {};
+        this._document = new DynamicObject();
     };
 
     /**
@@ -1193,7 +1202,6 @@ define([
     processEllipse, //
     processEllipsoid, //
     processCone, //
-    processDescription, //
     processLabel, //
     processName, //
     processPath, //
@@ -1337,7 +1345,7 @@ define([
             throw new DeveloperError('czml is required.');
         }
 
-        this._unresolvedParents = {};
+        this._document = new DynamicObject('document');
         this._dynamicObjectCollection.removeAll();
         this._clock = loadCzml(this, czml, source);
     };
