@@ -15,6 +15,7 @@ define(['../Core/createGuid',
         '../Core/JulianDate',
         '../Core/NearFarScalar',
         '../Core/TimeInterval',
+        '../Core/PolygonPipeline',
         '../Core/loadBlob',
         '../Core/loadXML',
         './ConstantProperty',
@@ -34,7 +35,7 @@ define(['../Core/createGuid',
         './DynamicBillboard',
         '../ThirdParty/Uri',
         '../ThirdParty/when',
-        '../ThirdParty/zip/zip'
+        '../ThirdParty/zip'
     ], function(
         createGuid,
         defined,
@@ -52,6 +53,7 @@ define(['../Core/createGuid',
         JulianDate,
         NearFarScalar,
         TimeInterval,
+        PolygonPipeline,
         loadBlob,
         loadXML,
         ConstantProperty,
@@ -238,14 +240,31 @@ define(['../Core/createGuid',
         if (!equalCoordinateTuples(coordinates[0], coordinates[el.length - 1])) {
             throw new RuntimeError('The first and last coordinate tuples must be the same.');
         }
-        dynamicObject.vertexPositions = new ConstantProperty(coordinates);
+        //TODO Should we be doing this here?
+        coordinates = PolygonPipeline.removeDuplicates(coordinates);
+        if (coordinates.length > 3) {
+            dynamicObject.vertexPositions = new ConstantProperty(coordinates);
+        }
     }
 
     function processPolygon(dataSource, dynamicObject, kml, node) {
-        //TODO innerBoundaryIS, extrude, tessellate, altitudeMode
+        //TODO innerBoundaryIS, tessellate, altitudeMode
         var el = node.getElementsByTagName('outerBoundaryIs');
         for (var j = 0; j < el.length; j++) {
             processLinearRing(dataSource, dynamicObject, kml, el[j]);
+        }
+
+        if (defined(dynamicObject.vertexPositions)) {
+            //TODO KML polygons can take into account altitude for each point, we currently can't.
+            var extrude = getNumericValue(node, 'extrude');
+            if (extrude === 1) {
+                var tmp = dynamicObject.vertexPositions.getValue()[0];
+                if (!defined(dynamicObject.polygon)) {
+                    dynamicObject.polygon = new DynamicPolygon();
+                }
+                dynamicObject.polygon.height = new ConstantProperty(0);
+                dynamicObject.polygon.extrudedHeight = new ConstantProperty(Ellipsoid.WGS84.cartesianToCartographic(tmp).height);
+            }
         }
     }
 
