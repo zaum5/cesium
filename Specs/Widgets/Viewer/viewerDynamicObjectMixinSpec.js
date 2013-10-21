@@ -6,7 +6,6 @@ defineSuite([
          'DynamicScene/ConstantProperty',
          'DynamicScene/DynamicObject',
          'Scene/CameraFlightPath',
-         'DynamicScene/ConstantProperty',
          'Widgets/Viewer/Viewer',
          'Specs/MockDataSource'
      ], function(
@@ -16,7 +15,6 @@ defineSuite([
          ConstantProperty,
          DynamicObject,
          CameraFlightPath,
-         ConstantProperty,
          Viewer,
          MockDataSource) {
     "use strict";
@@ -138,7 +136,6 @@ defineSuite([
             viewer.onObjectTracked.removeEventListener(spyListener);
         });
     });
-
     it('throws if balloonedObject property already added by another mixin.', function() {
         var viewer = new Viewer(container);
         viewer.balloonedObject = true;
