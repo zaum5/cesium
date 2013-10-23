@@ -20,6 +20,7 @@ define([
         '../ClockViewModel',
         '../DataSourceBrowser/DataSourceBrowser',
         '../FullscreenButton/FullscreenButton',
+        '../Geocoder/Geocoder',
         '../getElement',
         '../HomeButton/HomeButton',
         '../SceneModePicker/SceneModePicker',
@@ -46,6 +47,7 @@ define([
         ClockViewModel,
         DataSourceBrowser,
         FullscreenButton,
+        Geocoder,
         getElement,
         HomeButton,
         SceneModePicker,
@@ -103,6 +105,7 @@ define([
      * @param {Boolean} [options.baseLayerPicker=true] If set to false, the BaseLayerPicker widget will not be created.
      * @param {Boolean} [options.dataSourceBrowser=true] If set to false, the DataSourceBrowser widget will not be created.
      * @param {Boolean} [options.fullscreenButton=true] If set to false, the FullscreenButton widget will not be created.
+     * @param {Boolean} [options.geocoder=true] If set to false, the Geocoder widget will not be created.
      * @param {Boolean} [options.homeButton=true] If set to false, the HomeButton widget will not be created.
      * @param {Boolean} [options.sceneModePicker=true] If set to false, the SceneModePicker widget will not be created.
      * @param {Boolean} [options.timeline=true] If set to false, the Timeline widget will not be created.
@@ -222,36 +225,40 @@ Either specify options.imageryProvider instead or set options.baseLayerPicker to
         toolbar.className = 'cesium-viewer-toolbar';
         viewerContainer.appendChild(toolbar);
 
+        //Geocoder
+        var geocoder;
+        if (!defined(options.geocoder) || options.geocoder !== false) {
+            var geocoderContainer = document.createElement('div');
+            geocoderContainer.className = 'cesium-viewer-geocoderContainer';
+            toolbar.appendChild(geocoderContainer);
+            geocoder = new Geocoder({
+                container : geocoderContainer,
+                scene : cesiumWidget.scene,
+                ellipsoid : cesiumWidget.centralBody.getEllipsoid()
+            });
+        }
+
         //HomeButton
         var homeButton;
         if (!defined(options.homeButton) || options.homeButton !== false) {
-            var homeButtonContainer = document.createElement('div');
-            homeButtonContainer.className = 'cesium-viewer-homeButtonContainer';
-            toolbar.appendChild(homeButtonContainer);
-            homeButton = new HomeButton(homeButtonContainer, cesiumWidget.scene, cesiumWidget.sceneTransitioner, cesiumWidget.centralBody.getEllipsoid());
+            homeButton = new HomeButton(toolbar, cesiumWidget.scene, cesiumWidget.sceneTransitioner, cesiumWidget.centralBody.getEllipsoid());
         }
 
         //SceneModePicker
         var sceneModePicker;
         if (!defined(options.sceneModePicker) || options.sceneModePicker !== false) {
-            var sceneModePickerContainer = document.createElement('div');
-            sceneModePickerContainer.className = 'cesium-viewer-sceneModePickerContainer';
-            toolbar.appendChild(sceneModePickerContainer);
-            sceneModePicker = new SceneModePicker(sceneModePickerContainer, cesiumWidget.sceneTransitioner);
+            sceneModePicker = new SceneModePicker(toolbar, cesiumWidget.sceneTransitioner);
         }
 
         //BaseLayerPicker
         var baseLayerPicker;
         if (createBaseLayerPicker) {
-            var baseLayerPickerContainer = document.createElement('div');
-            baseLayerPickerContainer.className = 'cesium-viewer-baseLayerPickerContainer';
-            toolbar.appendChild(baseLayerPickerContainer);
             var providerViewModels = defaultValue(options.imageryProviderViewModels, createDefaultBaseLayers());
-            baseLayerPicker = new BaseLayerPicker(baseLayerPickerContainer, cesiumWidget.centralBody.getImageryLayers(), providerViewModels);
+            baseLayerPicker = new BaseLayerPicker(toolbar, cesiumWidget.centralBody.getImageryLayers(), providerViewModels);
             baseLayerPicker.viewModel.selectedItem = defaultValue(options.selectedImageryProviderViewModel, providerViewModels[0]);
 
             //Grab the dropdown for resize code.
-            var elements = baseLayerPickerContainer.getElementsByClassName('cesium-baseLayerPicker-dropDown');
+            var elements = toolbar.getElementsByClassName('cesium-baseLayerPicker-dropDown');
             this._baseLayerPickerDropDown = elements[0];
         }
 
@@ -357,6 +364,7 @@ Either specify options.imageryProvider instead or set options.baseLayerPicker to
         this._timeline = timeline;
         this._fullscreenButton = fullscreenButton;
         this._dataSourceBrowser = dataSourceBrowser;
+        this._geocoder = geocoder;
         this._eventHelper = eventHelper;
         this._lastWidth = 0;
         this._lastHeight = 0;
@@ -389,6 +397,17 @@ Either specify options.imageryProvider instead or set options.baseLayerPicker to
         cesiumWidget : {
             get : function() {
                 return this._cesiumWidget;
+            }
+        },
+
+        /**
+         * Gets the Geocoder.
+         * @memberof Viewer.prototype
+         * @type {Geocoder}
+         */
+        geocoder : {
+            get : function() {
+                return this._geocoder;
             }
         },
 
@@ -740,6 +759,10 @@ Either specify options.imageryProvider instead or set options.baseLayerPicker to
         this._element.removeChild(this._toolbar);
 
         this._eventHelper.removeAll();
+
+        if (defined(this._geocoder)) {
+            this._geocoder = this._geocoder.destroy();
+        }
 
         if (defined(this._homeButton)) {
             this._homeButton = this._homeButton.destroy();
