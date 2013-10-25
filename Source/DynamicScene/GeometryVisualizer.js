@@ -11,7 +11,8 @@ define(['../Core/defined',
         './DynamicObjectCollection',
         './GeometryBatchType',
         './StaticGeometryColorBatch',
-        './StaticGeometryPerMaterialBatch'
+        './StaticGeometryPerMaterialBatch',
+        './StaticOutlineGeometryBatch'
     ], function(
         defined,
         DeveloperError,
@@ -25,7 +26,8 @@ define(['../Core/defined',
         DynamicObjectCollection,
         GeometryBatchType,
         StaticGeometryColorBatch,
-        StaticGeometryPerMaterialBatch) {
+        StaticGeometryPerMaterialBatch,
+        StaticOutlineGeometryBatch) {
     "use strict";
 
     var emptyArray = [];
@@ -69,12 +71,15 @@ define(['../Core/defined',
         this._addedObjects = new DynamicObjectCollection();
         this._removedObjects = new DynamicObjectCollection();
 
+        this._outlineBatch = new StaticOutlineGeometryBatch(primitives);
+
         this._batches = [];
         this._batches[GeometryBatchType.COLOR.value] = new StaticGeometryColorBatch(primitives, PerInstanceColorAppearance);
         this._batches[GeometryBatchType.POLYLINE_COLOR.value] = new StaticGeometryColorBatch(primitives, PolylineColorAppearance);
         this._batches[GeometryBatchType.MATERIAL.value] = new StaticGeometryPerMaterialBatch(primitives, MaterialAppearance);
         this._batches[GeometryBatchType.POLYLINE_MATERIAL.value] = new StaticGeometryPerMaterialBatch(primitives, PolylineMaterialAppearance);
         this._batches[GeometryBatchType.DYNAMIC.value] = new DynamicGeometryBatch(primitives);
+        this._batches[GeometryBatchType.OUTLINE.value] = this._outlineBatch;
 
         this._updaters = new Dictionary();
         this.setDynamicObjectCollection(dynamicObjectCollection);
@@ -152,6 +157,7 @@ define(['../Core/defined',
             if (defined(batch)) {
                 batch.remove(updater);
             }
+
             updater.destroy();
             this._updaters.remove(id);
         }
@@ -159,7 +165,7 @@ define(['../Core/defined',
         for (i = added.length - 1; i > -1; i--) {
             dynamicObject = added[i];
             id = dynamicObject.id;
-            updater = this._updaters.add(id, new this._type(dynamicObject));
+            this._updaters.add(id, new this._type(dynamicObject));
         }
 
         addedObjects.removeAll();
@@ -171,8 +177,11 @@ define(['../Core/defined',
         //re-bit it into a new batch.
         for (g = 0; g < updaters.length; g++) {
             updater = updaters[g];
+            var outline = updater.outline;
             var oldType = updater.geometryType;
+
             updater.update(time);
+
             var newType = updater.geometryType;
             if (oldType !== newType) {
                 batch = batches[oldType.value];
@@ -182,6 +191,13 @@ define(['../Core/defined',
                 batch = batches[newType.value];
                 if (defined(batch)) {
                     batch.add(updater);
+                }
+            }
+            if (outline !== updater.outline) {
+                if (updater.outline) {
+                    this._outlineBatch.add(updater);
+                } else {
+                    this._outlineBatch.remove(updater);
                 }
             }
         }
