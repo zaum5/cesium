@@ -94,7 +94,7 @@ define(['../Core/Color',
 
     EllipsoidGeometryUpdater.prototype.update = function(time) {
         if (this._needEvaluation) {
-            this.evaluate();
+            this._evaluate();
         }
 
         var type = this.geometryType;
@@ -144,7 +144,7 @@ define(['../Core/Color',
         }
     };
 
-    EllipsoidGeometryUpdater.prototype.evaluate = function() {
+    EllipsoidGeometryUpdater.prototype._evaluate = function() {
         this._needEvaluation = false;
 
         var dynamicObject = this.dynamicObject;

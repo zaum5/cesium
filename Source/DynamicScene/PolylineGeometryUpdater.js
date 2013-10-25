@@ -94,7 +94,7 @@ define(['../Core/Color',
 
     PolylineGeometryUpdater.prototype.update = function(time) {
         if (this._needEvaluation) {
-            this.evaluate();
+            this._evaluate();
         }
 
         var type = this.geometryType;
@@ -127,7 +127,7 @@ define(['../Core/Color',
         }
     };
 
-    PolylineGeometryUpdater.prototype.evaluate = function() {
+    PolylineGeometryUpdater.prototype._evaluate = function() {
         this._needEvaluation = false;
 
         var dynamicObject = this.dynamicObject;
