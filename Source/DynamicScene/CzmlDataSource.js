@@ -913,6 +913,10 @@ define([
         processPacketData(Number, ellipse, 'granularity', ellipseData.granularity, interval, sourceUri);
         processPacketData(Number, ellipse, 'stRotation', ellipseData.stRotation, interval, sourceUri);
         processMaterialPacketData(ellipse, 'material', ellipseData.material, interval, sourceUri);
+        processPacketData(Boolean, ellipse, 'fill', ellipseData.fill, interval, sourceUri);
+        processPacketData(Boolean, ellipse, 'outline', ellipseData.outline, interval, sourceUri);
+        processPacketData(Color, ellipse, 'outlineColor', ellipseData.outlineColor, interval, sourceUri);
+        processPacketData(Number, ellipse, 'outlineWidth', ellipseData.outlineWidth, interval, sourceUri);
     }
 
     function processEllipsoid(dynamicObject, packet, dynamicObjectCollection, sourceUri) {
@@ -934,6 +938,10 @@ define([
         processPacketData(Boolean, ellipsoid, 'show', ellipsoidData.show, interval, sourceUri);
         processPacketData(Cartesian3, ellipsoid, 'radii', ellipsoidData.radii, interval, sourceUri);
         processMaterialPacketData(ellipsoid, 'material', ellipsoidData.material, interval, sourceUri);
+        processPacketData(Boolean, ellipsoid, 'fill', ellipsoidData.fill, interval, sourceUri);
+        processPacketData(Boolean, ellipsoid, 'outline', ellipsoidData.outline, interval, sourceUri);
+        processPacketData(Color, ellipsoid, 'outlineColor', ellipsoidData.outlineColor, interval, sourceUri);
+        processPacketData(Number, ellipsoid, 'outlineWidth', ellipsoidData.outlineWidth, interval, sourceUri);
     }
 
     function processLabel(dynamicObject, packet, dynamicObjectCollection, sourceUri) {
@@ -1037,6 +1045,10 @@ define([
         processPacketData(Number, polygon, 'extrudedHeight', polygonData.extrudedHeight, interval, sourceUri);
         processPacketData(Number, polygon, 'granularity', polygonData.granularity, interval, sourceUri);
         processPacketData(Number, polygon, 'stRotation', polygonData.stRotation, interval, sourceUri);
+        processPacketData(Boolean, polygon, 'fill', polygonData.fill, interval, sourceUri);
+        processPacketData(Boolean, polygon, 'outline', polygonData.outline, interval, sourceUri);
+        processPacketData(Color, polygon, 'outlineColor', polygonData.outlineColor, interval, sourceUri);
+        processPacketData(Number, polygon, 'outlineWidth', polygonData.outlineWidth, interval, sourceUri);
     }
 
     function processPolyline(dynamicObject, packet, dynamicObjectCollection, sourceUri) {
