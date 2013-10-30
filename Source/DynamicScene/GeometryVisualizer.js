@@ -177,7 +177,7 @@ define(['../Core/defined',
         //re-bit it into a new batch.
         for (g = 0; g < updaters.length; g++) {
             updater = updaters[g];
-            var outline = updater.outline;
+            var hasOutline = updater.hasOutline;
             var oldType = updater.geometryType;
 
             updater.update(time);
@@ -193,8 +193,8 @@ define(['../Core/defined',
                     batch.add(updater);
                 }
             }
-            if (outline !== updater.outline) {
-                if (updater.outline) {
+            if ((hasOutline !== updater.hasOutline) && newType !== GeometryBatchType.DYNAMIC) {
+                if (updater.hasOutline) {
                     this._outlineBatch.add(updater);
                 } else {
                     this._outlineBatch.remove(updater);

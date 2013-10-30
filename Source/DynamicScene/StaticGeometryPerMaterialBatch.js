@@ -127,7 +127,7 @@ define(['../Core/defined',
     StaticGeometryPerMaterialBatch.prototype.remove = function(updater) {
         var items = this.items;
         var length = items.length;
-        for (var i = 0; i < length; i++) {
+        for (var i = length - 1; i >= 0; i--) {
             var item = items[i];
             if (item.remove(updater)) {
                 break;

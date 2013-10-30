@@ -83,14 +83,7 @@ define(['../Core/ColorGeometryInstanceAttribute',
                     attributes = primitive.getGeometryInstanceAttributes(instance.id);
                     updater.outlineAttributes = attributes;
                 }
-                var color = updater.outlineColor;
-                if (defined(color)) {
-                    attributes.color = ColorGeometryInstanceAttribute.toValue(color, attributes.color);
-                }
-                var show = updater.outline;
-                if (defined(show)) {
-                    attributes.show = ShowGeometryInstanceAttribute.toValue(show, attributes.show);
-                }
+                updater.updateOutlineAttributes(attributes);
             }
         }
     };
@@ -111,11 +104,10 @@ define(['../Core/ColorGeometryInstanceAttribute',
     };
 
     StaticOutlineGeometryBatch.prototype.add = function(updater) {
-        var color = updater.outlineColor;
-        if (defined(color) && color.alpha === 1.0) {
-            this._solidBatch.add(updater);
-        } else {
+        if (updater.isOutlineTranslucent) {
             this._translucentBatch.add(updater);
+        } else {
+            this._solidBatch.add(updater);
         }
     };
 
@@ -136,10 +128,9 @@ define(['../Core/ColorGeometryInstanceAttribute',
         //to check if a color swapped from solid to translucent.
         updaters = this._solidBatch.updaters.getValues();
         length = updaters.length;
-        for (i = 0; i < length; i++) {
+        for (i = length - 1; i >= 0; i--) {
             updater = updaters[i];
-            color = updater.outlineColor;
-            if (!defined(color) || color.alpha !== 1.0) {
+            if (updater.isOutlineTranslucent) {
                 this._solidBatch.remove(updater);
                 this._translucentBatch.add(updater);
             }
@@ -147,10 +138,9 @@ define(['../Core/ColorGeometryInstanceAttribute',
 
         updaters = this._translucentBatch.updaters.getValues();
         length = updaters.length;
-        for (i = 0; i < length; i++) {
+        for (i = length - 1; i >= 0; i--) {
             updater = updaters[i];
-            color = updater.outlineColor;
-            if (defined(color) && color.alpha === 1.0) {
+            if (updater.isOutlineTranslucent) {
                 this._translucentBatch.remove(updater);
                 this._solidBatch.add(updater);
             }
