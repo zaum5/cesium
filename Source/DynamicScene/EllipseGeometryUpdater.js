@@ -333,7 +333,7 @@ define(['../Core/Color',
             this._semiMinorAxisProperty = semiMinorAxisProperty;
         }
 
-        var rotationProperty = ellipse.bearing;
+        var rotationProperty = ellipse.rotation;
         if (this._rotationProperty !== rotationProperty) {
             isConstant = rotationProperty instanceof ConstantProperty;
             if (isConstant) {

@@ -905,7 +905,7 @@ define([
         }
 
         processPacketData(Boolean, ellipse, 'show', ellipseData.show, interval, sourceUri);
-        processPacketData(Number, ellipse, 'bearing', ellipseData.bearing, interval, sourceUri);
+        processPacketData(Number, ellipse, 'rotation', ellipseData.rotation, interval, sourceUri);
         processPacketData(Number, ellipse, 'semiMajorAxis', ellipseData.semiMajorAxis, interval, sourceUri);
         processPacketData(Number, ellipse, 'semiMinorAxis', ellipseData.semiMinorAxis, interval, sourceUri);
         processPacketData(Number, ellipse, 'height', ellipseData.height, interval, sourceUri);

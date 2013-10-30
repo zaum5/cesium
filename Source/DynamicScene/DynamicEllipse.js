@@ -29,7 +29,7 @@ define(['../Core/Cartesian3',
     var DynamicEllipse = function() {
         this._semiMajorAxis = undefined;
         this._semiMinorAxis = undefined;
-        this._bearing = undefined;
+        this._rotation = undefined;
         this._show = undefined;
         this._material = undefined;
         this._height = undefined;
@@ -68,11 +68,11 @@ define(['../Core/Cartesian3',
         semiMinorAxis : createDynamicPropertyDescriptor('semiMinorAxis', '_semiMinorAxis'),
 
         /**
-         * Gets or sets the numeric {@link Property} specifying the ellipse's bearing.
+         * Gets or sets the numeric {@link Property} specifying the ellipse's rotation.
          * @memberof DynamicEllipse.prototype
          * @type {Property}
          */
-        bearing : createDynamicPropertyDescriptor('bearing', '_bearing'),
+        rotation : createDynamicPropertyDescriptor('rotation', '_rotation'),
 
         /**
          * Gets or sets the boolean {@link Property} specifying the polygon's visibility.
@@ -161,7 +161,7 @@ define(['../Core/Cartesian3',
         if (!defined(result)) {
             result = new DynamicEllipse();
         }
-        result.bearing = this.bearing;
+        result.rotation = this.rotation;
         result.semiMajorAxis = this.semiMajorAxis;
         result.semiMinorAxis = this.semiMinorAxis;
         result.show = this.show;
@@ -189,7 +189,7 @@ define(['../Core/Cartesian3',
         if (!defined(source)) {
             throw new DeveloperError('source is required.');
         }
-        this.bearing = defaultValue(this.bearing, source.bearing);
+        this.rotation = defaultValue(this.rotation, source.rotation);
         this.semiMajorAxis = defaultValue(this.semiMajorAxis, source.semiMajorAxis);
         this.semiMinorAxis = defaultValue(this.semiMinorAxis, source.semiMinorAxis);
         this.show = defaultValue(this.show, source.show);
