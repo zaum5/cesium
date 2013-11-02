@@ -217,4 +217,4 @@ defineSuite([
         }).toThrow();
         display.destroy();
     });
-});
+}, 'WebGL');
