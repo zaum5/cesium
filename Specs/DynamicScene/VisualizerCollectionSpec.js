@@ -1,18 +1,14 @@
 /*global defineSuite*/
 defineSuite([
-             'DynamicScene/VisualizerCollection',
-             'Core/JulianDate',
-             'DynamicScene/CzmlDefaults',
-             'Scene/Scene',
-             'Specs/createScene',
-             'Specs/destroyScene'
-            ], function(
-              VisualizerCollection,
-              JulianDate,
-              CzmlDefaults,
-              Scene,
-              createScene,
-              destroyScene) {
+         'DynamicScene/VisualizerCollection',
+         'Core/JulianDate',
+         'Specs/createScene',
+         'Specs/destroyScene'
+     ], function(
+         VisualizerCollection,
+         JulianDate,
+         createScene,
+         destroyScene) {
     "use strict";
     /*global jasmine,describe,xdescribe,it,xit,expect,beforeEach,afterEach,beforeAll,afterAll,spyOn,runs,waits,waitsFor*/
 
@@ -56,28 +52,6 @@ defineSuite([
         expect(visualizers.getVisualizers().length).toEqual(1);
         expect(visualizers.getDynamicObjectCollection()).toEqual(mockCollection);
         expect(mockVisualizer.mockCollection).toEqual(mockCollection);
-    });
-
-    it('createCzmlStandardCollection uses CzmlDefaults', function() {
-        var scene = createScene();
-        var visualizers = VisualizerCollection.createCzmlStandardCollection(scene);
-        var expected = CzmlDefaults.createVisualizers(scene);
-
-        //Simple sanity check to make sure VisualizerCollection is using the correct defaults.
-        var collection = visualizers.getVisualizers();
-        for ( var i = 0; i < expected.length; i++) {
-            expect(collection[i].prototype).toEqual(expected[i].prototype);
-            expected[i].destroy();
-        }
-
-        visualizers = visualizers && visualizers.destroy();
-        destroyScene(scene);
-    });
-
-    it('createCzmlStandardCollection throws without a scene', function() {
-        expect(function() {
-            return VisualizerCollection.createCzmlStandardCollection(undefined, new MockDynamicObjectCollection());
-        }).toThrow();
     });
 
     it('Constructor assigns expected paramters to properies', function() {
@@ -166,4 +140,4 @@ defineSuite([
         visualizers.removeAllPrimitives();
         expect(mockVisualizer.removeAllPrimitivesCalled).toEqual(true);
     });
-}, 'WebGL');
+});

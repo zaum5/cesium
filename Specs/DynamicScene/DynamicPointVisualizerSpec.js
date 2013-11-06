@@ -1,30 +1,28 @@
 /*global defineSuite*/
 defineSuite([
              'DynamicScene/DynamicPointVisualizer',
-             'Specs/createScene',
-             'Specs/destroyScene',
-             'Specs/MockProperty',
+             'DynamicScene/ConstantProperty',
              'DynamicScene/DynamicPoint',
              'DynamicScene/DynamicObjectCollection',
-             'DynamicScene/DynamicObject',
-             'Core/JulianDate',
              'Core/Cartesian3',
              'Core/Color',
-             'Scene/Scene',
-             'Scene/BillboardCollection'
-            ], function(
-              DynamicPointVisualizer,
-              createScene,
-              destroyScene,
-              MockProperty,
-              DynamicPoint,
-              DynamicObjectCollection,
-              DynamicObject,
-              JulianDate,
-              Cartesian3,
-              Color,
-              Scene,
-              BillboardCollection) {
+             'Core/JulianDate',
+             'Core/NearFarScalar',
+             'Scene/BillboardCollection',
+             'Specs/createScene',
+             'Specs/destroyScene'
+         ], function(
+             DynamicPointVisualizer,
+             ConstantProperty,
+             DynamicPoint,
+             DynamicObjectCollection,
+             Cartesian3,
+             Color,
+             JulianDate,
+             NearFarScalar,
+             BillboardCollection,
+             createScene,
+             destroyScene) {
     "use strict";
     /*global jasmine,describe,xdescribe,it,xit,expect,beforeEach,afterEach,beforeAll,afterAll,spyOn,runs,waits,waitsFor*/
 
@@ -85,7 +83,7 @@ defineSuite([
         visualizer = new DynamicPointVisualizer(scene, dynamicObjectCollection);
 
         var testObject = dynamicObjectCollection.getOrCreateObject('test');
-        testObject.position = new MockProperty(new Cartesian3(1234, 5678, 9101112));
+        testObject.position = new ConstantProperty(new Cartesian3(1234, 5678, 9101112));
         visualizer.update(new JulianDate());
         var billboardCollection = scene.getPrimitives().get(0);
         expect(billboardCollection.getLength()).toEqual(0);
@@ -97,7 +95,7 @@ defineSuite([
 
         var testObject = dynamicObjectCollection.getOrCreateObject('test');
         var point = testObject.point = new DynamicPoint();
-        point.show = new MockProperty(true);
+        point.show = new ConstantProperty(true);
 
         visualizer.update(new JulianDate());
         var billboardCollection = scene.getPrimitives().get(0);
@@ -114,14 +112,15 @@ defineSuite([
         expect(billboardCollection.getLength()).toEqual(0);
 
         var testObject = dynamicObjectCollection.getOrCreateObject('test');
-        testObject.position = new MockProperty(new Cartesian3(1234, 5678, 9101112));
+        testObject.position = new ConstantProperty(new Cartesian3(1234, 5678, 9101112));
 
         var point = testObject.point = new DynamicPoint();
-        point.show = new MockProperty(true);
-        point.color = new MockProperty(new Color(0.8, 0.7, 0.6, 0.5));
-        point.pixelSize = new MockProperty(12.5);
-        point.outlineColor = new MockProperty(new Color(0.1, 0.2, 0.3, 0.4));
-        point.outlineWidth = new MockProperty(2.5);
+        point.show = new ConstantProperty(true);
+        point.color = new ConstantProperty(new Color(0.8, 0.7, 0.6, 0.5));
+        point.pixelSize = new ConstantProperty(12.5);
+        point.outlineColor = new ConstantProperty(new Color(0.1, 0.2, 0.3, 0.4));
+        point.outlineWidth = new ConstantProperty(2.5);
+        point.scaleByDistance = new ConstantProperty(new NearFarScalar());
 
         visualizer.update(time);
 
@@ -131,7 +130,8 @@ defineSuite([
 
         visualizer.update(time);
         expect(bb.getShow()).toEqual(testObject.point.show.getValue(time));
-        expect(bb.getPosition()).toEqual(testObject.position.getValueCartesian(time));
+        expect(bb.getPosition()).toEqual(testObject.position.getValue(time));
+        expect(bb.getScaleByDistance()).toEqual(testObject.point.scaleByDistance.getValue(time));
         expect(bb._visualizerColor).toEqual(testObject.point.color.getValue(time));
         expect(bb._visualizerOutlineColor).toEqual(testObject.point.outlineColor.getValue(time));
         expect(bb._visualizerOutlineWidth).toEqual(testObject.point.outlineWidth.getValue(time));
@@ -148,13 +148,14 @@ defineSuite([
 
         visualizer.update(time);
         expect(bb.getShow()).toEqual(testObject.point.show.getValue(time));
-        expect(bb.getPosition()).toEqual(testObject.position.getValueCartesian(time));
+        expect(bb.getPosition()).toEqual(testObject.position.getValue(time));
+        expect(bb.getScaleByDistance()).toEqual(testObject.point.scaleByDistance.getValue(time));
         expect(bb._visualizerColor).toEqual(testObject.point.color.getValue(time));
         expect(bb._visualizerOutlineColor).toEqual(testObject.point.outlineColor.getValue(time));
         expect(bb._visualizerOutlineWidth).toEqual(testObject.point.outlineWidth.getValue(time));
         expect(bb._visualizerPixelSize).toEqual(testObject.point.pixelSize.getValue(time));
 
-        point.show = new MockProperty(false);
+        point.show = new ConstantProperty(false);
         visualizer.update(time);
         expect(bb.getShow()).toEqual(testObject.point.show.getValue(time));
     });
@@ -167,9 +168,9 @@ defineSuite([
         var testObject = dynamicObjectCollection.getOrCreateObject('test');
         var time = new JulianDate();
 
-        testObject.position = new MockProperty(new Cartesian3(1234, 5678, 9101112));
+        testObject.position = new ConstantProperty(new Cartesian3(1234, 5678, 9101112));
         var point = testObject.point = new DynamicPoint();
-        point.show = new MockProperty(true);
+        point.show = new ConstantProperty(true);
         visualizer.update(time);
 
         expect(billboardCollection.getLength()).toEqual(1);
@@ -178,7 +179,7 @@ defineSuite([
         visualizer.update(time);
         //Clearing won't actually remove the billboard because of the
         //internal cache used by the visualizer, instead it just hides it.
-        dynamicObjectCollection.clear();
+        dynamicObjectCollection.removeAll();
         expect(bb.getShow()).toEqual(false);
     });
 
@@ -194,8 +195,8 @@ defineSuite([
         var time = new JulianDate();
         var point = testObject.point = new DynamicPoint();
 
-        testObject.position = new MockProperty(new Cartesian3(1234, 5678, 9101112));
-        point.show = new MockProperty(true);
+        testObject.position = new ConstantProperty(new Cartesian3(1234, 5678, 9101112));
+        point.show = new ConstantProperty(true);
 
         visualizer.update(time);
         expect(billboardCollection.getLength()).toEqual(1);
@@ -206,15 +207,15 @@ defineSuite([
     it('setDynamicObjectCollection removes old objects and add new ones.', function() {
         var dynamicObjectCollection = new DynamicObjectCollection();
         var testObject = dynamicObjectCollection.getOrCreateObject('test');
-        testObject.position = new MockProperty(new Cartesian3(1234, 5678, 9101112));
+        testObject.position = new ConstantProperty(new Cartesian3(1234, 5678, 9101112));
         testObject.point = new DynamicPoint();
-        testObject.point.show = new MockProperty(true);
+        testObject.point.show = new ConstantProperty(true);
 
         var dynamicObjectCollection2 = new DynamicObjectCollection();
         var testObject2 = dynamicObjectCollection2.getOrCreateObject('test2');
-        testObject2.position = new MockProperty(new Cartesian3(5678, 9101112, 1234));
+        testObject2.position = new ConstantProperty(new Cartesian3(5678, 9101112, 1234));
         testObject2.point = new DynamicPoint();
-        testObject2.point.show = new MockProperty(true);
+        testObject2.point.show = new ConstantProperty(true);
 
         visualizer = new DynamicPointVisualizer(scene, dynamicObjectCollection);
 

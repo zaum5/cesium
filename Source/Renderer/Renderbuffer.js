@@ -1,9 +1,7 @@
 /*global define*/
 define([
-        '../Core/DeveloperError',
         '../Core/destroyObject'
     ], function(
-        DeveloperError,
         destroyObject) {
     "use strict";
 
@@ -25,7 +23,7 @@ define([
         /**
         * DOC_TBA
         * @memberof Renderbuffer
-        * @return {Boolean} DOC_TBA
+        * @returns {Boolean} DOC_TBA
         * @exception {DeveloperError} This renderbuffer was destroyed, i.e., destroy() was called.
         */
         this.getFormat = function() {
@@ -35,7 +33,7 @@ define([
         /**
         * DOC_TBA
         * @memberof Renderbuffer
-        * @return {Boolean} DOC_TBA
+        * @returns {Boolean} DOC_TBA
         * @exception {DeveloperError} This renderbuffer was destroyed, i.e., destroy() was called.
         */
         this.getWidth = function() {
@@ -45,7 +43,7 @@ define([
         /**
         * DOC_TBA
         * @memberof Renderbuffer
-        * @return {Boolean} DOC_TBA
+        * @returns {Boolean} DOC_TBA
         * @exception {DeveloperError} This renderbuffer was destroyed, i.e., destroy() was called.
         */
         this.getHeight = function() {
@@ -64,7 +62,7 @@ define([
          *
          * @memberof Renderbuffer
          *
-         * @return {Boolean} True if this object was destroyed; otherwise, false.
+         * @returns {Boolean} True if this object was destroyed; otherwise, false.
          *
          * @see Renderbuffer.destroy
          */
@@ -82,7 +80,7 @@ define([
          *
          * @memberof Renderbuffer
          *
-         * @return {undefined}
+         * @returns {undefined}
          *
          * @exception {DeveloperError} This shader renderbuffer destroyed, i.e., destroy() was called.
          *

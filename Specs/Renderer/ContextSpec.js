@@ -2,12 +2,16 @@
 defineSuite([
          'Renderer/Context',
          'Core/Color',
+         'Core/IndexDatatype',
+         'Renderer/BufferUsage',
          'Specs/createContext',
          'Specs/destroyContext',
          'Specs/renderFragment'
      ], function(
          Context,
          Color,
+         IndexDatatype,
+         BufferUsage,
          createContext,
          destroyContext,
          renderFragment) {
@@ -139,6 +143,14 @@ defineSuite([
         expect(context.getMaximumViewportHeight()).toBeGreaterThan(0);
     });
 
+    it('gets antialias', function() {
+        var c = createContext({
+            antialias : false
+        });
+        expect(c.getAntialias()).toEqual(false);
+        c.destroy();
+    });
+
     it('gets the standard derivatives extension', function() {
         var fs =
             '#ifdef GL_OES_standard_derivatives\n' +
@@ -162,11 +174,27 @@ defineSuite([
         }
     });
 
+    it('gets the element index uint extension', function() {
+        if (context.getElementIndexUint()) {
+            var buffer = context.createIndexBuffer(6, BufferUsage.STREAM_DRAW, IndexDatatype.UNSIGNED_INT);
+            expect(buffer).toBeDefined();
+            buffer.destroy();
+        } else {
+            expect(function() {
+                context.createIndexBuffer(6, BufferUsage.STREAM_DRAW, IndexDatatype.UNSIGNED_INT);
+            }).toThrow();
+        }
+    });
+
     it('gets the depth texture extension', function() {
         expect(context.getDepthTexture()).toBeDefined();
     });
 
-    it('gets texture filter anisotropic', function() {
+    it('gets the texture float extension', function() {
+        expect(context.getFloatingPointTexture()).toBeDefined();
+    });
+
+    it('gets texture filter anisotropic extension', function() {
         expect(context.getTextureFilterAnisotropic()).toBeDefined();
     });
 
@@ -175,6 +203,41 @@ defineSuite([
             expect(context.getMaximumTextureFilterAnisotropy() >= 2.0).toEqual(true);
         } else {
             expect(context.getMaximumTextureFilterAnisotropy()).toEqual(1.0);
+        }
+    });
+
+    it('gets vertex array object extension', function() {
+        expect(context.getVertexArrayObject()).toBeDefined();
+    });
+
+    it('get the fragment depth extension', function() {
+        var fs =
+            'void main()\n' +
+            '{\n' +
+            '  gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);\n' +
+            '}';
+
+        var pixel = renderFragment(context, fs, 0.5, true);
+        expect(pixel).toEqual([255, 0, 0, 255]);
+
+        var fsDragDepth =
+            '#ifdef GL_EXT_frag_depth\n' +
+            '  #extension GL_EXT_frag_depth : enable\n' +
+            '#endif\n' +
+            'void main()\n' +
+            '{\n' +
+            '  gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);\n' +
+            '#ifdef GL_EXT_frag_depth\n' +
+            '  gl_FragDepthEXT = 0.0;\n' +
+            '#endif\n' +
+            '}';
+
+        pixel = renderFragment(context, fsDragDepth, 1.0, false);
+
+        if (context.getFragmentDepth()) {
+            expect(pixel).toEqual([0, 255, 0, 255]);
+        } else {
+            expect(pixel).toEqual([255, 0, 0, 255]);
         }
     });
 
@@ -266,5 +329,15 @@ defineSuite([
         var nonDestroyableObject = {};
         c.cache.foo = nonDestroyableObject;
         c.destroy();
+    });
+
+    it('returns the underling drawingBufferWidth', function() {
+        var c = createContext(undefined, 1024, 768);
+        expect(c.getDrawingBufferWidth()).toBe(1024);
+    });
+
+    it('returns the underling drawingBufferHeight', function() {
+        var c = createContext(undefined, 1024, 768);
+        expect(c.getDrawingBufferHeight()).toBe(768);
     });
 }, 'WebGL');

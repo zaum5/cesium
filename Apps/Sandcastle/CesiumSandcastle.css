@@ -1,4 +1,4 @@
-@import url('../../ThirdParty/dojo-release-1.8.3-src/dijit/themes/claro/claro.css');
+@import url('../../ThirdParty/dojo-release-1.9.1/dijit/themes/claro/claro.css');
 
 html, body {
     height: 100%;
@@ -113,12 +113,12 @@ html, body {
 	display: block;
 	width: 100%;
 	height: 100%;
-	overflow-x: hidden;
+	overflow-x: auto;
 	overflow-y: scroll;
 }
 
 #logOutput {
-	white-space: pre;
+	white-space: pre-wrap;
 	padding: 2px 4px;
 	font-size: 9pt;
 	font-family: monospace;

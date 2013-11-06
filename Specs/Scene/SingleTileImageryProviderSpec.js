@@ -1,11 +1,11 @@
 /*global defineSuite*/
 defineSuite([
          'Scene/SingleTileImageryProvider',
+         'Core/defined',
          'Core/jsonp',
          'Core/loadImage',
          'Core/DefaultProxy',
          'Core/Extent',
-         'Core/Math',
          'Scene/GeographicTilingScheme',
          'Scene/Imagery',
          'Scene/ImageryLayer',
@@ -14,11 +14,11 @@ defineSuite([
          'ThirdParty/when'
      ], function(
          SingleTileImageryProvider,
+         defined,
          jsonp,
          loadImage,
          DefaultProxy,
          Extent,
-         CesiumMath,
          GeographicTilingScheme,
          Imagery,
          ImageryLayer,
@@ -77,7 +77,6 @@ defineSuite([
         var calledCreateImage = false;
         loadImage.createImage = function(url, crossOrigin, deferred) {
             expect(url).toEqual(imageUrl);
-            expect(crossOrigin).toEqual(true);
             calledCreateImage = true;
             return loadImage.defaultCreateImage(url, crossOrigin, deferred);
         };
@@ -101,7 +100,7 @@ defineSuite([
         });
 
         waitsFor(function() {
-            return typeof tile000Image !== 'undefined';
+            return defined(tile000Image);
         });
 
         runs(function() {
@@ -121,7 +120,7 @@ defineSuite([
         var providerWithCredit;
 
         runs(function() {
-            expect(provider.getLogo()).toBeUndefined();
+            expect(provider.getCredit()).toBeUndefined();
 
             providerWithCredit = new SingleTileImageryProvider({
                 url : 'Data/Images/Red16x16.png',
@@ -134,7 +133,7 @@ defineSuite([
         }, 'imagery provider to become ready');
 
         runs(function() {
-            expect(providerWithCredit.getLogo()).toBeDefined();
+            expect(providerWithCredit.getCredit()).toBeDefined();
         });
     });
 
@@ -143,7 +142,6 @@ defineSuite([
 
         loadImage.createImage = function(url, crossOrigin, deferred) {
             expect(url.indexOf(proxy.getURL('Data/Images/Red16x16.png'))).toEqual(0);
-            expect(crossOrigin).toEqual(true);
 
             calledCreateImage = true;
             deferred.resolve();

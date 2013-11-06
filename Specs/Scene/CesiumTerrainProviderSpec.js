@@ -1,7 +1,8 @@
 /*global defineSuite*/
 defineSuite([
          'Scene/CesiumTerrainProvider',
-         'Core/loadArrayBuffer',
+         'Core/loadWithXhr',
+         'Core/defined',
          'Core/DefaultProxy',
          'Core/Ellipsoid',
          'Core/Math',
@@ -11,7 +12,8 @@ defineSuite([
          'ThirdParty/when'
      ], function(
          CesiumTerrainProvider,
-         loadArrayBuffer,
+         loadWithXhr,
+         defined,
          DefaultProxy,
          Ellipsoid,
          CesiumMath,
@@ -23,7 +25,7 @@ defineSuite([
     /*global jasmine,describe,xdescribe,it,xit,expect,beforeEach,afterEach,beforeAll,afterAll,spyOn,runs,waits,waitsFor*/
 
     afterEach(function() {
-        loadArrayBuffer.load = loadArrayBuffer.defaultLoad;
+        loadWithXhr.load = loadWithXhr.defaultLoad;
     });
 
     it('conforms to TerrainProvider interface', function() {
@@ -72,7 +74,7 @@ defineSuite([
         var provider = new CesiumTerrainProvider({
             url : 'made/up/url'
         });
-        expect(provider.getLogo()).toBeUndefined();
+        expect(provider.getCredit()).toBeUndefined();
     });
 
     it('logo is defined if credit is provided', function() {
@@ -80,7 +82,7 @@ defineSuite([
             url : 'made/up/url',
             credit : 'thanks to our awesome made up contributors!'
         });
-        expect(provider.getLogo()).toBeDefined();
+        expect(provider.getCredit()).toBeDefined();
     });
 
     it('has a water mask', function() {
@@ -101,11 +103,11 @@ defineSuite([
         it('uses the proxy if one is supplied', function() {
             var baseUrl = 'made/up/url';
 
-            loadArrayBuffer.load = function(url, headers, deferred) {
+            loadWithXhr.load = function(url, responseType, headers, deferred) {
                 expect(url.indexOf('/proxy/?')).toBe(0);
 
                 // Just return any old file, as long as its big enough
-                return loadArrayBuffer.defaultLoad('Data/EarthOrientationParameters/IcrfToFixedStkComponentsRotationData.json', headers, deferred);
+                return loadWithXhr.defaultLoad('Data/EarthOrientationParameters/IcrfToFixedStkComponentsRotationData.json', responseType, headers, deferred);
             };
 
             var terrainProvider = new CesiumTerrainProvider({
@@ -128,9 +130,9 @@ defineSuite([
         it('provides HeightmapTerrainData', function() {
             var baseUrl = 'made/up/url';
 
-            loadArrayBuffer.load = function(url, headers, deferred) {
+            loadWithXhr.load = function(url, responseType, headers, deferred) {
                 // Just return any old file, as long as its big enough
-                return loadArrayBuffer.defaultLoad('Data/EarthOrientationParameters/IcrfToFixedStkComponentsRotationData.json', headers, deferred);
+                return loadWithXhr.defaultLoad('Data/EarthOrientationParameters/IcrfToFixedStkComponentsRotationData.json', responseType, headers, deferred);
             };
 
             var terrainProvider = new CesiumTerrainProvider({
@@ -145,7 +147,7 @@ defineSuite([
             });
 
             waitsFor(function() {
-                return typeof loadedData !== 'undefined';
+                return defined(loadedData);
             }, 'request to complete');
 
             runs(function() {
@@ -158,7 +160,7 @@ defineSuite([
 
             var deferreds = [];
 
-            loadArrayBuffer.load = function(url, headers, deferred) {
+            loadWithXhr.load = function(url, responseType, headers, deferred) {
                 // Do nothing, so requests never complete
                 deferreds.push(deferred);
             };

@@ -5,6 +5,8 @@ define([
         '../Core/Cartesian2',
         '../Core/Cartesian3',
         '../Core/Color',
+        '../Core/defined',
+        '../Core/NearFarScalar',
         './Billboard',
         './LabelStyle',
         './HorizontalOrigin',
@@ -15,13 +17,13 @@ define([
         Cartesian2,
         Cartesian3,
         Color,
+        defined,
+        NearFarScalar,
         Billboard,
         LabelStyle,
         HorizontalOrigin,
         VerticalOrigin) {
     "use strict";
-
-    var EMPTY_OBJECT = {};
 
     function rebindAllGlyphs(label) {
         if (!label._rebindAllGlyphs && !label._repositionAllGlyphs) {
@@ -46,27 +48,36 @@ define([
      * @alias Label
      * @internalConstructor
      *
+     * @exception {DeveloperError} translucencyByDistance.far must be greater than translucencyByDistance.near
+     *
      * @see LabelCollection
      * @see LabelCollection#add
      *
      * @demo <a href="http://cesium.agi.com/Cesium/Apps/Sandcastle/index.html?src=Labels.html">Cesium Sandcastle Labels Demo</a>
      */
-    var Label = function(description, labelCollection) {
-        description = defaultValue(description, EMPTY_OBJECT);
+    var Label = function(options, labelCollection) {
+        options = defaultValue(options, defaultValue.EMPTY_OBJECT);
 
-        this._text = defaultValue(description.text, '');
-        this._show = defaultValue(description.show, true);
-        this._font = defaultValue(description.font, '30px sans-serif');
-        this._fillColor = Color.clone(defaultValue(description.fillColor, Color.WHITE));
-        this._outlineColor = Color.clone(defaultValue(description.outlineColor, Color.BLACK));
-        this._outlineWidth = defaultValue(description.outlineWidth, 1.0);
-        this._style = defaultValue(description.style, LabelStyle.FILL);
-        this._verticalOrigin = defaultValue(description.verticalOrigin, VerticalOrigin.BOTTOM);
-        this._horizontalOrigin = defaultValue(description.horizontalOrigin, HorizontalOrigin.LEFT);
-        this._pixelOffset = Cartesian2.clone(defaultValue(description.pixelOffset, Cartesian2.ZERO));
-        this._eyeOffset = Cartesian3.clone(defaultValue(description.eyeOffset, Cartesian3.ZERO));
-        this._position = Cartesian3.clone(defaultValue(description.position, Cartesian3.ZERO));
-        this._scale = defaultValue(description.scale, 1.0);
+        if (defined(options.translucencyByDistance) &&
+                options.translucencyByDistance.far <= options.translucencyByDistance.near) {
+            throw new DeveloperError('translucencyByDistance.far must be greater than translucencyByDistance.near.');
+        }
+
+        this._text = defaultValue(options.text, '');
+        this._show = defaultValue(options.show, true);
+        this._font = defaultValue(options.font, '30px sans-serif');
+        this._fillColor = Color.clone(defaultValue(options.fillColor, Color.WHITE));
+        this._outlineColor = Color.clone(defaultValue(options.outlineColor, Color.BLACK));
+        this._outlineWidth = defaultValue(options.outlineWidth, 1.0);
+        this._style = defaultValue(options.style, LabelStyle.FILL);
+        this._verticalOrigin = defaultValue(options.verticalOrigin, VerticalOrigin.BOTTOM);
+        this._horizontalOrigin = defaultValue(options.horizontalOrigin, HorizontalOrigin.LEFT);
+        this._pixelOffset = Cartesian2.clone(defaultValue(options.pixelOffset, Cartesian2.ZERO));
+        this._eyeOffset = Cartesian3.clone(defaultValue(options.eyeOffset, Cartesian3.ZERO));
+        this._position = Cartesian3.clone(defaultValue(options.position, Cartesian3.ZERO));
+        this._scale = defaultValue(options.scale, 1.0);
+        this._id = options.id;
+        this._translucencyByDistance = options.translucencyByDistance;
 
         this._labelCollection = labelCollection;
         this._glyphs = [];
@@ -81,7 +92,7 @@ define([
      *
      * @memberof Label
      *
-     * @return {Boolean} <code>true</code> if this label will be shown; otherwise, <code>false</code>.
+     * @returns {Boolean} <code>true</code> if this label will be shown; otherwise, <code>false</code>.
      *
      * @see Label#setShow
      */
@@ -102,7 +113,7 @@ define([
      * @see Label#getShow
      */
     Label.prototype.setShow = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -112,7 +123,7 @@ define([
             var glyphs = this._glyphs;
             for ( var i = 0, len = glyphs.length; i < len; i++) {
                 var glyph = glyphs[i];
-                if (typeof glyph.billboard !== 'undefined') {
+                if (defined(glyph.billboard)) {
                     glyph.billboard.setShow(value);
                 }
             }
@@ -124,7 +135,7 @@ define([
      *
      * @memberof Label
      *
-     * @return {Cartesian3} The Cartesian position of this label.
+     * @returns {Cartesian3} The Cartesian position of this label.
      *
      * @see Label#setPosition
      */
@@ -162,7 +173,7 @@ define([
      * });
      */
     Label.prototype.setPosition = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -173,7 +184,7 @@ define([
             var glyphs = this._glyphs;
             for ( var i = 0, len = glyphs.length; i < len; i++) {
                 var glyph = glyphs[i];
-                if (typeof glyph.billboard !== 'undefined') {
+                if (defined(glyph.billboard)) {
                     glyph.billboard.setPosition(value);
                 }
             }
@@ -203,7 +214,7 @@ define([
      * @see Label#getText
      */
     Label.prototype.setText = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -240,7 +251,7 @@ define([
      * @see <a href='http://www.whatwg.org/specs/web-apps/current-work/multipage/the-canvas-element.html#text-styles'>HTML canvas 2D context text styles</a>
      */
     Label.prototype.setFont = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -277,7 +288,7 @@ define([
      * @see <a href='http://www.whatwg.org/specs/web-apps/current-work/multipage/the-canvas-element.html#fill-and-stroke-styles'>HTML canvas 2D context fill and stroke styles</a>
      */
     Label.prototype.setFillColor = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -315,7 +326,7 @@ define([
      * @see <a href='http://www.whatwg.org/specs/web-apps/current-work/multipage/the-canvas-element.html#fill-and-stroke-styles'>HTML canvas 2D context fill and stroke styles</a>
      */
     Label.prototype.setOutlineColor = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -353,7 +364,7 @@ define([
      * @see <a href='http://www.whatwg.org/specs/web-apps/current-work/multipage/the-canvas-element.html#fill-and-stroke-styles'>HTML canvas 2D context fill and stroke styles</a>
      */
     Label.prototype.setOutlineWidth = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -388,7 +399,7 @@ define([
      * @see Label#setFillColor
      */
     Label.prototype.setStyle = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -403,7 +414,7 @@ define([
      *
      * @memberof Label
      *
-     * @return {Cartesian2} The pixel offset of this label.
+     * @returns {Cartesian2} The pixel offset of this label.
      *
      * @see Label#setPixelOffset
      */
@@ -440,7 +451,7 @@ define([
      * @see Billboard#setPixelOffset
      */
     Label.prototype.setPixelOffset = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -452,11 +463,64 @@ define([
     };
 
     /**
+     * Returns the near and far translucency properties of a Label based on the label's distance from the camera.
+     *
+     * @memberof Label
+     *
+     * @returns {NearFarScalar} The near/far translucency values based on camera distance to the billboard
+     *
+     * @see Label#setTranslucencyByDistance
+     */
+    Label.prototype.getTranslucencyByDistance = function() {
+        return this._translucencyByDistance;
+    };
+
+    /**
+     * Sets near and far translucency properties of a Label based on the Label's distance from the camera.
+     * A label's translucency will interpolate between the {@link NearFarScalar#nearValue} and
+     * {@link NearFarScalar#farValue} while the camera distance falls within the upper and lower bounds
+     * of the specified {@link NearFarScalar#near} and {@link NearFarScalar#far}.
+     * Outside of these ranges the label's translucency remains clamped to the nearest bound.  If undefined,
+     * translucencyByDistance will be disabled.
+     *
+     * @memberof Label
+     *
+     * @param {NearFarScalar} translucency The configuration of near and far distances and their respective translucency values
+     *
+     * @exception {DeveloperError} far distance must be greater than near distance.
+     *
+     * @see Label#getTranslucencyByDistance
+     *
+     * @example
+     * // Example 1.
+     * // Set a label's translucencyByDistance to 1.0 when the
+     * // camera is 1500 meters from the label and disappear as
+     * // the camera distance approaches 8.0e6 meters.
+     * text.setTranslucencyByDistance(new NearFarScalar(1.5e2, 1.0, 8.0e6, 0.0));
+     *
+     * // Example 2.
+     * // disable translucency by distance
+     * text.setTranslucencyByDistance(undefined);
+     */
+    Label.prototype.setTranslucencyByDistance = function(value) {
+        if (NearFarScalar.equals(this._translucencyByDistance, value)) {
+            return;
+        }
+
+        if (value.far <= value.near) {
+            throw new DeveloperError('far distance must be greater than near distance.');
+        }
+
+        this._translucencyByDistance = NearFarScalar.clone(value, this._translucencyByDistance);
+        rebindAllGlyphs(this);
+    };
+
+    /**
      * Returns the 3D Cartesian offset applied to this label in eye coordinates.
      *
      * @memberof Label
      *
-     * @return {Cartesian3} The 3D Cartesian offset applied to this label in eye coordinates.
+     * @returns {Cartesian3} The 3D Cartesian offset applied to this label in eye coordinates.
      *
      * @see Label#setEyeOffset
      */
@@ -498,7 +562,7 @@ define([
      * @see Label#getEyeOffset
      */
     Label.prototype.setEyeOffset = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -509,7 +573,7 @@ define([
             var glyphs = this._glyphs;
             for ( var i = 0, len = glyphs.length; i < len; i++) {
                 var glyph = glyphs[i];
-                if (typeof glyph.billboard !== 'undefined') {
+                if (defined(glyph.billboard)) {
                     glyph.billboard.setEyeOffset(value);
                 }
             }
@@ -521,7 +585,7 @@ define([
      *
      * @memberof Label
      *
-     * @return {HorizontalOrigin} The horizontal origin of this label.
+     * @returns {HorizontalOrigin} The horizontal origin of this label.
      *
      * @see Label#setHorizontalOrigin
      */
@@ -552,7 +616,7 @@ define([
      * l.setVerticalOrigin(VerticalOrigin.TOP);
      */
     Label.prototype.setHorizontalOrigin = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -567,7 +631,7 @@ define([
      *
      * @memberof Label
      *
-     * @return {VerticalOrigin} The vertical origin of this label.
+     * @returns {VerticalOrigin} The vertical origin of this label.
      *
      * @see Label#setVerticalOrigin
      */
@@ -598,7 +662,7 @@ define([
      * l.setVerticalOrigin(VerticalOrigin.TOP);
      */
     Label.prototype.setVerticalOrigin = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -613,12 +677,23 @@ define([
      *
      * @memberof Label
      *
-     * @return {Number} The scale used to size the label.
+     * @returns {Number} The scale used to size the label.
      *
      * @see Label#setScale
      */
     Label.prototype.getScale = function() {
         return this._scale;
+    };
+
+    /**
+     * Returns the user-defined object returned when the label is picked.
+     *
+     * @memberof Label
+     *
+     * @returns {Object} The user-defined object returned when the label is picked.
+     */
+    Label.prototype.getId = function() {
+        return this._id;
     };
 
     /**
@@ -646,7 +721,7 @@ define([
      * @see Label#setFont
      */
     Label.prototype.setScale = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -656,7 +731,7 @@ define([
             var glyphs = this._glyphs;
             for ( var i = 0, len = glyphs.length; i < len; i++) {
                 var glyph = glyphs[i];
-                if (typeof glyph.billboard !== 'undefined') {
+                if (defined(glyph.billboard)) {
                     glyph.billboard.setScale(value);
                 }
             }
@@ -675,7 +750,7 @@ define([
      * @param {Context} context The context.
      * @param {FrameState} frameState The same state object passed to {@link LabelCollection#update}.
      *
-     * @return {Cartesian2} The screen-space position of the label.
+     * @returns {Cartesian2} The screen-space position of the label.
      *
      * @exception {DeveloperError} context is required.
      * @exception {DeveloperError} frameState is required.
@@ -687,17 +762,17 @@ define([
      * console.log(l.computeScreenSpacePosition(scene.getContext(), scene.getFrameState()).toString());
      */
     Label.prototype.computeScreenSpacePosition = function(context, frameState) {
-        if (typeof context === 'undefined') {
+        if (!defined(context)) {
             throw new DeveloperError('context is required.');
         }
 
-        if (typeof frameState === 'undefined') {
+        if (!defined(frameState)) {
             throw new DeveloperError('frameState is required.');
         }
 
         var labelCollection = this._labelCollection;
         var modelMatrix = labelCollection.modelMatrix;
-        var actualPosition = Billboard._computeActualPosition(this._position, frameState, labelCollection.morphTime, modelMatrix);
+        var actualPosition = Billboard._computeActualPosition(this._position, frameState, modelMatrix);
 
         return Billboard._computeScreenSpacePosition(modelMatrix, actualPosition, this._eyeOffset, this._pixelOffset, context, frameState);
     };
@@ -710,11 +785,11 @@ define([
      *
      * @param {Label} other The label to compare for equality.
      *
-     * @return {Boolean} <code>true</code> if the labels are equal; otherwise, <code>false</code>.
+     * @returns {Boolean} <code>true</code> if the labels are equal; otherwise, <code>false</code>.
      */
     Label.prototype.equals = function(other) {
         return this === other ||
-               typeof other !== 'undefined' &&
+               defined(other) &&
                this._show === other._show &&
                this._scale === other._scale &&
                this._style === other._style &&
@@ -726,7 +801,9 @@ define([
                Color.equals(this._fillColor, other._fillColor) &&
                Color.equals(this._outlineColor, other._outlineColor) &&
                Cartesian2.equals(this._pixelOffset, other._pixelOffset) &&
-               Cartesian3.equals(this._eyeOffset, other._eyeOffset);
+               Cartesian3.equals(this._eyeOffset, other._eyeOffset) &&
+               NearFarScalar.equals(this._translucencyByDistance, other._translucencyByDistance) &&
+               this._id === other._id;
     };
 
     /**
@@ -737,7 +814,7 @@ define([
      *
      * @memberof Label
      *
-     * @return {Boolean} True if this object was destroyed; otherwise, false.
+     * @returns {Boolean} True if this object was destroyed; otherwise, false.
      */
     Label.prototype.isDestroyed = function() {
         return false;

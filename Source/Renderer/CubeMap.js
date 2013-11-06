@@ -1,18 +1,22 @@
 /*global define*/
 define([
+        '../Core/defined',
         '../Core/DeveloperError',
         '../Core/destroyObject',
         '../Core/Math',
         './MipmapHint',
+        './PixelDatatype',
         './TextureMagnificationFilter',
         './TextureMinificationFilter',
         './TextureWrap',
         './CubeMapFace'
     ], function(
+        defined,
         DeveloperError,
         destroyObject,
         CesiumMath,
         MipmapHint,
+        PixelDatatype,
         TextureMagnificationFilter,
         TextureMinificationFilter,
         TextureWrap,
@@ -178,34 +182,54 @@ define([
      * @exception {DeveloperError} This CubeMap was destroyed, i.e., destroy() was called.
      */
     CubeMap.prototype.setSampler = function(sampler) {
-        var s = sampler || {
-            wrapS : TextureWrap.CLAMP,
-            wrapT : TextureWrap.CLAMP,
-            minificationFilter : TextureMinificationFilter.LINEAR,
-            magnificationFilter : TextureMagnificationFilter.LINEAR,
-            maximumAnisotropy : 1.0
-        };
+        if (!defined(sampler)) {
+            var minFilter = TextureMinificationFilter.LINEAR;
+            var magFilter = TextureMagnificationFilter.LINEAR;
+            if (this._pixelDatatype === PixelDatatype.FLOAT) {
+                minFilter = TextureMinificationFilter.NEAREST;
+                magFilter = TextureMagnificationFilter.NEAREST;
+            }
+
+            sampler = {
+                wrapS : TextureWrap.CLAMP_TO_EDGE,
+                wrapT : TextureWrap.CLAMP_TO_EDGE,
+                minificationFilter : minFilter,
+                magnificationFilter : magFilter,
+                maximumAnisotropy : 1.0
+            };
+        }
+
+        if (this._pixelDatatype === PixelDatatype.FLOAT) {
+            if (sampler.minificationFilter !== TextureMinificationFilter.NEAREST &&
+                    sampler.minificationFilter !== TextureMinificationFilter.NEAREST_MIPMAP_NEAREST) {
+                throw new DeveloperError('Only NEAREST and NEAREST_MIPMAP_NEAREST minification filters are supported for floating point textures.');
+            }
+
+            if (sampler.magnificationFilter !== TextureMagnificationFilter.NEAREST) {
+                throw new DeveloperError('Only the NEAREST magnification filter is supported for floating point textures.');
+            }
+        }
 
         var gl = this._gl;
         var target = this._textureTarget;
 
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(target, this._texture);
-        gl.texParameteri(target, gl.TEXTURE_MIN_FILTER, s.minificationFilter);
-        gl.texParameteri(target, gl.TEXTURE_MAG_FILTER, s.magnificationFilter);
-        gl.texParameteri(target, gl.TEXTURE_WRAP_S, s.wrapS);
-        gl.texParameteri(target, gl.TEXTURE_WRAP_T, s.wrapT);
+        gl.texParameteri(target, gl.TEXTURE_MIN_FILTER, sampler.minificationFilter);
+        gl.texParameteri(target, gl.TEXTURE_MAG_FILTER, sampler.magnificationFilter);
+        gl.texParameteri(target, gl.TEXTURE_WRAP_S, sampler.wrapS);
+        gl.texParameteri(target, gl.TEXTURE_WRAP_T, sampler.wrapT);
         if (this._textureFilterAnisotropic) {
-            gl.texParameteri(target, this._textureFilterAnisotropic.TEXTURE_MAX_ANISOTROPY_EXT, s.maximumAnisotropy);
+            gl.texParameteri(target, this._textureFilterAnisotropic.TEXTURE_MAX_ANISOTROPY_EXT, sampler.maximumAnisotropy);
         }
         gl.bindTexture(target, null);
 
         this._sampler = {
-            wrapS : s.wrapS,
-            wrapT : s.wrapT,
-            minificationFilter : s.minificationFilter,
-            magnificationFilter : s.magnificationFilter,
-            maximumAnisotropy : s.maximumAnisotropy
+            wrapS : sampler.wrapS,
+            wrapT : sampler.wrapT,
+            minificationFilter : sampler.minificationFilter,
+            magnificationFilter : sampler.magnificationFilter,
+            maximumAnisotropy : sampler.maximumAnisotropy
         };
     };
 
@@ -291,7 +315,7 @@ define([
      *
      * @memberof CubeMap
      *
-     * @return {Boolean} True if the source pixels are flipped vertically; otherwise, false.
+     * @returns {Boolean} True if the source pixels are flipped vertically; otherwise, false.
      *
      * @exception {DeveloperError} This cube map was destroyed, i.e., destroy() was called.
      */
@@ -315,7 +339,7 @@ define([
      *
      * @memberof CubeMap
      *
-     * @return {Boolean} True if this object was destroyed; otherwise, false.
+     * @returns {Boolean} True if this object was destroyed; otherwise, false.
      *
      * @see CubeMap#destroy
      */
@@ -333,7 +357,7 @@ define([
      *
      * @memberof CubeMap
      *
-     * @return {undefined}
+     * @returns {undefined}
      *
      * @exception {DeveloperError} This cube map was destroyed, i.e., destroy() was called.
      *

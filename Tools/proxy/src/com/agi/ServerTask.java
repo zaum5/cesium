@@ -1,13 +1,16 @@
 package com.agi;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.util.HashSet;
+import java.util.Properties;
 
 import org.apache.tools.ant.BuildException;
 import org.apache.tools.ant.Project;
 import org.apache.tools.ant.Task;
 import org.eclipse.jetty.client.Address;
 import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.http.MimeTypes;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ContextHandler;
@@ -25,6 +28,7 @@ public class ServerTask extends Task {
 	private Integer upstreamProxyPort;
 	private String noUpstreamProxyHostList;
 	private boolean listenOnAllAddresses;
+	private String mimeTypesPath;
 
 	public void execute() throws BuildException {
 		try {
@@ -73,6 +77,20 @@ public class ServerTask extends Task {
 			});
 			resourceHandler.setResourceBase(baseDir.getAbsolutePath());
 			resourceHandler.setCacheControl("no-cache");
+
+			if (mimeTypesPath != null) {
+				MimeTypes mimeTypes = resourceHandler.getMimeTypes();
+
+				Properties properties = new Properties();
+				FileInputStream fileInputStream = new FileInputStream(mimeTypesPath);
+				properties.load(fileInputStream);
+				fileInputStream.close();
+				for (String extension : properties.stringPropertyNames()) {
+					String mimeType = properties.getProperty(extension);
+					mimeTypes.addMimeMapping(extension, mimeType);
+				}
+			}
+
 			ContextHandler resourceContextHandler = new ContextHandler("/");
 			resourceContextHandler.setHandler(resourceHandler);
 
@@ -128,5 +146,9 @@ public class ServerTask extends Task {
 
 	public void setListenOnAllAddresses(boolean value) {
 		this.listenOnAllAddresses = value;
+	}
+
+	public void setMimeTypesPath(String mimeTypesPath) {
+		this.mimeTypesPath = mimeTypesPath;
 	}
 }

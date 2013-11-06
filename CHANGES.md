@@ -3,61 +3,417 @@ Change Log
 
 Beta Releases
 -------------
+
+### b23 - 2013-12-02
+
+* Breaking changes:
+  * Changed the `CatmulRomSpline` and `HermiteSpline` constructors from taking an array of structures to a structure of arrays. For example, code that looked like:
+    
+           var controlPoints = [
+               { point: new Cartesian3(1235398.0, -4810983.0, 4146266.0), time: 0.0},
+               { point: new Cartesian3(1372574.0, -5345182.0, 4606657.0), time: 1.5},
+               { point: new Cartesian3(-757983.0, -5542796.0, 4514323.0), time: 3.0},
+               { point: new Cartesian3(-2821260.0, -5248423.0, 4021290.0), time: 4.5},
+               { point: new Cartesian3(-2539788.0, -4724797.0, 3620093.0), time: 6.0}
+           ];
+           var spline = new HermiteSpline(controlPoints);
+           
+    should now look like:
+    
+           var spline = new HermiteSpline({
+               times : [ 0.0, 1.5, 3.0, 4.5, 6.0 ],
+               points : [
+                   new Cartesian3(1235398.0, -4810983.0, 4146266.0),
+                   new Cartesian3(1372574.0, -5345182.0, 4606657.0),
+                   new Cartesian3(-757983.0, -5542796.0, 4514323.0),
+                   new Cartesian3(-2821260.0, -5248423.0, 4021290.0),
+                   new Cartesian3(-2539788.0, -4724797.0, 3620093.0)
+               ]
+           });
+           
+* Added `Quaternion.log`, `Quaternion.exp`, `Quaternion.innerQuadrangle`, and `Quaternion.squad`.
+* Added `LinearSpline` and `QuaternionSpline`.
+* Added `perPositionHeight` option to `PolygonGeometry` and `PolygonOutlineGeometry`.
+* Added `Math.nextPowerOfTwo`.
+           
+### b22 - 2013-11-01
+
+* Breaking changes:
+  * Reversed the rotation direction of `Matrix3.fromQuaternion` to be consistent with graphics conventions. Mirrored change in `Quaternion.fromRotationMatrix`.
+  * The following prototype functions were removed
+    * From `Matrix2`, `Matrix3`, and `Matrix4`: `toArray`, `getColumn`, `setColumn`, `getRow`, `setRow`, `multiply`, `multiplyByVector`, `multiplyByScalar`, `negate`, and `transpose`.
+    * From `Matrix4`: `getTranslation`, `getRotation`, `inverse`, `inverseTransformation`, `multiplyByTranslation`, `multiplyByUniformScale`, `multiplyByPoint`. For example, code that previously looked like `matrix.toArray();` should now look like `Matrix3.toArray(matrix);`.
+  * Replaced `DynamicPolyline` `color`, `outlineColor`, and `outlineWidth` properties with a single `material` property.
+  * Renamed `DynamicBillboard.nearFarScalar` to `DynamicBillboard.scaleByDistance`.
+  * All data sources must now implement `DataSource.getName`, which returns a user-readable name for the data source.
+  * CZML `document` objects are no longer added to the `DynamicObjectCollection` created by `CzmlDataSource`.  Use the `CzmlDataSource` interface to access the data instead.
+  * `TimeInterval.equals`, and `TimeInterval.equalsEpsilon` now compare interval data as well.
+  * All SVG files were deleted from `Widgets/Images` and replaced by a new `SvgPath` class.
+  * The toolbar widgets (Home, SceneMode, BaseLayerPicker) and the fullscreen button now depend on `CesiumWidget.css` for global Cesium button styles.
+  * The toolbar widgets expect their `container` to be the toolbar itself now, no need for separate containers for each widget on the bar.
+  * `Property` implementations are now required to implement a prototype `equals` function.
+  * `ConstantProperty` and `TimeIntervalCollectionProperty` no longer take a `clone` function and instead require objects to implement prototype `clone` and `equals` functions.
+  * The `SkyBox` constructor now takes an `options` argument with a `sources` property, instead of directly taking `sources`.
+  * Replaced `SkyBox.getSources` with `SkyBox.sources`.
+  * The `bearing` property of `DynamicEllipse` is now called `rotation`.
+  * CZML `ellipse.bearing` property is now `ellipse.rotation`
+* Added a `Geocoder` widget that allows users to enter an address or the name of a landmark and zoom to that location.  It is enabled by default in applications that use the `Viewer` widget.
+* Added `GoogleEarthImageryProvider`.
+* Added `Moon` for drawing the moon, and `IauOrientationAxes` for computing the Moon's orientation.
+* Added `Material.translucent` property. Set this property or `Appearance.translucent` for correct rendering order. Translucent geometries are rendered after opaque geometries.
+* Added `enableLighting`, `lightingFadeOutDistance`, and `lightingFadeInDistance` properties to `CentralBody` to configure lighting.
+* Added `Billboard.setTranslucencyByDistance`, `Label.setTranslucencyByDistance`, `DynamicBillboard.translucencyByDistance`, and `DynamicLabel.translucencyByDistance` to control minimum/maximum translucency based on camera distance.
+* Added `PolylineVolumeGeometry` and `PolylineVolumeGeometryOutline`.
+* Added `Shapes.compute2DCircle`.
+* Added `Appearances` tab to Sandcastle with an example for each geometry appearance.
+* Added `Scene.drillPick` to return list of objects each containing 1 primitive at a screen space position.
+* Added `PolylineOutlineMaterialProperty` for use with `DynamicPolyline.material`.
+* Added the ability to use `Array` and `JulianDate` objects as custom CZML properties.
+* Added `DynamicObject.name` and corresponding CZML support.  This is a non-unique, user-readable name for the object.
+* Added `DynamicObject.parent` and corresponding CZML support.  This allows for `DataSource` objects to present data hierarchically.
+* Added `DynamicPoint.scaleByDistance` to control minimum/maximum point size based on distance from the camera.
+* The toolbar widgets (Home, SceneMode, BaseLayerPicker) and the fullscreen button can now be styled directly with user-supplied CSS.
+* Added `skyBox` to the `CesiumWidget` and `Viewer` constructors for changing the default stars.
+* Added `Matrix4.fromTranslationQuaternionRotationScale` and `Matrix4.multiplyByScale`.
+* Added `Matrix3.getEigenDecomposition`.
+* Added utility function `getFilenameFromUri`, which given a URI with or without query parameters, returns the last segment of the URL.
+* Added prototype versions of `equals` and `equalsEpsilon` method back to `Cartesian2`, `Cartesian3`, `Cartesian4`, and `Quaternion`.
+* Added prototype equals function to `NearFarScalar`, and `TimeIntervalCollection`.
+* Added `FrameState.events`.
+* Added `Primitive.allowPicking` to save memory when picking is not needed.
+* Added `debugShowBoundingVolume`, for debugging primitive rendering, to `Primitive`, `Polygon`, `ExtentPrimitive`, `EllipsoidPrimitive`, `BillboardCollection`, `LabelCollection`, and `PolylineCollection`.
+* Added `DebugModelMatrixPrimitive` for debugging primitive's `modelMatrix`.
+* Added `options` argument to the `EllipsoidPrimitive` constructor.
+* Upgraded Knockout from version 2.3.0 to 3.0.0.
+* Upgraded RequireJS to version 2.1.9, and Almond to 0.2.6.
+* Added a user-defined `id` to all primitives for use with picking.  For example:
+
+            primitives.add(new Polygon({
+                id : {
+                    // User-defined object returned by Scene.pick
+                },
+                // ...
+            }));
+            // ...
+            var p = scene.pick(/* ... */);
+            if (defined(p) && defined(p.id)) {
+               // Use properties and functions in p.id
+            }
+
+### b21 - 2013-10-01
+
+* Breaking changes:
+   * Cesium now prints a reminder to the console if your application uses Bing Maps imagery and you do not supply a Bing Maps key for your application.  This is a reminder that you should create a Bing Maps key for your application as soon as possible and prior to deployment.  You can generate a Bing Maps key by visiting [https://www.bingmapsportal.com/](https://www.bingmapsportal.com/).  Set the `BingMapsApi.defaultKey` property to the value of your application's key before constructing the `CesiumWidget` or any other types that use the Bing Maps API.
+
+            BingMapsApi.defaultKey = 'my-key-generated-with-bingmapsportal.com';
+
+   * `Scene.pick` now returns an object with a `primitive` property, not the primitive itself.  For example, code that looked like:
+
+            var primitive = scene.pick(/* ... */);
+            if (defined(primitive)) {
+               // Use primitive
+            }
+
+      should now look like:
+
+            var p = scene.pick(/* ... */);
+            if (defined(p) && defined(p.primitive)) {
+               // Use p.primitive
+            }
+
+   * Removed `getViewMatrix`, `getInverseViewMatrix`, `getInverseTransform`, `getPositionWC`, `getDirectionWC`, `getUpWC` and `getRightWC` from `Camera`. Instead, use the `viewMatrix`, `inverseViewMatrix`, `inverseTransform`, `positionWC`, `directionWC`, `upWC`, and `rightWC` properties.
+   * Removed `getProjectionMatrix` and `getInfiniteProjectionMatrix` from `PerspectiveFrustum`, `PerspectiveOffCenterFrustum` and `OrthographicFrustum`. Instead, use the `projectionMatrix` and `infiniteProjectionMatrix` properties.
+   * The following prototype functions were removed:
+      * From `Quaternion`: `conjugate`, `magnitudeSquared`, `magnitude`, `normalize`, `inverse`, `add`, `subtract`, `negate`, `dot`, `multiply`, `multiplyByScalar`, `divideByScalar`, `getAxis`, `getAngle`, `lerp`, `slerp`, `equals`, `equalsEpsilon`
+      * From `Cartesian2`, `Cartesian3`, and `Cartesian4`: `getMaximumComponent`, `getMinimumComponent`, `magnitudeSquared`, `magnitude`, `normalize`, `dot`, `multiplyComponents`, `add`, `subtract`, `multiplyByScalar`, `divideByScalar`, `negate`, `abs`, `lerp`, `angleBetween`, `mostOrthogonalAxis`, `equals`, and `equalsEpsilon`.
+      * From `Cartesian3`: `cross`
+
+      Code that previously looked like `quaternion.magnitude();` should now look like `Quaternion.magnitude(quaternion);`.
+   * `DynamicObjectCollection` and `CompositeDynamicObjectCollection` have been largely re-written, see the documentation for complete details.  Highlights include:
+      * `getObject` has been renamed `getById`
+      * `removeObject` has been renamed `removeById`
+      * `collectionChanged` event added for notification of objects being added or removed.
+   * `DynamicScene` graphics object (`DynamicBillboard`, etc...) have had their static `mergeProperties` and `clean` functions removed.
+   * `UniformState.update` now takes a context as its first parameter.
+   * `Camera` constructor now takes a context instead of a canvas.
+   * `SceneTransforms.clipToWindowCoordinates` now takes a context instead of a canvas.
+   * Removed `canvasDimensions` from `FrameState`.
+   * Removed `context` option from `Material` constructor and parameter from `Material.fromType`.
+   * Renamed `TextureWrap.CLAMP` to `TextureWrap.CLAMP_TO_EDGE`.
+* Added `Geometries` tab to Sandcastle with an example for each geometry type.
+* Added `CorridorOutlineGeometry`.
+* Added `PolylineGeometry`, `PolylineColorAppearance`, and `PolylineMaterialAppearance`.
+* Added `colors` option to `SimplePolylineGeometry` for per vertex or per segment colors.
+* Added proper support for browser zoom.
+* Added `propertyChanged` event to `DynamicScene` graphics objects for receiving change notifications.
+* Added prototype `clone` and `merge` functions to `DynamicScene` graphics objects.
+* Added `width`, `height`, and `nearFarScalar` properties to `DynamicBillboard` for controlling the image size.
+* Added `heading` and `tilt` properties to `CameraController`.
+* Added `Scene.sunBloom` to enable/disable the bloom filter on the sun. The bloom filter should be disabled for better frame rates on mobile devices.
+* Added `getDrawingBufferWidth` and `getDrawingBufferHeight` to `Context`.
+* Added new built-in GLSL functions `czm_getLambertDiffuse` and `czm_getSpecular`.
+* Added support for [EXT_frag_depth](http://www.khronos.org/registry/webgl/extensions/EXT_frag_depth/).
+* Improved graphics performance.
+    * An Everest terrain view went from 135-140 to over 150 frames per second.
+    * Rendering over a thousand polylines in the same collection with different materials went from 20 to 40 frames per second.
+* Improved runtime generation of GLSL shaders.
+* Made sun size accurate.
+* Fixed bug in triangulation that fails on complex polygons. Instead, it makes a best effort to render what it can. [#1121](https://github.com/AnalyticalGraphicsInc/cesium/issues/1121)
+* Fixed geometries not closing completely. [#1093](https://github.com/AnalyticalGraphicsInc/cesium/issues/1093)
+* Fixed `EllipsoidTangentPlane.projectPointOntoPlane` for tangent planes on an ellipsoid other than the unit sphere.
+* `CompositePrimitive.add` now returns the added primitive. This allows us to write more concise code.
+
+        var p = new Primitive(/* ... */);
+        primitives.add(p);
+        return p;
+
+  becomes
+
+        return primitives.add(new Primitive(/* ... */));
+
+### b20 - 2013-09-03
+
+_This releases fixes 2D and other issues with Chrome 29.0.1547.57 ([#1002](https://github.com/AnalyticalGraphicsInc/cesium/issues/1002) and [#1047](https://github.com/AnalyticalGraphicsInc/cesium/issues/1047))._
+
+* Breaking changes:
+    * The `CameraFlightPath` functions `createAnimation`, `createAnimationCartographic`, and `createAnimationExtent` now take `scene` as their first parameter instead of `frameState`.
+    * `Source/Widgets/Viewer/lighter.css` was deleted, use `Source/Widgets/lighter.css` instead.
+    * Completely refactored the `DynamicScene` property system to vastly improve the API. See [#1080](https://github.com/AnalyticalGraphicsInc/cesium/pull/1080) for complete details.
+       * Removed `CzmlBoolean`, `CzmlCartesian2`, `CzmlCartesian3`, `CzmlColor`, `CzmlDefaults`, `CzmlDirection`, `CzmlHorizontalOrigin`, `CzmlImage`, `CzmlLabelStyle`, `CzmlNumber`, `CzmlPosition`, `CzmlString`, `CzmlUnitCartesian3`, `CzmlUnitQuaternion`, `CzmlUnitSpherical`, and `CzmlVerticalOrigin` since they are no longer needed.
+       * Removed `DynamicProperty`, `DynamicMaterialProperty`, `DynamicDirectionsProperty`, and `DynamicVertexPositionsProperty`; replacing them with an all new system of properties.
+          * `Property` - base interface for all properties.
+          * `CompositeProperty` - a property composed of other properties.
+          * `ConstantProperty` - a property whose value never changes.
+          * `SampledProperty` - a property whose value is interpolated from a set of samples.
+          * `TimeIntervalCollectionProperty` - a property whose value changes based on time interval.
+          * `MaterialProperty` - base interface for all material properties.
+          * `CompositeMaterialProperty` - a `CompositeProperty` for materials.
+          * `ColorMaterialProperty` - a property that maps to a color material. (replaces `DynamicColorMaterial`)
+          * `GridMaterialProperty` - a property that maps to a grid material. (replaces `DynamicGridMaterial`)
+          * `ImageMaterialProperty` - a property that maps to an image material. (replaces `DynamicImageMaterial`)
+          * `PositionProperty`- base interface for all position properties.
+          * `CompositePositionProperty` - a `CompositeProperty` for positions.
+          * `ConstantPositionProperty` - a `PositionProperty` whose value does not change in respect to the `ReferenceFrame` in which is it defined.
+          * `SampledPositionProperty` - a `SampledProperty` for positions.
+          * `TimeIntervalCollectionPositionProperty` - A `TimeIntervalCollectionProperty` for positions.
+    * Removed `processCzml`, use `CzmlDataSource` instead.
+    * `Source/Widgets/Viewer/lighter.css` was deleted, use `Source/Widgets/lighter.css` instead.
+    * Replaced `ExtentGeometry` parameters for extruded extent to make them consistent with other geometries.
+      * `options.extrudedOptions.height` -> `options.extrudedHeight`
+      * `options.extrudedOptions.closeTop` -> `options.closeBottom`
+      * `options.extrudedOptions.closeBottom` -> `options.closeTop`
+    * Geometry constructors no longer compute vertices or indices. Use the type's `createGeometry` method. For example, code that looked like:
+
+            var boxGeometry = new BoxGeometry({
+              minimumCorner : min,
+              maximumCorner : max,
+              vertexFormat : VertexFormat.POSITION_ONLY
+            });
+
+      should now look like:
+
+            var box = new BoxGeometry({
+                minimumCorner : min,
+                maximumCorner : max,
+                vertexFormat : VertexFormat.POSITION_ONLY
+            });
+            var geometry = BoxGeometry.createGeometry(box);
+
+    * Removed `createTypedArray` and `createArrayBufferView` from each of the `ComponentDatatype` enumerations. Instead, use `ComponentDatatype.createTypedArray` and `ComponentDatatype.createArrayBufferView`.
+    * `DataSourceDisplay` now requires a `DataSourceCollection` to be passed into its constructor.
+    * `DeveloperError` and `RuntimeError` no longer contain an `error` property.  Call `toString`, or check the `stack` property directly instead.
+    * Replaced `createPickFragmentShaderSource` with `createShaderSource`.
+    * Renamed `PolygonPipeline.earClip2D` to `PolygonPipeline.triangulate`.
+* Added outline geometries.  [#1021](https://github.com/AnalyticalGraphicsInc/cesium/pull/1021).
+* Added `CorridorGeometry`.
+* Added `Billboard.scaleByDistance` and `NearFarScalar` to control billboard minimum/maximum scale based on camera distance.
+* Added `EllipsoidGeodesic`.
+* Added `PolylinePipeline.scaleToSurface`.
+* Added `PolylinePipeline.scaleToGeodeticHeight`.
+* Added the ability to specify a `minimumTerrainLevel` and `maximumTerrainLevel` when constructing an `ImageryLayer`.  The layer will only be shown for terrain tiles within the specified range.
+* Added `Math.setRandomNumberSeed` and `Math.nextRandomNumber` for generating repeatable random numbers.
+* Added `Color.fromRandom` to generate random and partially random colors.
+* Added an `onCancel` callback to `CameraFlightPath` functions that will be executed if the flight is canceled.
+* Added `Scene.debugShowFrustums` and `Scene.debugFrustumStatistics` for rendering debugging.
+* Added `Packable` and `PackableForInterpolation` interfaces to aid interpolation and in-memory data storage.  Also made most core Cesium types implement them.
+* Added `InterpolationAlgorithm` interface to codify the base interface already being used by `LagrangePolynomialApproximation`, `LinearApproximation`, and `HermitePolynomialApproximation`.
+* Improved the performance of polygon triangulation using an O(n log n) algorithm.
+* Improved geometry batching performance by moving work to a web worker.
+* Improved `WallGeometry` to follow the curvature of the earth.
+* Improved visual quality of closed translucent geometries.
+* Optimized polyline bounding spheres.
+* `Viewer` now automatically sets its clock to that of the first added `DataSource`, regardless of how it was added to the `DataSourceCollection`.  Previously, this was only done for dropped files by `viewerDragDropMixin`.
+* `CesiumWidget` and `Viewer` now display an HTML error panel if an error occurs while rendering, which can be disabled with a constructor option.
+* `CameraFlightPath` now automatically disables and restores mouse input for the flights it generates.
+* Fixed broken surface rendering in Columbus View when using the `EllipsoidTerrainProvider`.
+* Fixed triangulation for polygons that cross the international date line.
+* Fixed `EllipsoidPrimitive` rendering for some oblate ellipsoids. [#1067](https://github.com/AnalyticalGraphicsInc/cesium/pull/1067).
+* Fixed Cesium on Nexus 4 with Android 4.3.
+* Upgraded Knockout from version 2.2.1 to 2.3.0.
+
+### b19 - 2013-08-01
+
+* Breaking changes:
+   * Replaced tessellators and meshes with geometry.  In particular:
+      * Replaced `CubeMapEllipsoidTessellator` with `EllipsoidGeometry`.
+      * Replaced `BoxTessellator` with `BoxGeometry`.
+      * Replaced `ExtentTessletaor` with `ExtentGeometry`.
+      * Removed `PlaneTessellator`.  It was incomplete and not used.
+      * Renamed `MeshFilters` to `GeometryPipeline`.
+      * Renamed `MeshFilters.toWireframeInPlace` to `GeometryPipeline.toWireframe`.
+      * Removed `MeshFilters.mapAttributeIndices`.  It was not used.
+      * Renamed `Context.createVertexArrayFromMesh` to `Context.createVertexArrayFromGeometry`.  Likewise, renamed `mesh` constructor property to `geometry`.
+   * Renamed `ComponentDatatype.*.toTypedArray` to `ComponentDatatype.*.createTypedArray`.
+   * Removed `Polygon.configureExtent`.  Use `ExtentPrimitive` instead.
+   * Removed `Polygon.bufferUsage`.  It is no longer needed.
+   * Removed `height` and `textureRotationAngle` arguments from `Polygon` `setPositions` and `configureFromPolygonHierarchy` functions.  Use `Polygon` `height` and `textureRotationAngle` properties.
+   * Renamed `PolygonPipeline.cleanUp` to `PolygonPipeline.removeDuplicates`.
+   * Removed `PolygonPipeline.wrapLongitude`. Use `GeometryPipeline.wrapLongitude` instead.
+   * Added `surfaceHeight` parameter to `BoundingSphere.fromExtent3D`.
+   * Added `surfaceHeight` parameter to `Extent.subsample`.
+   * Renamed `pointInsideTriangle2D` to `pointInsideTriangle`.
+   * Renamed `getLogo` to `getCredit` for `ImageryProvider` and `TerrainProvider`.
+* Added Geometry and Appearances [#911](https://github.com/AnalyticalGraphicsInc/cesium/pull/911).
+* Added property `intersectionWidth` to `DynamicCone`, `DynamicPyramid`, `CustomSensorVolume`, and `RectangularPyramidSensorVolume`.
+* Added `ExtentPrimitive`.
+* Added `PolylinePipeline.removeDuplicates`.
+* Added `barycentricCoordinates` to compute the barycentric coordinates of a point in a triangle.
+* Added `BoundingSphere.fromEllipsoid`.
+* Added `BoundingSphere.projectTo2D`.
+* Added `Extent.fromDegrees`.
+* Added `czm_tangentToEyeSpaceMatrix` built-in GLSL function.
+* Added debugging aids for low-level rendering: `DrawCommand.debugShowBoundingVolume` and `Scene.debugCommandFilter`.
+* Added extrusion to `ExtentGeometry`.
+* Added `Credit` and `CreditDisplay` for displaying credits on the screen.
+* Improved performance and visual quality of `CustomSensorVolume` and `RectangularPyramidSensorVolume`.
+* Improved the performance of drawing polygons created with `configureFromPolygonHierarchy`.
+
+### b18 - 2013-07-01
+
+* Breaking changes:
+   * Removed `CesiumViewerWidget` and replaced it with a new `Viewer` widget with mixin architecture. This new widget does not depend on Dojo and is part of the combined Cesium.js file. It is intended to be a flexible base widget for easily building robust applications. ([#838](https://github.com/AnalyticalGraphicsInc/cesium/pull/838))
+   * Changed all widgets to use ECMAScript 5 properties.  All public observable properties now must be accessed and assigned as if they were normal properties, instead of being called as functions.  For example:
+      * `clockViewModel.shouldAnimate()` -> `clockViewModel.shouldAnimate`
+      * `clockViewModel.shouldAnimate(true);` -> `clockViewModel.shouldAnimate = true;`
+   * `ImageryProviderViewModel.fromConstants` has been removed.  Use the `ImageryProviderViewModel` constructor directly.
+   * Renamed the `transitioner` property on `CesiumWidget`, `HomeButton`, and `ScreenModePicker` to `sceneTrasitioner` to be consistent with property naming convention.
+   * `ImageryProvider.loadImage` now requires that the calling imagery provider instance be passed as its first parameter.
+   * Removed the Dojo-based `checkForChromeFrame` function, and replaced it with a new standalone version that returns a promise to signal when the asynchronous check has completed.
+   * Removed `Assets/Textures/NE2_LR_LC_SR_W_DR_2048.jpg`.  If you were previously using this image with `SingleTileImageryProvider`, consider instead using `TileMapServiceImageryProvider` with a URL of `Assets/Textures/NaturalEarthII`.
+   * The `Client CZML` SandCastle demo has been removed, largely because it is redundant with the Simple CZML demo.
+   * The `Two Viewer Widgets` SandCastle demo has been removed. We will add back a multi-scene example when we have a good architecture for it in place.
+   * Changed static `clone` functions in all objects such that if the object being cloned is undefined, the function will return undefined instead of throwing an exception
+* Fix resizing issues in `CesiumWidget` ([#608](https://github.com/AnalyticalGraphicsInc/cesium/issues/608), [#834](https://github.com/AnalyticalGraphicsInc/cesium/issues/834)).
+* Added initial support for [GeoJSON](http://www.geojson.org/) and [TopoJSON](https://github.com/mbostock/topojson). ([#890](https://github.com/AnalyticalGraphicsInc/cesium/pull/890), [#906](https://github.com/AnalyticalGraphicsInc/cesium/pull/906))
+* Added rotation, aligned axis, width, and height properties to `Billboard`s.
+* Improved the performance of "missing tile" checking, especially for Bing imagery.
+* Improved the performance of terrain and imagery refinement, especially when using a mixture of slow and fast imagery sources.
+* `TileMapServiceImageryProvider` now supports imagery with a minimum level.  This improves compatibility with tile sets generated by MapTiler or gdal2tiles.py using their default settings.
+* Added `Context.getAntialias`.
+* Improved test robustness on Mac.
+* Upgraded RequireJS to version 2.1.6, and Almond to 0.2.5.
+* Fixed artifacts that showed up on the edges of imagery tiles on a number of GPUs.
+* Fixed an issue in `BaseLayerPicker` where destroy wasn't properly cleaning everything up.
+* Added the ability to unsubscribe to `Timeline` update event.
+* Added a `screenSpaceEventHandler` property to `CesiumWidget`. Also added a `sceneMode` option to the constructor to set the initial scene mode.
+* Added `useDefaultRenderLoop` property to `CesiumWidget` that allows the default render loop to be disabled so that a custom render loop can be used.
+* Added `CesiumWidget.onRenderLoopError` which is an `Event` that is raised if an exception is generated inside of the default render loop.
+* `ImageryProviderViewModel.creationCommand` can now return an array of ImageryProvider instances, which allows adding multiple layers when a single item is selected in the `BaseLayerPicker` widget.
+
+### b17 - 2013-06-03
+
+* Breaking changes:
+   * Replaced `Uniform.getFrameNumber` and `Uniform.getTime` with `Uniform.getFrameState`, which returns the full frame state.
+   * Renamed `Widgets/Fullscreen` folder to `Widgets/FullscreenButton` along with associated objects/files.
+      * `FullscreenWidget` -> `FullscreenButton`
+      * `FullscreenViewModel` -> `FullscreenButtonViewModel`
+   * Removed `addAttribute`, `removeAttribute`, and `setIndexBuffer` from `VertexArray`.  They were not used.
+* Added support for approximating local vertical, local horizontal (LVLH) reference frames when using `DynamicObjectView` in 3D.  The object automatically selects LVLH or EastNorthUp based on the object's velocity.
+* Added support for CZML defined vectors via new `CzmlDirection`, `DynamicVector`, and `DynamicVectorVisualizer` objects.
+* Added `SceneTransforms.wgs84ToWindowCoordinates`. [#746](https://github.com/AnalyticalGraphicsInc/cesium/issues/746).
+* Added `fromElements` to `Cartesian2`, `Cartesian3`, and `Cartesian4`.
+* Added `DrawCommand.cull` to avoid redundant visibility checks.
+* Added `czm_morphTime` automatic GLSL uniform.
+* Added support for [OES_vertex_array_object](http://www.khronos.org/registry/webgl/extensions/OES_vertex_array_object/), which improves rendering performance.
+* Added support for floating-point textures.
+* Added `IntersectionTests.trianglePlaneIntersection`.
+* Added `computeHorizonCullingPoint`, `computeHorizonCullingPointFromVertices`, and `computeHorizonCullingPointFromExtent` methods to `EllipsoidalOccluder` and used them to build a more accurate horizon occlusion test for terrain rendering.
+* Added sun visualization. See `Sun` and `Scene.sun`.
+* Added a new `HomeButton` widget for returning to the default view of the current scene mode.
+* Added `Command.beforeExecute` and `Command.afterExecute` events to enable additional processing when a command is executed.
+* Added rotation parameter to `Polygon.configureExtent`.
+* Added camera flight to extents.  See new methods `CameraController.getExtentCameraCoordinates` and `CameraFlightPath.createAnimationExtent`.
+* Improved the load ordering of terrain and imagery tiles, so that relevant detail is now more likely to be loaded first.
+* Improved appearance of the Polyline arrow material.
+* Fixed polyline clipping artifact. [#728](https://github.com/AnalyticalGraphicsInc/cesium/issues/728).
+* Fixed polygon crossing International Date Line for 2D and Columbus view. [#99](https://github.com/AnalyticalGraphicsInc/cesium/issues/99).
+* Fixed issue for camera flights when `frameState.mode === SceneMode.MORPHING`
+* Fixed ISO8601 date parsing when UTC offset is specified in the extended format, such as `2008-11-10T14:00:00+02:30`.
+
 ### b16 - 2013-05-01
+
 * Breaking changes:
    * Removed the color, outline color, and outline width properties of polylines. Instead, use materials for polyline color and outline properties. Code that looked like:
-         
-         var polyline = polylineCollection.add({
-             positions : positions,
-             color : new Color(1.0, 1.0, 1.0, 1.0),
-             outlineColor : new Color(1.0, 0.0, 0.0, 1.0),
-             width : 1.0,
-             outlineWidth : 3.0
-         });
-         
+
+            var polyline = polylineCollection.add({
+                positions : positions,
+                color : new Color(1.0, 1.0, 1.0, 1.0),
+                outlineColor : new Color(1.0, 0.0, 0.0, 1.0),
+                width : 1.0,
+                outlineWidth : 3.0
+            });
+
      should now look like:
-         
-         var outlineMaterial = Material.fromType(context, Material.PolylineOutlineType);
-         outlineMaterial.uniforms.color = new Color(1.0, 1.0, 1.0, 1.0);
-         outlineMaterial.uniforms.outlineColor = new Color(1.0, 0.0, 0.0, 1.0);
-         outlineMaterial.uniforms.outlinewidth = 2.0;
-         
-         var polyline = polylineCollection.add({
-             positions : positions,
-             width : 3.0,
-             material : outlineMaterial
-         });
+
+            var outlineMaterial = Material.fromType(context, Material.PolylineOutlineType);
+            outlineMaterial.uniforms.color = new Color(1.0, 1.0, 1.0, 1.0);
+            outlineMaterial.uniforms.outlineColor = new Color(1.0, 0.0, 0.0, 1.0);
+            outlineMaterial.uniforms.outlinewidth = 2.0;
+
+            var polyline = polylineCollection.add({
+                positions : positions,
+                width : 3.0,
+                material : outlineMaterial
+            });
+
    * `CzmlCartographic` has been removed and all cartographic values are converted to Cartesian internally during CZML processing.  This improves performance and fixes interpolation of cartographic source data.  The Cartographic representation can still be retrieved if needed.
    * Removed `ComplexConicSensorVolume`, which was not documented and did not work on most platforms.  It will be brought back in a future release.  This does not affect CZML, which uses a custom sensor to approximate a complex conic.
+   * Replaced `computeSunPosition` with `Simon1994PlanetaryPosition`, which has functions to calculate the position of the sun and the moon more accurately.
+   * Removed `Context.createClearState`.  These properties are now part of `ClearCommand`.
+   * `RenderState` objects returned from `Context.createRenderState` are now immutable.
+   * Removed `positionMC` from `czm_materialInput`.  It is no longer used by any materials.
 * Added wide polylines that work with and without ANGLE.
 * Polylines now use materials to describe their surface appearance. See the [Fabric](https://github.com/AnalyticalGraphicsInc/cesium/wiki/Fabric) wiki page for more details on how to create materials.
-* Added new `PolylineOutline`, `PolylineArrow`, and `Fade` materials.
+* Added new `PolylineOutline`, `PolylineGlow`, `PolylineArrow`, and `Fade` materials.
 * Added `czm_pixelSizeInMeters` automatic GLSL uniform.
 * Added `AnimationViewModel.snapToTicks`, which when set to true, causes the shuttle ring on the Animation widget to snap to the defined tick values, rather than interpolate between them.
 * Added `Color.toRgba` and `Color.fromRgba` to convert to/from numeric unsigned 32-bit RGBA values.
+* Added `GridImageryProvider` for custom rendering effects and debugging.
 * Added new `Grid` material.
 * Made `EllipsoidPrimitive` double-sided.
+* Improved rendering performance by minimizing WebGL state calls.
 * Fixed an error in Web Worker creation when loading Cesium.js from a different origin.
 * Fixed `EllipsoidPrimitive` picking and picking objects with materials that have transparent parts.
+* Fixed imagery smearing artifacts on mobile devices and other devices without high-precision fragment shaders.
 
 ### b15 - 2013-04-01
 
 * Breaking changes:
    * `Billboard.computeScreenSpacePosition` now takes `Context` and `FrameState` arguments instead of a `UniformState` argument.
    * Removed `clampToPixel` property from `BillboardCollection` and `LabelCollection`.  This options is no longer be needed due to overall LabelCollection visualization improvements.
-   * Removed `Widgets/Dojo/CesiumWidget` and replaced it with `Widgets/CesiumWidget`, which has no Dojo dependancies.    
-   * `destroyObject` no longer deletes properties from the object being destroyed.  
+   * Removed `Widgets/Dojo/CesiumWidget` and replaced it with `Widgets/CesiumWidget`, which has no Dojo dependancies.
+   * `destroyObject` no longer deletes properties from the object being destroyed.
    * `darker.css` files have been deleted and the `darker` theme is now the default style for widgets.  The original theme is now known as `lighter` and is in corresponding `lighter.css` files.
    * CSS class names have been standardized to avoid potential collisions. All widgets now follow the same pattern, `cesium-<widget>-<className>`.
    * Removed `view2D`, `view3D`, and `viewColumbus` properties from `CesiumViewerWidget`.  Use the `sceneTransitioner` property instead.
 * Added `BoundingSphere.fromCornerPoints`.
 * Added `fromArray` and `distance` functions to `Cartesian2`, `Cartesian3`, and `Cartesian4`.
 * Added `DynamicPath.resolution` property for setting the maximum step size, in seconds, to take when sampling a position for path visualization.
-* Added `TileCoordinatesImageryProvider` that renders imagery with tile X, Y, Level coordinates on the surface of the globe.  This is mostly useful for debugging. 
+* Added `TileCoordinatesImageryProvider` that renders imagery with tile X, Y, Level coordinates on the surface of the globe.  This is mostly useful for debugging.
 * Added `DynamicEllipse` and `DynamicObject.ellipse` property to render CZML ellipses on the globe.
 * Added `sampleTerrain` function to sample the terrain height of a list of `Cartographic` positions.
-* Added `DynamicObjectCollection.removeObject` and handling of the new CZML `delete` property. 
-* Imagery layers with an `alpha` of exactly 0.0 are no longer rendered.  Previously these invisible layers were rendered normally, which was a waste of resources.  Unlike the `show` property, imagery tiles in a layer with an `alpha` of 0.0 are still downloaded, so the layer will become visible more quickly when its `alpha` is increased. 
+* Added `DynamicObjectCollection.removeObject` and handling of the new CZML `delete` property.
+* Imagery layers with an `alpha` of exactly 0.0 are no longer rendered.  Previously these invisible layers were rendered normally, which was a waste of resources.  Unlike the `show` property, imagery tiles in a layer with an `alpha` of 0.0 are still downloaded, so the layer will become visible more quickly when its `alpha` is increased.
 * Added `onTransitionStart` and `onTransitionComplete` events to `SceneModeTransitioner`.
 * Added `SceneModePicker`; a new widget for morphing between scene modes.
 * Added `BaseLayerPicker`; a new widget for switching among pre-configured base layer imagery providers.
@@ -73,7 +429,7 @@ Beta Releases
       * `ClockRange.LOOP` was renamed to `ClockRange.LOOP_STOP` and now only loops in the forward direction.
       * `Clock.reverseTick` was removed, simply negate `Clock.multiplier` and pass it to `Clock.tick`.
       * `Clock.shouldAnimate` was added to indicate if `Clock.tick` should actually advance time.
-      * The Timeline widget was moved into the Widgets/Timeline subdirectory. 
+      * The Timeline widget was moved into the Widgets/Timeline subdirectory.
       * `Dojo/TimelineWidget` was removed.  You should use the non-toolkit specific Timeline widget directly.
    * Removed `CesiumViewerWidget.fullScreenElement`, instead use the `CesiumViewerWidget.fullscreen.viewModel.fullScreenElement` observable property.
    * `IntersectionTests.rayPlane` now takes the new `Plane` type instead of separate `planeNormal` and `planeD` arguments.
@@ -96,7 +452,7 @@ Beta Releases
    * The Web Worker files needed when using the combined `Cesium.js` file are now in a `Workers` subdirectory.
    * Removed `erosion` property from `Polygon`, `ComplexConicSensorVolume`, `RectangularPyramidSensorVolume`, and `ComplexConicSensorVolume`.  Use the new `Erosion` material.  See the Sandbox Animation example.
    * Removed `setRectangle` and `getRectangle` methods from `ViewportQuad`. Use the new `rectangle` property.
-   * Removed `time` parameter from `Scene.initializeFrame`. Instead, pass the time to `Scene.render`. 
+   * Removed `time` parameter from `Scene.initializeFrame`. Instead, pass the time to `Scene.render`.
 * Added new `RimLighting` and `Erosion` materials.  See the [Fabric](https://github.com/AnalyticalGraphicsInc/cesium/wiki/Fabric) wiki page.
 * Added `hue` and `saturation` properties to `ImageryLayer`.
 * Added `czm_hue` and `czm_saturation` to adjust the hue and saturation of RGB colors.

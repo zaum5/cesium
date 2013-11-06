@@ -1,5 +1,6 @@
 /*global define*/
 define([
+        '../Core/defined',
         '../Core/destroyObject',
         '../Core/Cartesian2',
         '../Core/Cartesian3',
@@ -11,9 +12,7 @@ define([
         '../Core/FAR',
         '../Core/IntersectionTests',
         '../Core/Math',
-        '../Core/Matrix3',
         '../Core/Matrix4',
-        '../Core/Quaternion',
         '../Core/Ray',
         '../Core/Transforms',
         './AnimationCollection',
@@ -22,6 +21,7 @@ define([
         './CameraColumbusViewMode',
         './SceneMode'
     ], function(
+        defined,
         destroyObject,
         Cartesian2,
         Cartesian3,
@@ -33,9 +33,7 @@ define([
         FAR,
         IntersectionTests,
         CesiumMath,
-        Matrix3,
         Matrix4,
-        Quaternion,
         Ray,
         Transforms,
         AnimationCollection,
@@ -57,88 +55,102 @@ define([
      * @exception {DeveloperError} cameraController is required.
      */
     var ScreenSpaceCameraController = function(canvas, cameraController) {
-        if (typeof canvas === 'undefined') {
+        if (!defined(canvas)) {
             throw new DeveloperError('canvas is required.');
         }
 
-        if (typeof cameraController === 'undefined') {
+        if (!defined(cameraController)) {
             throw new DeveloperError('cameraController is required.');
         }
 
         /**
          * If true, allows the user to pan around the map.  If false, the camera stays locked at the current position.
          * This flag only applies in 2D and Columbus view modes.
-         * @type Boolean
+         * @type {Boolean}
+         * @default true
          */
         this.enableTranslate = true;
         /**
          * If true, allows the user to zoom in and out.  If false, the camera is locked to the current distance from the ellipsoid.
-         * @type Boolean
+         * @type {Boolean}
+         * @default true
          */
         this.enableZoom = true;
         /**
          * If true, allows the user to rotate the camera.  If false, the camera is locked to the current heading.
          * This flag only applies in 2D and 3D.
-         * @type Boolean
+         * @type {Boolean}
+         * @default true
          */
         this.enableRotate = true;
         /**
          * If true, allows the user to tilt the camera.  If false, the camera is locked to the current heading.
          * This flag only applies in 3D and Columbus view.
-         * @type Boolean
+         * @type {Boolean}
+         * @default true
          */
         this.enableTilt = true;
         /**
          * If true, allows the user to use free-look. If false, the camera view direction can only be changed through translating
          * or rotating. This flag only applies in 3D and Columbus view modes.
+         * @type {Boolean}
+         * @default true
          */
         this.enableLook = true;
         /**
          * A parameter in the range <code>[0, 1)</code> used to determine how long
          * the camera will continue to spin because of inertia.
          * With value of zero, the camera will have no inertia.
-         * @type Number
+         * @type {Number}
+         * @default 0.9
          */
         this.inertiaSpin = 0.9;
         /**
          * A parameter in the range <code>[0, 1)</code> used to determine how long
          * the camera will continue to translate because of inertia.
          * With value of zero, the camera will have no inertia.
-         * @type Number
+         * @type {Number}
+         * @default 0.9
          */
         this.inertiaTranslate = 0.9;
         /**
          * A parameter in the range <code>[0, 1)</code> used to determine how long
          * the camera will continue to zoom because of inertia.
          * With value of zero, the camera will have no inertia.
-         * @type Number
+         * @type {Number}
+         * @default 0.8
          */
         this.inertiaZoom = 0.8;
         /**
          * A parameter in the range <code>[0, 1)</code> used to limit the range
          * of various user inputs to a percentage of the window width/height per animation frame.
          * This helps keep the camera under control in low-frame-rate situations.
-         * @type Number
+         * @type {Number}
+         * @default 0.1
          */
         this.maximumMovementRatio = 0.1;
         /**
          * Sets the behavior in Columbus view.
-         * @type CameraColumbusViewMode
+         * @type {CameraColumbusViewMode}
+         * @default {@link CameraColumbusViewMode.FREE}
          */
         this.columbusViewMode = CameraColumbusViewMode.FREE;
         /**
          * Sets the duration, in milliseconds, of the bounce back animations in 2D and Columbus view. The default value is 3000.
-         * @type Number
+         * @type {Number}
+         * @default 3000.0
          */
         this.bounceAnimationTime = 3000.0;
         /**
          * The minimum magnitude, in meters, of the camera position when zooming. Defaults to 20.0.
-         * @type Number
+         * @type {Number}
+         * @default 20.0
          */
         this.minimumZoomDistance = 20.0;
         /**
          * The maximum magnitude, in meters, of the camera position when zooming. Defaults to positive infinity.
-         * @type Number
+         * @type {Number}
+         * @default {@link Number.POSITIVE_INFINITY}
          */
         this.maximumZoomDistance = Number.POSITIVE_INFINITY;
 
@@ -209,7 +221,7 @@ define([
     }
 
     function sameMousePosition(movement) {
-        return movement.startPosition.equalsEpsilon(movement.endPosition, CesiumMath.EPSILON14);
+        return Cartesian2.equalsEpsilon(movement.startPosition, movement.endPosition, CesiumMath.EPSILON14);
     }
 
     // If the time between mouse down and mouse up is not between
@@ -227,7 +239,7 @@ define([
         if (ts && tr && threshold < inertiaMaxClickTimeThreshold) {
             var d = decay(fromNow, decayCoef);
 
-            if (typeof object[lastMovementName] === 'undefined') {
+            if (!defined(object[lastMovementName])) {
                 var lastMovement = handler.getLastMovement();
                 if (!lastMovement || sameMousePosition(lastMovement)) {
                     return;
@@ -242,7 +254,7 @@ define([
                 };
             } else {
                 object[lastMovementName] = {
-                    startPosition : object[lastMovementName].endPosition.clone(),
+                    startPosition : Cartesian2.clone(object[lastMovementName].endPosition),
                     endPosition : new Cartesian2(
                             object[lastMovementName].endPosition.x + object[lastMovementName].motion.x * d,
                             object[lastMovementName].endPosition.y + object[lastMovementName].motion.y * d),
@@ -267,7 +279,7 @@ define([
 
     function handleZoom(object, movement, zoomFactor, distanceMeasure, unitPositionDotDirection) {
         var percentage = 1.0;
-        if (typeof unitPositionDotDirection !== 'undefined') {
+        if (defined(unitPositionDotDirection)) {
             percentage = CesiumMath.clamp(Math.abs(unitPositionDotDirection), 0.25, 1.0);
         }
 
@@ -425,7 +437,7 @@ define([
                 !controller._lastInertiaZoomMovement && !controller._lastInertiaTranslateMovement &&
                 !controller._animationCollection.contains(controller._animation)) {
             var animation = controller._cameraController.createCorrectPositionAnimation(controller.bounceAnimationTime);
-            if (typeof animation !== 'undefined') {
+            if (defined(animation)) {
                 controller._animation = controller._animationCollection.add(animation);
             }
         }
@@ -448,13 +460,13 @@ define([
 
         var position = startRay.origin;
         var direction = startRay.direction;
-        var scalar = -normal.dot(position) / normal.dot(direction);
+        var scalar = -Cartesian3.dot(normal, position) / Cartesian3.dot(normal, direction);
         var startPlanePos = Cartesian3.multiplyByScalar(direction, scalar, translateCVStartPos);
         Cartesian3.add(position, startPlanePos, startPlanePos);
 
         position = endRay.origin;
         direction = endRay.direction;
-        scalar = -normal.dot(position) / normal.dot(direction);
+        scalar = -Cartesian3.dot(normal, position) / Cartesian3.dot(normal, direction);
         var endPlanePos = Cartesian3.multiplyByScalar(direction, scalar, translateCVEndPos);
         Cartesian3.add(position, endPlanePos, endPlanePos);
 
@@ -463,7 +475,7 @@ define([
         diff.x = diff.y;
         diff.y = diff.z;
         diff.z = temp;
-        var mag = diff.magnitude();
+        var mag = Cartesian3.magnitude(diff);
         if (mag > CesiumMath.EPSILON6) {
             Cartesian3.normalize(diff, diff);
             cameraController.move(diff, mag);
@@ -483,7 +495,7 @@ define([
 
         var position = ray.origin;
         var direction = ray.direction;
-        var scalar = -normal.dot(position) / normal.dot(direction);
+        var scalar = -Cartesian3.dot(normal, position) / Cartesian3.dot(normal, direction);
         var center = Cartesian3.multiplyByScalar(direction, scalar, rotateCVCenter);
         Cartesian3.add(position, center, center);
         var transform = Matrix4.fromTranslation(center, rotateTransform);
@@ -507,7 +519,7 @@ define([
 
         var position = ray.origin;
         var direction = ray.direction;
-        var scalar = -normal.dot(position) / normal.dot(direction);
+        var scalar = -Cartesian3.dot(normal, position) / Cartesian3.dot(normal, direction);
 
         handleZoom(controller, movement, controller._zoomFactor, scalar);
     }
@@ -624,7 +636,7 @@ define([
             if (!buttonDown && !controller._lastInertiaZoomMovement && !controller._lastInertiaTranslateMovement &&
                     !controller._animationCollection.contains(controller._animation)) {
                 var animation = controller._cameraController.createCorrectPositionAnimation(controller.bounceAnimationTime);
-                if (typeof animation !== 'undefined') {
+                if (defined(animation)) {
                     controller._animation = controller._animationCollection.add(animation);
                 }
             }
@@ -637,24 +649,24 @@ define([
 
     var spin3DPick = new Cartesian3();
     function spin3D(controller, movement) {
-        if (typeof controller._cameraController.pickEllipsoid(movement.startPosition, controller._ellipsoid, spin3DPick) !== 'undefined') {
+        if (defined(controller._cameraController.pickEllipsoid(movement.startPosition, controller._ellipsoid, spin3DPick))) {
             pan3D(controller, movement);
         } else {
             rotate3D(controller, movement);
         }
     }
 
-    var rotate3DRestrictedDirection = Cartesian4.ZERO.clone();
+    var rotate3DRestrictedDirection = Cartesian4.clone(Cartesian4.ZERO);
     function rotate3D(controller, movement, transform, constrainedAxis, restrictedAngle) {
         var cameraController = controller._cameraController;
         var oldAxis = cameraController.constrainedAxis;
-        if (typeof constrainedAxis !== 'undefined') {
+        if (defined(constrainedAxis)) {
             cameraController.constrainedAxis = constrainedAxis;
         }
 
         // CAMERA TODO: remove access to camera, fixes a problem in Columbus view
         //var rho = cameraController.getMagnitude();
-        var rho = cameraController._camera.position.magnitude();
+        var rho = Cartesian3.magnitude(cameraController._camera.position);
         var rotateRate = controller._rotateFactor * (rho - controller._rotateRateRangeAdjustment);
 
         if (rotateRate > controller._maximumRotateRate) {
@@ -673,11 +685,11 @@ define([
         var deltaPhi = rotateRate * phiWindowRatio * Math.PI * 2.0;
         var deltaTheta = rotateRate * thetaWindowRatio * Math.PI;
 
-        if (typeof cameraController.constrainedAxis !== 'undefined' && typeof transform === 'undefined') {
+        if (defined(cameraController.constrainedAxis) && !defined(transform)) {
             var camera = cameraController._camera;
-            var p = camera.position.normalize();
-            var northParallel = p.equalsEpsilon(cameraController.constrainedAxis, CesiumMath.EPSILON2);
-            var southParallel = p.equalsEpsilon(cameraController.constrainedAxis.negate(), CesiumMath.EPSILON2);
+            var p = Cartesian3.normalize(camera.position);
+            var northParallel = Cartesian3.equalsEpsilon(p, cameraController.constrainedAxis, CesiumMath.EPSILON2);
+            var southParallel = Cartesian3.equalsEpsilon(p, Cartesian3.negate(cameraController.constrainedAxis), CesiumMath.EPSILON2);
 
             if (!northParallel && !southParallel) {
                 var up;
@@ -688,10 +700,10 @@ define([
                 }
 
                 var east;
-                if (Cartesian3.equalsEpsilon(cameraController.constrainedAxis, camera.position.normalize(), CesiumMath.EPSILON2)) {
+                if (Cartesian3.equalsEpsilon(cameraController.constrainedAxis, Cartesian3.normalize(camera.position), CesiumMath.EPSILON2)) {
                     east = camera.right;
                 } else {
-                    east = Cartesian3.cross(cameraController.constrainedAxis, camera.position).normalize();
+                    east = Cartesian3.normalize(Cartesian3.cross(cameraController.constrainedAxis, camera.position));
                 }
 
                 var rDotE = Cartesian3.dot(camera.right, east);
@@ -711,9 +723,9 @@ define([
         cameraController.rotateRight(deltaPhi, transform);
         cameraController.rotateUp(deltaTheta, transform);
 
-        if (typeof restrictedAngle !== 'undefined') {
-            var direction = Cartesian3.clone(cameraController._camera.getDirectionWC(), rotate3DRestrictedDirection);
-            var invTransform = transform.inverseTransformation();
+        if (defined(restrictedAngle)) {
+            var direction = Cartesian3.clone(cameraController._camera.directionWC, rotate3DRestrictedDirection);
+            var invTransform = Matrix4.inverseTransformation(transform);
             Matrix4.multiplyByVector(invTransform, direction, direction);
 
             var dot = -Cartesian3.dot(direction, constrainedAxis);
@@ -727,8 +739,8 @@ define([
         cameraController.constrainedAxis = oldAxis;
     }
 
-    var pan3DP0 = Cartesian4.UNIT_W.clone();
-    var pan3DP1 = Cartesian4.UNIT_W.clone();
+    var pan3DP0 = Cartesian4.clone(Cartesian4.UNIT_W);
+    var pan3DP1 = Cartesian4.clone(Cartesian4.UNIT_W);
     var pan3DTemp0 = new Cartesian3();
     var pan3DTemp1 = new Cartesian3();
     var pan3DTemp2 = new Cartesian3();
@@ -738,7 +750,7 @@ define([
         var p0 = cameraController.pickEllipsoid(movement.startPosition, controller._ellipsoid, pan3DP0);
         var p1 = cameraController.pickEllipsoid(movement.endPosition, controller._ellipsoid, pan3DP1);
 
-        if (typeof p0 === 'undefined' || typeof p1 === 'undefined') {
+        if (!defined(p0) || !defined(p1)) {
             return;
         }
 
@@ -746,13 +758,13 @@ define([
         p0 = cameraController._camera.worldToCameraCoordinates(p0, p0);
         p1 = cameraController._camera.worldToCameraCoordinates(p1, p1);
 
-        if (typeof cameraController.constrainedAxis === 'undefined') {
+        if (!defined(cameraController.constrainedAxis)) {
             Cartesian3.normalize(p0, p0);
             Cartesian3.normalize(p1, p1);
             var dot = Cartesian3.dot(p0, p1);
             var axis = Cartesian3.cross(p0, p1, pan3DTemp0);
 
-            if (dot < 1.0 && !axis.equalsEpsilon(Cartesian3.ZERO, CesiumMath.EPSILON14)) { // dot is in [0, 1]
+            if (dot < 1.0 && !Cartesian3.equalsEpsilon(axis, Cartesian3.ZERO, CesiumMath.EPSILON14)) { // dot is in [0, 1]
                 var angle = Math.acos(dot);
                 cameraController.rotate(axis, angle);
             }
@@ -833,7 +845,7 @@ define([
     var tilt3DWindowPos = new Cartesian2();
     var tilt3DRay = new Ray();
     var tilt3DCart = new Cartographic();
-    var tilt3DCenter = Cartesian4.UNIT_W.clone();
+    var tilt3DCenter = Cartesian4.clone(Cartesian4.UNIT_W);
     var tilt3DTransform = new Matrix4();
     function tilt3D(controller, movement) {
         var cameraController = controller._cameraController;
@@ -853,11 +865,11 @@ define([
 
         var center;
         var intersection = IntersectionTests.rayEllipsoid(ray, ellipsoid);
-        if (typeof intersection !== 'undefined') {
+        if (defined(intersection)) {
             center = ray.getPoint(intersection.start, tilt3DCenter);
         } else {
             var grazingAltitudeLocation = IntersectionTests.grazingAltitudeLocation(ray, ellipsoid);
-            if (typeof grazingAltitudeLocation === 'undefined') {
+            if (!defined(grazingAltitudeLocation)) {
                 return;
             }
             var grazingAltitudeCart = ellipsoid.cartesianToCartographic(grazingAltitudeLocation, tilt3DCart);
@@ -873,7 +885,7 @@ define([
         var oldEllipsoid = controller._ellipsoid;
         controller.setEllipsoid(Ellipsoid.UNIT_SPHERE);
 
-        var angle = (minHeight * 0.25) / (Cartesian3.subtract(center, camera.position).magnitude());
+        var angle = (minHeight * 0.25) / Cartesian3.magnitude(Cartesian3.subtract(center, camera.position));
         rotate3D(controller, movement, transform, Cartesian3.UNIT_Z, CesiumMath.PI_OVER_TWO - angle);
 
         controller.setEllipsoid(oldEllipsoid);
@@ -896,13 +908,13 @@ define([
         var end = cameraController.getPickRay(endPos, look3DEndRay).direction;
 
         var angle = 0.0;
-        var dot = start.dot(end);
+        var dot = Cartesian3.dot(start, end);
         if (dot < 1.0) { // dot is in [0, 1]
             angle = Math.acos(dot);
         }
         angle = (movement.startPosition.x > movement.endPosition.x) ? -angle : angle;
         var rotationAxis = controller._horizontalRotationAxis;
-        if (typeof rotationAxis !== 'undefined') {
+        if (defined(rotationAxis)) {
             cameraController.look(rotationAxis, angle);
         } else {
             cameraController.lookLeft(angle);
@@ -916,7 +928,7 @@ define([
         end = cameraController.getPickRay(endPos, look3DEndRay).direction;
 
         angle = 0.0;
-        dot = start.dot(end);
+        dot = Cartesian3.dot(start, end);
         if (dot < 1.0) { // dot is in [0, 1]
             angle = Math.acos(dot);
         }
@@ -1022,7 +1034,7 @@ define([
      *
      * @memberof ScreenSpaceCameraController
      *
-     * @return {Boolean} <code>true</code> if this object was destroyed; otherwise, <code>false</code>.
+     * @returns {Boolean} <code>true</code> if this object was destroyed; otherwise, <code>false</code>.
      *
      * @see ScreenSpaceCameraController#destroy
      */
@@ -1039,7 +1051,7 @@ define([
      *
      * @memberof ScreenSpaceCameraController
      *
-     * @return {undefined}
+     * @returns {undefined}
      *
      * @exception {DeveloperError} This object was destroyed, i.e., destroy() was called.
      *

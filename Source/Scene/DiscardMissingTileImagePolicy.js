@@ -1,13 +1,15 @@
 /*global define*/
 define([
         '../Core/defaultValue',
-        '../Core/loadImage',
+        '../Core/defined',
+        '../Core/loadImageViaBlob',
         '../Core/getImagePixels',
         '../Core/DeveloperError',
         '../ThirdParty/when'
     ], function(
         defaultValue,
-        loadImage,
+        defined,
+        loadImageViaBlob,
         getImagePixels,
         DeveloperError,
         when) {
@@ -33,21 +35,26 @@ define([
     var DiscardMissingTileImagePolicy = function(description) {
         description = defaultValue(description, {});
 
-        if (typeof description.missingImageUrl === 'undefined') {
+        if (!defined(description.missingImageUrl)) {
             throw new DeveloperError('description.missingImageUrl is required.');
         }
 
-        if (typeof description.pixelsToCheck === 'undefined') {
+        if (!defined(description.pixelsToCheck)) {
             throw new DeveloperError('description.pixelsToCheck is required.');
         }
 
         this._pixelsToCheck = description.pixelsToCheck;
         this._missingImagePixels = undefined;
+        this._missingImageByteLength = undefined;
         this._isReady = false;
 
         var that = this;
 
         function success(image) {
+            if (defined(image.blob)) {
+                that._missingImageByteLength = image.blob.size;
+            }
+
             var pixels = getImagePixels(image);
 
             if (description.disableCheckIfAllPixelsAreTransparent) {
@@ -81,7 +88,7 @@ define([
             that._isReady = true;
         }
 
-        when(loadImage(description.missingImageUrl), success, failure);
+        when(loadImageViaBlob(description.missingImageUrl), success, failure);
     };
 
     /**
@@ -110,7 +117,11 @@ define([
         var missingImagePixels = this._missingImagePixels;
 
         // If missingImagePixels is undefined, it indicates that the discard check has been disabled.
-        if (typeof missingImagePixels === 'undefined') {
+        if (!defined(missingImagePixels)) {
+            return false;
+        }
+
+        if (defined(image.blob) && image.blob.size !== this._missingImageByteLength) {
             return false;
         }
 

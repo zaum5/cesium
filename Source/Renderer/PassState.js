@@ -12,13 +12,21 @@ define(function() {
      * @see DrawCommand
      * @see ClearCommand
      */
-    var PassState = function() {
+    var PassState = function(context) {
+        /**
+         * The context used to execute commands for this pass.
+         *
+         * @type {Context}
+         */
+        this.context = context;
+
         /**
          * The framebuffer to render to.  This framebuffer is used unless a {@link DrawCommand}
          * or {@link ClearCommand} explicitly define a framebuffer, which is used for off-screen
          * rendering.
          *
-         * @type Framebuffer
+         * @type {Framebuffer}
+         * @default undefined
          */
         this.framebuffer = undefined;
 
@@ -29,7 +37,7 @@ define(function() {
          * When this is <code>undefined</code>, the {@link DrawCommand}'s property is used.
          * </p>
          *
-         * @type Boolean
+         * @type {Boolean}
          * @default undefined
          */
         this.blendingEnabled = undefined;
@@ -40,6 +48,9 @@ define(function() {
          * <p>
          * When this is <code>undefined</code>, the {@link DrawCommand}'s property is used.
          * </p>
+         *
+         * @type DOC_TBA
+         * @default undefined
          */
         this.scissorTest = undefined;
     };

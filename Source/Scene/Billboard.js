@@ -1,32 +1,32 @@
 /*global define*/
 define([
         '../Core/defaultValue',
+        '../Core/defined',
         '../Core/DeveloperError',
-        '../Core/BoundingRectangle',
         '../Core/Color',
         '../Core/Cartesian2',
         '../Core/Cartesian3',
         '../Core/Cartesian4',
-        '../Core/Cartographic',
-        '../Core/Math',
+        '../Core/NearFarScalar',
         '../Core/Matrix4',
         './HorizontalOrigin',
         './VerticalOrigin',
-        './SceneMode'
+        './SceneMode',
+        './SceneTransforms'
     ], function(
         defaultValue,
+        defined,
         DeveloperError,
-        BoundingRectangle,
         Color,
         Cartesian2,
         Cartesian3,
         Cartesian4,
-        Cartographic,
-        CesiumMath,
+        NearFarScalar,
         Matrix4,
         HorizontalOrigin,
         VerticalOrigin,
-        SceneMode) {
+        SceneMode,
+        SceneTransforms) {
     "use strict";
 
     var EMPTY_OBJECT = {};
@@ -52,6 +52,9 @@ define([
      * updated, it may be more efficient to clear the collection with {@link BillboardCollection#removeAll}
      * and add new billboards instead of modifying each one.
      *
+     * @exception {DeveloperError} scaleByDistance.far must be greater than scaleByDistance.near
+     * @exception {DeveloperError} translucencyByDistance.far must be greater than translucencyByDistance.near
+     *
      * @see BillboardCollection
      * @see BillboardCollection#add
      * @see Label
@@ -60,24 +63,39 @@ define([
      *
      * @demo <a href="http://cesium.agi.com/Cesium/Apps/Sandcastle/index.html?src=Billboards.html">Cesium Sandcastle Billboard Demo</a>
      */
-    var Billboard = function(description, billboardCollection) {
-        description = defaultValue(description, EMPTY_OBJECT);
+    var Billboard = function(options, billboardCollection) {
+        options = defaultValue(options, EMPTY_OBJECT);
 
-        this._show = defaultValue(description.show, true);
+        if (defined(options.scaleByDistance) && options.scaleByDistance.far <= options.scaleByDistance.near) {
+            throw new DeveloperError('scaleByDistance.far must be greater than scaleByDistance.near.');
+        }
+        if (defined(options.translucencyByDistance) &&
+                options.translucencyByDistance.far <= options.translucencyByDistance.near) {
+            throw new DeveloperError('translucencyByDistance.far must be greater than translucencyByDistance.near.');
+        }
 
-        this._position = Cartesian3.clone(defaultValue(description.position, Cartesian3.ZERO));
-        this._actualPosition = this._position.clone(); // For columbus view and 2D
+        this._show = defaultValue(options.show, true);
 
-        this._pixelOffset = Cartesian2.clone(defaultValue(description.pixelOffset, Cartesian2.ZERO));
-        this._eyeOffset = Cartesian3.clone(defaultValue(description.eyeOffset, Cartesian3.ZERO));
-        this._verticalOrigin = defaultValue(description.verticalOrigin, VerticalOrigin.CENTER);
-        this._horizontalOrigin = defaultValue(description.horizontalOrigin, HorizontalOrigin.CENTER);
-        this._scale = defaultValue(description.scale, 1.0);
-        this._imageIndex = defaultValue(description.imageIndex, -1);
-        this._color = Color.clone(defaultValue(description.color, Color.WHITE));
+        this._position = Cartesian3.clone(defaultValue(options.position, Cartesian3.ZERO));
+        this._actualPosition = Cartesian3.clone(this._position); // For columbus view and 2D
+
+        this._pixelOffset = Cartesian2.clone(defaultValue(options.pixelOffset, Cartesian2.ZERO));
+        this._eyeOffset = Cartesian3.clone(defaultValue(options.eyeOffset, Cartesian3.ZERO));
+        this._verticalOrigin = defaultValue(options.verticalOrigin, VerticalOrigin.CENTER);
+        this._horizontalOrigin = defaultValue(options.horizontalOrigin, HorizontalOrigin.CENTER);
+        this._scale = defaultValue(options.scale, 1.0);
+        this._imageIndex = defaultValue(options.imageIndex, -1);
+        this._color = Color.clone(defaultValue(options.color, Color.WHITE));
+        this._rotation = defaultValue(options.rotation, 0.0);
+        this._alignedAxis = Cartesian3.clone(defaultValue(options.alignedAxis, Cartesian3.ZERO));
+        this._width = options.width;
+        this._height = options.height;
+        this._scaleByDistance = options.scaleByDistance;
+        this._translucencyByDistance = options.translucencyByDistance;
+        this._id = options.id;
 
         this._pickId = undefined;
-        this._pickIdThis = description._pickIdThis;
+        this._pickIdThis = options._pickIdThis;
         this._billboardCollection = billboardCollection;
         this._dirty = false;
         this._index = -1; //Used only by BillboardCollection
@@ -92,18 +110,28 @@ define([
     var SCALE_INDEX = Billboard.SCALE_INDEX = 6;
     var IMAGE_INDEX_INDEX = Billboard.IMAGE_INDEX_INDEX = 7;
     var COLOR_INDEX = Billboard.COLOR_INDEX = 8;
-    Billboard.NUMBER_OF_PROPERTIES = 9;
+    var ROTATION_INDEX = Billboard.ROTATION_INDEX = 9;
+    var ALIGNED_AXIS_INDEX = Billboard.ALIGNED_AXIS_INDEX = 10;
+    var SCALE_BY_DISTANCE_INDEX = Billboard.SCALE_BY_DISTANCE_INDEX = 11;
+    var TRANSLUCENCY_BY_DISTANCE_INDEX = Billboard.TRANSLUCENCY_BY_DISTANCE_INDEX = 12;
+    Billboard.NUMBER_OF_PROPERTIES = 13;
 
     function makeDirty(billboard, propertyChanged) {
         var billboardCollection = billboard._billboardCollection;
-        if (typeof billboardCollection !== 'undefined') {
+        if (defined(billboardCollection)) {
             billboardCollection._updateBillboard(billboard, propertyChanged);
             billboard._dirty = true;
         }
     }
 
     Billboard.prototype.getPickId = function(context) {
-        this._pickId = this._pickId || context.createPickId(this._pickIdThis || this);
+        if (!defined(this._pickId)) {
+            this._pickId = context.createPickId({
+                primitive : defaultValue(this._pickIdThis, this),
+                id : this._id
+            });
+        }
+
         return this._pickId;
     };
 
@@ -113,7 +141,7 @@ define([
      *
      * @memberof Billboard
      *
-     * @return {Boolean} <code>true</code> if this billboard will be shown; otherwise, <code>false</code>.
+     * @returns {Boolean} <code>true</code> if this billboard will be shown; otherwise, <code>false</code>.
      *
      * @see Billboard#setShow
      */
@@ -134,7 +162,7 @@ define([
      * @see Billboard#getShow
      */
     Billboard.prototype.setShow = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -149,7 +177,7 @@ define([
      *
      * @memberof Billboard
      *
-     * @return {Cartesian3} The Cartesian position of this billboard.
+     * @returns {Cartesian3} The Cartesian position of this billboard.
      *
      * @see Billboard#setPosition
      */
@@ -185,7 +213,7 @@ define([
      * });
      */
     Billboard.prototype.setPosition = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -212,7 +240,7 @@ define([
      *
      * @memberof Billboard
      *
-     * @return {Cartesian2} The pixel offset of this billboard.
+     * @returns {Cartesian2} The pixel offset of this billboard.
      *
      * @see Billboard#setPixelOffset
      */
@@ -249,7 +277,7 @@ define([
      * @see Label#setPixelOffset
      */
     Billboard.prototype.setPixelOffset = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -261,11 +289,117 @@ define([
     };
 
     /**
+     * Returns the near and far scaling properties of a Billboard based on the billboard's distance from the camera.
+     *
+     * @memberof Billboard
+     *
+     * @returns {NearFarScalar} The near/far scaling values based on camera distance to the billboard
+     *
+     * @see Billboard#setScaleByDistance
+     */
+    Billboard.prototype.getScaleByDistance = function() {
+        return this._scaleByDistance;
+    };
+
+    /**
+     * Sets near and far scaling properties of a Billboard based on the billboard's distance from the camera.
+     * A billboard's scale will interpolate between the {@link NearFarScalar#nearValue} and
+     * {@link NearFarScalar#farValue} while the camera distance falls within the upper and lower bounds
+     * of the specified {@link NearFarScalar#near} and {@link NearFarScalar#far}.
+     * Outside of these ranges the billboard's scale remains clamped to the nearest bound.  If undefined,
+     * scaleByDistance will be disabled.
+     *
+     * @memberof Billboard
+     *
+     * @param {NearFarScalar} scale The configuration of near and far distances and their respective scale values
+     *
+     * @exception {DeveloperError} far distance must be greater than near distance.
+     *
+     * @see Billboard#getScaleByDistance
+     *
+     * @example
+     * // Example 1.
+     * // Set a billboard's scaleByDistance to scale by 1.5 when the
+     * // camera is 1500 meters from the billboard and disappear as
+     * // the camera distance approaches 8.0e6 meters.
+     * b.setScaleByDistance(new NearFarScalar(1.5e2, 1.5, 8.0e6, 0.0));
+     *
+     * // Example 2.
+     * // disable scaling by distance
+     * b.setScaleByDistance(undefined);
+     */
+    Billboard.prototype.setScaleByDistance = function(scale) {
+        if (NearFarScalar.equals(this._scaleByDistance, scale)) {
+            return;
+        }
+
+        if (scale.far <= scale.near) {
+            throw new DeveloperError('far distance must be greater than near distance.');
+        }
+
+        makeDirty(this, SCALE_BY_DISTANCE_INDEX);
+        this._scaleByDistance = NearFarScalar.clone(scale, this._scaleByDistance);
+    };
+
+    /**
+     * Returns the near and far translucency properties of a Billboard based on the billboard's distance from the camera.
+     *
+     * @memberof Billboard
+     *
+     * @returns {NearFarScalar} The near/far translucency values based on camera distance to the billboard
+     *
+     * @see Billboard#setTranslucencyByDistance
+     */
+    Billboard.prototype.getTranslucencyByDistance = function() {
+        return this._translucencyByDistance;
+    };
+
+    /**
+     * Sets near and far translucency properties of a Billboard based on the billboard's distance from the camera.
+     * A billboard's translucency will interpolate between the {@link NearFarScalar#nearValue} and
+     * {@link NearFarScalar#farValue} while the camera distance falls within the upper and lower bounds
+     * of the specified {@link NearFarScalar#near} and {@link NearFarScalar#far}.
+     * Outside of these ranges the billboard's translucency remains clamped to the nearest bound.  If undefined,
+     * translucencyByDistance will be disabled.
+     *
+     * @memberof Billboard
+     *
+     * @param {NearFarScalar} translucency The configuration of near and far distances and their respective translucency values
+     *
+     * @exception {DeveloperError} far distance must be greater than near distance.
+     *
+     * @see Billboard#getTranslucencyByDistance
+     *
+     * @example
+     * // Example 1.
+     * // Set a billboard's translucency to 1.0 when the
+     * // camera is 1500 meters from the billboard and disappear as
+     * // the camera distance approaches 8.0e6 meters.
+     * b.setTranslucencyByDistance(new NearFarScalar(1.5e2, 1.0, 8.0e6, 0.0));
+     *
+     * // Example 2.
+     * // disable translucency by distance
+     * b.setTranslucencyByDistance(undefined);
+     */
+    Billboard.prototype.setTranslucencyByDistance = function(translucency) {
+        if (NearFarScalar.equals(this._translucencyByDistance, translucency)) {
+            return;
+        }
+
+        if (translucency.far <= translucency.near) {
+            throw new DeveloperError('far distance must be greater than near distance.');
+        }
+
+        makeDirty(this, TRANSLUCENCY_BY_DISTANCE_INDEX);
+        this._translucencyByDistance = NearFarScalar.clone(translucency, this._translucencyByDistance);
+    };
+
+    /**
      * Returns the 3D Cartesian offset applied to this billboard in eye coordinates.
      *
      * @memberof Billboard
      *
-     * @return {Cartesian3} The 3D Cartesian offset applied to this billboard in eye coordinates.
+     * @returns {Cartesian3} The 3D Cartesian offset applied to this billboard in eye coordinates.
      *
      * @see Billboard#setEyeOffset
      */
@@ -307,7 +441,7 @@ define([
      * @see Billboard#getEyeOffset
      */
     Billboard.prototype.setEyeOffset = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -323,7 +457,7 @@ define([
      *
      * @memberof Billboard
      *
-     * @return {HorizontalOrigin} The horizontal origin of this billboard.
+     * @returns {HorizontalOrigin} The horizontal origin of this billboard.
      *
      * @see Billboard#setHorizontalOrigin
      */
@@ -354,7 +488,7 @@ define([
      * b.setVerticalOrigin(VerticalOrigin.BOTTOM);
      */
     Billboard.prototype.setHorizontalOrigin = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -369,7 +503,7 @@ define([
      *
      * @memberof Billboard
      *
-     * @return {VerticalOrigin} The vertical origin of this billboard.
+     * @returns {VerticalOrigin} The vertical origin of this billboard.
      *
      * @see Billboard#setVerticalOrigin
      */
@@ -400,7 +534,7 @@ define([
      * b.setVerticalOrigin(VerticalOrigin.BOTTOM);
      */
     Billboard.prototype.setVerticalOrigin = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -415,7 +549,7 @@ define([
      *
      * @memberof Billboard
      *
-     * @return {Number} The scale used to size the billboard.
+     * @returns {Number} The scale used to size the billboard.
      *
      * @see Billboard#setScale
      */
@@ -445,7 +579,7 @@ define([
      * @see Billboard#setImageIndex
      */
     Billboard.prototype.setScale = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -493,7 +627,7 @@ define([
      *
      * @memberof Billboard
      *
-     * @return {Number} The color that is multiplied with the billboard's texture.
+     * @returns {Number} The color that is multiplied with the billboard's texture.
      *
      * @see Billboard#setColor
      */
@@ -544,7 +678,7 @@ define([
      * });
      */
     Billboard.prototype.setColor = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -555,74 +689,210 @@ define([
         }
     };
 
-    var tempCartesian4 = new Cartesian4();
-    var tempCartographic = new Cartographic();
-    Billboard._computeActualPosition = function(position, frameState, morphTime, modelMatrix) {
-        var mode = frameState.mode;
+    /**
+     * Gets the rotation angle in radians.
+     *
+     * @memberof Billboard
+     *
+     * @returns {Number} The rotation angle in radians.
+     *
+     * @see Billboard#setRotation
+     * @see Billboard#getAlignedAxis
+     * @see Billboard#setAlignedAxis
+     */
+    Billboard.prototype.getRotation = function() {
+        return this._rotation;
+    };
 
-        if (mode === SceneMode.SCENE3D) {
+    /**
+     * Sets the rotation angle in radians.
+     *
+     * @memberof Billboard
+     *
+     * @param {Number} value The rotation angle in radians.
+     *
+     * @exception {DeveloperError} value is required.
+     *
+     * @see Billboard#getRotation
+     * @see Billboard#getAlignedAxis
+     * @see Billboard#setAlignedAxis
+     */
+    Billboard.prototype.setRotation = function(value) {
+        if (!defined(value)) {
+            throw new DeveloperError('value is required.');
+        }
+
+        if (this._rotation !== value) {
+            this._rotation = value;
+            makeDirty(this, ROTATION_INDEX);
+        }
+    };
+
+    /**
+     * Gets the aligned axis in world space. The aligned axis is the unit vector that the billboard up vector points towards.
+     * The default is the zero vector, which means the billboard is aligned to the screen up vector.
+     *
+     * @memberof Billboard
+     *
+     * @returns {Cartesian3} The aligned axis.
+     *
+     * @see Billboard#setRotation
+     * @see Billboard#getRotation
+     * @see Billboard#setAlignedAxis
+     */
+    Billboard.prototype.getAlignedAxis = function() {
+        return this._alignedAxis;
+    };
+
+    /**
+     * Sets the aligned axis in world space. The aligned axis is the unit vector that the billboard up vector points towards.
+     * The default is the zero vector, which means the billboard is aligned to the screen up vector.
+     *
+     * @memberof Billboard
+     *
+     * @param {Cartesian3} value The aligned axis.
+     *
+     * @exception {DeveloperError} value is required.
+     *
+     * @see Billboard#setRotation
+     * @see Billboard#getRotation
+     * @see Billboard#setAlignedAxis
+     *
+     * @example
+     * // Example 1.
+     * // Have the billboard up vector point north
+     * billboard.setAlignedAxis(Cartesian3.UNIT_Z);
+     *
+     * // Example 2.
+     * // Have the billboard point east.
+     * billboard.setAlignedAxis(Cartesian3.UNIT_Z);
+     * billboard.setRotation(-Cesium.Math.PI_OVER_TWO);
+     *
+     * // Example 3.
+     * // Reset the aligned axis
+     * billboard.setAlignedAxis(Cartesian3.ZERO);
+     */
+    Billboard.prototype.setAlignedAxis = function(value) {
+        if (!defined(value)) {
+            throw new DeveloperError('value is required.');
+        }
+
+        var axis = this._alignedAxis;
+        if (!Cartesian3.equals(axis, value)) {
+            Cartesian3.clone(value, axis);
+            makeDirty(this, ALIGNED_AXIS_INDEX);
+        }
+    };
+
+    /**
+     * Gets the billboards custom width or undefined if the image width is used.
+     *
+     * @memberof Billboard
+     *
+     * @returns {Number} The billboard's width or undefined.
+     *
+     * @see Billboard#setWidth
+     * @see Billboard#getHeight
+     * @see Billboard#setHeight
+     */
+    Billboard.prototype.getWidth = function() {
+        return this._width;
+    };
+
+    /**
+     * Sets a custom width for the billboard. If undefined, the image width will be used.
+     *
+     * @memberof Billboard
+     *
+     * @param {Number} value The width of the billboard or undefined to use the image width.
+     *
+     * @see Billboard#getWidth
+     * @see Billboard#getHeight
+     * @see Billboard#setHeight
+     */
+    Billboard.prototype.setWidth = function(value) {
+        if (this._width !== value) {
+            this._width = value;
+            makeDirty(this, IMAGE_INDEX_INDEX);
+        }
+    };
+
+    /**
+     * Gets the billboards custom height or undefined if the image height is used.
+     *
+     * @memberof Billboard
+     *
+     * @returns {Number} The billboard's height or undefined.
+     *
+     * @see Billboard#setHeight
+     * @see Billboard#getWidth
+     * @see Billboard#setWidth
+     */
+    Billboard.prototype.getHeight = function() {
+        return this._height;
+    };
+
+    /**
+     * Sets a custom height for the billboard. If undefined, the image height will be used.
+     *
+     * @memberof Billboard
+     *
+     * @param {Number} value The height of the billboard or undefined to use the image height.
+     *
+     * @see Billboard#getHeight
+     * @see Billboard#getWidth
+     * @see Billboard#setWidth
+     */
+    Billboard.prototype.setHeight = function(value) {
+        if (this._height !== value) {
+            this._height = value;
+            makeDirty(this, IMAGE_INDEX_INDEX);
+        }
+    };
+
+    /**
+     * Returns the user-defined object returned when the billboard is picked.
+     *
+     * @memberof Billboard
+     *
+     * @returns {Object} The user-defined object returned when the billboard is picked.
+     */
+    Billboard.prototype.getId = function() {
+        return this._id;
+    };
+
+    var tempCartesian4 = new Cartesian4();
+    Billboard._computeActualPosition = function(position, frameState, modelMatrix) {
+        if (frameState.mode === SceneMode.SCENE3D) {
             return position;
         }
 
-        modelMatrix.multiplyByPoint(position, tempCartesian4);
-
-        var projection = frameState.scene2D.projection;
-        var cartographic = projection.getEllipsoid().cartesianToCartographic(tempCartesian4, tempCartographic);
-        if (typeof cartographic === 'undefined') {
-            return undefined;
-        }
-
-        var projectedPosition = projection.project(cartographic);
-        if (mode === SceneMode.MORPHING) {
-            var x = CesiumMath.lerp(projectedPosition.z, tempCartesian4.x, morphTime);
-            var y = CesiumMath.lerp(projectedPosition.x, tempCartesian4.y, morphTime);
-            var z = CesiumMath.lerp(projectedPosition.y, tempCartesian4.z, morphTime);
-            return new Cartesian3(x, y, z);
-        }
-        if (mode === SceneMode.SCENE2D) {
-            return new Cartesian3(0.0, projectedPosition.x, projectedPosition.y);
-        }
-        if (mode === SceneMode.COLUMBUS_VIEW) {
-            return new Cartesian3(projectedPosition.z, projectedPosition.x, projectedPosition.y);
-        }
-        return undefined;
+        Matrix4.multiplyByPoint(modelMatrix, position, tempCartesian4);
+        return SceneTransforms.computeActualWgs84Position(frameState, tempCartesian4);
     };
 
-    var scratchViewport = new BoundingRectangle();
-    var scratchViewportTransform = new Matrix4();
     Billboard._computeScreenSpacePosition = function(modelMatrix, position, eyeOffset, pixelOffset, context, frameState) {
         // This function is basically a stripped-down JavaScript version of BillboardCollectionVS.glsl
-
         var camera = frameState.camera;
-        var view = camera.getViewMatrix();
-        var projection = camera.frustum.getProjectionMatrix();
-
-        // Assuming viewport takes up the entire canvas...
-        var canvas = context.getCanvas();
-        scratchViewport.width = canvas.clientWidth;
-        scratchViewport.height = canvas.clientHeight;
-        var viewportTransformation = Matrix4.computeViewportTransformation(scratchViewport, 0.0, 1.0, scratchViewportTransform);
+        var view = camera.viewMatrix;
+        var projection = camera.frustum.projectionMatrix;
 
         // Model to eye coordinates
-        var mv = view.multiply(modelMatrix);
-        var positionEC = mv.multiplyByPoint(position);
+        var mv = Matrix4.multiply(view, modelMatrix);
+        var positionEC = Matrix4.multiplyByPoint(mv, position);
 
         // Apply eye offset, e.g., czm_eyeOffset
-        var zEyeOffset = eyeOffset.multiplyComponents(positionEC.normalize());
+        var zEyeOffset = Cartesian3.multiplyComponents(eyeOffset, Cartesian3.normalize(positionEC));
         positionEC.x += eyeOffset.x + zEyeOffset.x;
         positionEC.y += eyeOffset.y + zEyeOffset.y;
         positionEC.z += zEyeOffset.z;
 
-        // Eye to window coordinates, e.g., czm_eyeToWindowCoordinates
-        var q = projection.multiplyByVector(positionEC); // clip coordinates
-        q.x /= q.w; // normalized device coordinates
-        q.y /= q.w;
-        q.z /= q.w;
-        var positionWC = viewportTransformation.multiplyByPoint(q); // window coordinates
+        var positionCC = Matrix4.multiplyByVector(projection, positionEC); // clip coordinates
+        var positionWC = SceneTransforms.clipToWindowCoordinates(context, positionCC);
 
         // Apply pixel offset
         var uniformState = context.getUniformState();
-        var po = pixelOffset.multiplyByScalar(uniformState.getHighResolutionSnapScale());
+        var po = Cartesian2.multiplyByScalar(pixelOffset, uniformState.getHighResolutionSnapScale());
         positionWC.x += po.x;
         positionWC.y += po.y;
 
@@ -639,7 +909,7 @@ define([
      * @param {Context} context The context.
      * @param {FrameState} frameState The same state object passed to {@link BillboardCollection#update}.
      *
-     * @return {Cartesian2} The screen-space position of the billboard.
+     * @returns {Cartesian2} The screen-space position of the billboard.
      *
      * @exception {DeveloperError} Billboard must be in a collection.
      * @exception {DeveloperError} context is required.
@@ -653,15 +923,15 @@ define([
      */
     Billboard.prototype.computeScreenSpacePosition = function(context, frameState) {
         var billboardCollection = this._billboardCollection;
-        if (typeof billboardCollection === 'undefined') {
+        if (!defined(billboardCollection)) {
             throw new DeveloperError('Billboard must be in a collection.  Was it removed?');
         }
 
-        if (typeof context === 'undefined') {
+        if (!defined(context)) {
             throw new DeveloperError('context is required.');
         }
 
-        if (typeof frameState === 'undefined') {
+        if (!defined(frameState)) {
             throw new DeveloperError('frameState is required.');
         }
 
@@ -677,11 +947,11 @@ define([
      *
      * @param {Billboard} other The billboard to compare for equality.
      *
-     * @return {Boolean} <code>true</code> if the billboards are equal; otherwise, <code>false</code>.
+     * @returns {Boolean} <code>true</code> if the billboards are equal; otherwise, <code>false</code>.
      */
     Billboard.prototype.equals = function(other) {
         return this === other ||
-               typeof other !== 'undefined' &&
+               defined(other) &&
                this._show === other._show &&
                this._imageIndex === other._imageIndex &&
                this._scale === other._scale &&
@@ -690,7 +960,10 @@ define([
                Cartesian3.equals(this._position, other._position) &&
                Color.equals(this._color, other._color) &&
                Cartesian2.equals(this._pixelOffset, other._pixelOffset) &&
-               Cartesian3.equals(this._eyeOffset, other._eyeOffset);
+               Cartesian3.equals(this._eyeOffset, other._eyeOffset) &&
+               NearFarScalar.equals(this._scaleByDistance, other._scaleByDistance) &&
+               NearFarScalar.equals(this._translucencyByDistance, other._translucencyByDistance) &&
+               this._id === other._id;
     };
 
     Billboard.prototype._destroy = function() {

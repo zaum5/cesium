@@ -1,6 +1,8 @@
 /*global define*/
 define([
         '../Core/defaultValue',
+        '../Core/defined',
+        '../Core/defineProperties',
         '../Core/Cartesian2',
         '../Core/Cartesian3',
         '../Core/Cartesian4',
@@ -14,10 +16,13 @@ define([
         '../Core/Matrix4',
         '../Core/Quaternion',
         '../Core/Ray',
+        '../Core/Transforms',
         './SceneMode',
         '../ThirdParty/Tween'
     ], function(
         defaultValue,
+        defined,
+        defineProperties,
         Cartesian2,
         Cartesian3,
         Cartesian4,
@@ -31,6 +36,7 @@ define([
         Matrix4,
         Quaternion,
         Ray,
+        Transforms,
         SceneMode,
         Tween) {
     "use strict";
@@ -44,7 +50,7 @@ define([
      * @exception {DeveloperError} camera is required.
      */
     var CameraController = function(camera) {
-        if (typeof camera === 'undefined') {
+        if (!defined(camera)) {
             throw new DeveloperError('camera is required.');
         }
 
@@ -56,41 +62,48 @@ define([
          * The default amount to move the camera when an argument is not
          * provided to the move methods.
          * @type {Number}
+         * @default 100000.0;
          */
         this.defaultMoveAmount = 100000.0;
         /**
          * The default amount to rotate the camera when an argument is not
          * provided to the look methods.
          * @type {Number}
+         * @default Math.PI / 60.0
          */
         this.defaultLookAmount = Math.PI / 60.0;
         /**
          * The default amount to rotate the camera when an argument is not
          * provided to the rotate methods.
          * @type {Number}
+         * @default Math.PI / 3600.0
          */
         this.defaultRotateAmount = Math.PI / 3600.0;
         /**
          * The default amount to move the camera when an argument is not
          * provided to the zoom methods.
          * @type {Number}
+         * @default 100000.0;
          */
         this.defaultZoomAmount = 100000.0;
         /**
          * If set, the camera will not be able to rotate past this axis in either direction.
-         * @type Cartesian3
+         * @type {Cartesian3}
+         * @default undefined
          */
         this.constrainedAxis = undefined;
         /**
          * The factor multiplied by the the map size used to determine where to clamp the camera position
          * when translating across the surface. The default is 1.5. Only valid for 2D and Columbus view.
-         * @type Number
+         * @type {Number}
+         * @default 1.5
          */
         this.maximumTranslateFactor = 1.5;
         /**
          * The factor multiplied by the the map size used to determine where to clamp the camera position
          * when zooming out from the surface. The default is 2.5. Only valid for 2D.
-         * @type Number
+         * @type {Number}
+         * @default 2.5
          */
         this.maximumZoomFactor = 2.5;
 
@@ -110,15 +123,15 @@ define([
         }
 
         var projection = scene2D.projection;
-        if (typeof projection !== 'undefined' && projection !== this._projection) {
+        if (defined(projection) && projection !== this._projection) {
             this._projection = projection;
             this._maxCoord = projection.project(scratchUpdateCartographic, this._maxCoord);
         }
 
         if (updateFrustum) {
             var frustum = this._frustum = this._camera.frustum.clone();
-            if (typeof frustum.left === 'undefined' || typeof frustum.right === 'undefined' ||
-               typeof frustum.top === 'undefined' || typeof frustum.bottom === 'undefined') {
+            if (!defined(frustum.left) || !defined(frustum.right) ||
+               !defined(frustum.top) || !defined(frustum.bottom)) {
                 throw new DeveloperError('The camera frustum is expected to be orthographic for 2D camera control.');
             }
 
@@ -168,7 +181,7 @@ define([
      * @see CameraController#moveDown
      */
     CameraController.prototype.move = function(direction, amount) {
-        if (typeof direction === 'undefined') {
+        if (!defined(direction)) {
             throw new DeveloperError('direction is required.');
         }
 
@@ -346,12 +359,13 @@ define([
      * @see CameraController#lookRight
      */
     CameraController.prototype.look = function(axis, angle) {
-        if (typeof axis === 'undefined') {
+        if (!defined(axis)) {
             throw new DeveloperError('axis is required.');
         }
 
         var turnAngle = defaultValue(angle, this.defaultLookAmount);
-        var rotation = Matrix3.fromQuaternion(Quaternion.fromAxisAngle(axis, turnAngle, lookScratchQuaternion), lookScratchMatrix);
+        var quaternion = Quaternion.fromAxisAngle(axis, -turnAngle, lookScratchQuaternion);
+        var rotation = Matrix3.fromQuaternion(quaternion, lookScratchMatrix);
 
         var direction = this._camera.direction;
         var up = this._camera.up;
@@ -390,23 +404,23 @@ define([
         this.look(this._camera.direction, -amount);
     };
 
-    var appendTransformPosition = Cartesian4.UNIT_W.clone();
-    var appendTransformUp = Cartesian4.ZERO.clone();
-    var appendTransformRight = Cartesian4.ZERO.clone();
-    var appendTransformDirection = Cartesian4.ZERO.clone();
+    var appendTransformPosition = Cartesian4.clone(Cartesian4.UNIT_W);
+    var appendTransformUp = Cartesian4.clone(Cartesian4.ZERO);
+    var appendTransformRight = Cartesian4.clone(Cartesian4.ZERO);
+    var appendTransformDirection = Cartesian4.clone(Cartesian4.ZERO);
     function appendTransform(controller, transform) {
         var camera = controller._camera;
         var oldTransform;
-        if (typeof transform !== 'undefined') {
-            var position = Cartesian3.clone(camera.getPositionWC(), appendTransformPosition);
-            var up = Cartesian3.clone(camera.getUpWC(), appendTransformUp);
-            var right = Cartesian3.clone(camera.getRightWC(), appendTransformRight);
-            var direction = Cartesian3.clone(camera.getDirectionWC(), appendTransformDirection);
+        if (defined(transform)) {
+            var position = Cartesian3.clone(camera.positionWC, appendTransformPosition);
+            var up = Cartesian3.clone(camera.upWC, appendTransformUp);
+            var right = Cartesian3.clone(camera.rightWC, appendTransformRight);
+            var direction = Cartesian3.clone(camera.directionWC, appendTransformDirection);
 
             oldTransform = camera.transform;
-            camera.transform = transform.multiply(oldTransform);
+            camera.transform = Matrix4.multiply(transform, oldTransform);
 
-            var invTransform = camera.getInverseTransform();
+            var invTransform = camera.inverseTransform;
             Cartesian3.clone(Matrix4.multiplyByVector(invTransform, position, position), camera.position);
             Cartesian3.clone(Matrix4.multiplyByVector(invTransform, up, up), camera.up);
             Cartesian3.clone(Matrix4.multiplyByVector(invTransform, right, right), camera.right);
@@ -415,20 +429,20 @@ define([
         return oldTransform;
     }
 
-    var revertTransformPosition = Cartesian4.UNIT_W.clone();
-    var revertTransformUp = Cartesian4.ZERO.clone();
-    var revertTransformRight = Cartesian4.ZERO.clone();
-    var revertTransformDirection = Cartesian4.ZERO.clone();
+    var revertTransformPosition = Cartesian4.clone(Cartesian4.UNIT_W);
+    var revertTransformUp = Cartesian4.clone(Cartesian4.ZERO);
+    var revertTransformRight = Cartesian4.clone(Cartesian4.ZERO);
+    var revertTransformDirection = Cartesian4.clone(Cartesian4.ZERO);
     function revertTransform(controller, transform) {
-        if (typeof transform !== 'undefined') {
+        if (defined(transform)) {
             var camera = controller._camera;
-            var position = Cartesian3.clone(camera.getPositionWC(), revertTransformPosition);
-            var up = Cartesian3.clone(camera.getUpWC(), revertTransformUp);
-            var right = Cartesian3.clone(camera.getRightWC(), revertTransformRight);
-            var direction = Cartesian3.clone(camera.getDirectionWC(), revertTransformDirection);
+            var position = Cartesian3.clone(camera.positionWC, revertTransformPosition);
+            var up = Cartesian3.clone(camera.upWC, revertTransformUp);
+            var right = Cartesian3.clone(camera.rightWC, revertTransformRight);
+            var direction = Cartesian3.clone(camera.directionWC, revertTransformDirection);
 
             camera.transform = transform;
-            transform = camera.getInverseTransform();
+            transform = camera.inverseTransform;
 
             position = Cartesian3.clone(Matrix4.multiplyByVector(transform, position, position), camera.position);
             up = Cartesian3.clone(Matrix4.multiplyByVector(transform, up, up), camera.up);
@@ -463,14 +477,15 @@ define([
      * controller.rotate(axis, angle, transform);
     */
     CameraController.prototype.rotate = function(axis, angle, transform) {
-        if (typeof axis === 'undefined') {
+        if (!defined(axis)) {
             throw new DeveloperError('axis is required.');
         }
 
         var camera = this._camera;
 
         var turnAngle = defaultValue(angle, this.defaultRotateAmount);
-        var rotation = Matrix3.fromQuaternion(Quaternion.fromAxisAngle(axis, turnAngle, rotateScratchQuaternion), rotateScratchMatrix);
+        var quaternion = Quaternion.fromAxisAngle(axis, -turnAngle, rotateScratchQuaternion);
+        var rotation = Matrix3.fromQuaternion(quaternion, rotateScratchMatrix);
 
         var oldTransform = appendTransform(this, transform);
         Matrix3.multiplyByVector(rotation, camera.position, camera.position);
@@ -522,19 +537,19 @@ define([
 
         var position = camera.position;
         var p = Cartesian3.normalize(position, rotateVertScratchP);
-        if (typeof controller.constrainedAxis !== 'undefined') {
-            var northParallel = p.equalsEpsilon(controller.constrainedAxis, CesiumMath.EPSILON2);
-            var southParallel = p.equalsEpsilon(controller.constrainedAxis.negate(), CesiumMath.EPSILON2);
+        if (defined(controller.constrainedAxis)) {
+            var northParallel = Cartesian3.equalsEpsilon(p, controller.constrainedAxis, CesiumMath.EPSILON2);
+            var southParallel = Cartesian3.equalsEpsilon(p, Cartesian3.negate(controller.constrainedAxis), CesiumMath.EPSILON2);
             if ((!northParallel && !southParallel)) {
                 var constrainedAxis = Cartesian3.normalize(controller.constrainedAxis, rotateVertScratchA);
 
-                var dot = p.dot(constrainedAxis);
+                var dot = Cartesian3.dot(p, constrainedAxis);
                 var angleToAxis = Math.acos(dot);
                 if (angle > 0 && angle > angleToAxis) {
                     angle = angleToAxis;
                 }
 
-                dot = p.dot(constrainedAxis.negate());
+                dot = Cartesian3.dot(p, Cartesian3.negate(constrainedAxis));
                 angleToAxis = Math.acos(dot);
                 if (angle < 0 && -angle > angleToAxis) {
                     angle = -angleToAxis;
@@ -585,7 +600,7 @@ define([
     };
 
     function rotateHorizontal(controller, angle, transform) {
-        if (typeof controller.constrainedAxis !== 'undefined') {
+        if (defined(controller.constrainedAxis)) {
             controller.rotate(controller.constrainedAxis, angle, transform);
         } else {
             controller.rotate(controller._camera.up, angle, transform);
@@ -595,8 +610,7 @@ define([
     function zoom2D(controller, amount) {
         var frustum = controller._camera.frustum;
 
-        if (typeof frustum.left === 'undefined' || typeof frustum.right === 'undefined' ||
-            typeof frustum.top === 'undefined' || typeof frustum.bottom === 'undefined') {
+        if (!defined(frustum.left) || !defined(frustum.right) || !defined(frustum.top) || !defined(frustum.bottom)) {
             throw new DeveloperError('The camera frustum is expected to be orthographic for 2D camera control.');
         }
 
@@ -668,7 +682,7 @@ define([
     CameraController.prototype.getMagnitude = function() {
         var camera = this._camera;
         if (this._mode === SceneMode.SCENE3D) {
-            return camera.position.magnitude();
+            return Cartesian3.magnitude(camera.position);
         } else if (this._mode === SceneMode.COLUMBUS_VIEW) {
             return Math.abs(camera.position.z);
         } else if (this._mode === SceneMode.SCENE2D) {
@@ -727,7 +741,7 @@ define([
      * @exception {DeveloperError} cartographic is required.
      */
     CameraController.prototype.setPositionCartographic = function(cartographic) {
-        if (typeof cartographic === 'undefined') {
+        if (!defined(cartographic)) {
             throw new DeveloperError('cartographic is required.');
         }
 
@@ -739,6 +753,129 @@ define([
             setPositionCartographic3D(this, cartographic);
         }
     };
+
+    function getHeading2D(controller) {
+        var camera = controller._camera;
+        return Math.atan2(camera.right.y, camera.right.x);
+    }
+
+    var scratchHeadingMatrix4 = new Matrix4();
+    var scratchHeadingMatrix3 = new Matrix3();
+    var scratchHeadingCartesian3 = new Cartesian3();
+
+    function getHeading3D(controller) {
+        var camera = controller._camera;
+
+        var ellipsoid = controller._projection.getEllipsoid();
+        var toFixedFrame = Transforms.eastNorthUpToFixedFrame(camera.position, ellipsoid, scratchHeadingMatrix4);
+        var transform = Matrix4.getRotation(toFixedFrame, scratchHeadingMatrix3);
+        Matrix3.transpose(transform, transform);
+
+        var right = Matrix3.multiplyByVector(transform, camera.right, scratchHeadingCartesian3);
+        return Math.atan2(right.y, right.x);
+    }
+
+    function setHeading2D(controller, angle) {
+        var rightAngle = getHeading2D(controller);
+        angle = rightAngle - angle;
+        controller.look(Cartesian3.UNIT_Z, angle);
+    }
+
+    var scratchHeadingAxis = new Cartesian3();
+
+    function setHeading3D(controller, angle) {
+        var camera = controller._camera;
+
+        var axis = Cartesian3.normalize(camera.position, scratchHeadingAxis);
+        var upAngle = getHeading3D(controller);
+        angle = upAngle - angle;
+        controller.look(axis, angle);
+    }
+
+    function getTiltCV(controller) {
+        var camera = controller._camera;
+
+        // Math.acos(dot(camera.direction, Cartesian3.negate(Cartesian3.UNIT_Z))
+        return CesiumMath.PI_OVER_TWO - Math.acos(-camera.direction.z);
+    }
+
+    var scratchTiltCartesian3 = new Cartesian3();
+
+    function getTilt3D(controller) {
+        var camera = controller._camera;
+
+        var direction = Cartesian3.normalize(camera.position, scratchTiltCartesian3);
+        Cartesian3.negate(direction, direction);
+
+        return CesiumMath.PI_OVER_TWO - Math.acos(Cartesian3.dot(camera.direction, direction));
+    }
+
+    defineProperties(CameraController.prototype, {
+        /**
+         * The camera heading in radians.
+         * @memberof CameraController
+         *
+         * @type {Number}
+         */
+        heading : {
+            get : function () {
+                if (this._mode === SceneMode.SCENE2D || this._mode === SceneMode.COLUMBUS_VIEW) {
+                    return getHeading2D(this);
+                } else if (this._mode === SceneMode.SCENE3D) {
+                    return getHeading3D(this);
+                }
+
+                return undefined;
+            },
+            //TODO See https://github.com/AnalyticalGraphicsInc/cesium/issues/832
+            //* @exception {DeveloperError} angle is required.
+            set : function (angle) {
+                if (!defined(angle)) {
+                    throw new DeveloperError('angle is required.');
+                }
+
+                if (this._mode === SceneMode.SCENE2D || this._mode === SceneMode.COLUMBUS_VIEW) {
+                    setHeading2D(this, angle);
+                } else if (this._mode === SceneMode.SCENE3D) {
+                    setHeading3D(this, angle);
+                }
+            }
+        },
+
+        /**
+         * The the camera tilt in radians
+         * @memberof CameraController
+         *
+         * @type {Number}
+         */
+        tilt : {
+            get : function() {
+                if (this._mode === SceneMode.COLUMBUS_VIEW) {
+                    return getTiltCV(this);
+                } else if (this._mode === SceneMode.SCENE3D) {
+                    return getTilt3D(this);
+                }
+
+                return undefined;
+            },
+            //TODO See https://github.com/AnalyticalGraphicsInc/cesium/issues/832
+            //* @exception {DeveloperError} angle is required.
+            set : function(angle) {
+                if (!defined(angle)) {
+                    throw new DeveloperError('angle is required.');
+                }
+
+                if (this._mode === SceneMode.COLUMBUS_VIEW || this._mode === SceneMode.SCENE3D) {
+                    var camera = this._camera;
+
+                    angle = CesiumMath.clamp(angle, 0.0, CesiumMath.PI_OVER_TWO);
+                    angle = angle - this.tilt;
+
+                    this.look(camera.right, angle);
+                }
+            }
+        }
+    });
 
     /**
      * Sets the camera position and orientation with an eye position, target, and up vector.
@@ -757,13 +894,13 @@ define([
      * @exception {DeveloperError} lookAt is not supported while morphing.
      */
     CameraController.prototype.lookAt = function(eye, target, up) {
-        if (typeof eye === 'undefined') {
+        if (!defined(eye)) {
             throw new DeveloperError('eye is required');
         }
-        if (typeof target === 'undefined') {
+        if (!defined(target)) {
             throw new DeveloperError('target is required');
         }
-        if (typeof up === 'undefined') {
+        if (!defined(up)) {
             throw new DeveloperError('up is required');
         }
         if (this._mode === SceneMode.SCENE2D) {
@@ -775,8 +912,8 @@ define([
 
         var camera = this._camera;
         camera.position = Cartesian3.clone(eye, camera.position);
-        camera.direction = Cartesian3.subtract(target, eye, camera.direction).normalize(camera.direction);
-        camera.right = Cartesian3.cross(camera.direction, up, camera.right).normalize(camera.right);
+        camera.direction = Cartesian3.normalize(Cartesian3.subtract(target, eye, camera.direction), camera.direction);
+        camera.right = Cartesian3.normalize(Cartesian3.cross(camera.direction, up, camera.right), camera.right);
         camera.up = Cartesian3.cross(camera.right, camera.direction, camera.up);
     };
 
@@ -786,7 +923,12 @@ define([
     var viewExtent3DNorthWest = new Cartesian3();
     var viewExtent3DSouthEast = new Cartesian3();
     var viewExtent3DCenter = new Cartesian3();
-    function viewExtent3D(camera, extent, ellipsoid) {
+    var defaultRF = {direction: new Cartesian3(), right: new Cartesian3(), up: new Cartesian3()};
+    function extentCameraPosition3D (camera, extent, ellipsoid, result, positionOnly) {
+        var cameraRF = camera;
+        if (positionOnly) {
+            cameraRF = defaultRF;
+        }
         var north = extent.north;
         var south = extent.south;
         var east = extent.east;
@@ -817,38 +959,48 @@ define([
         Cartesian3.subtract(northEast, center, northEast);
         Cartesian3.subtract(southWest, center, southWest);
 
-        var direction = ellipsoid.geodeticSurfaceNormal(center, camera.direction);
+        var direction = ellipsoid.geodeticSurfaceNormal(center, cameraRF.direction);
         Cartesian3.negate(direction, direction);
         Cartesian3.normalize(direction, direction);
-        var right = Cartesian3.cross(direction, Cartesian3.UNIT_Z, camera.right);
+        var right = Cartesian3.cross(direction, Cartesian3.UNIT_Z, cameraRF.right);
         Cartesian3.normalize(right, right);
-        var up = Cartesian3.cross(right, direction, camera.up);
+        var up = Cartesian3.cross(right, direction, cameraRF.up);
 
-        var height = Math.max(Math.abs(up.dot(northWest)), Math.abs(up.dot(southEast)), Math.abs(up.dot(northEast)), Math.abs(up.dot(southWest)));
-        var width = Math.max(Math.abs(right.dot(northWest)), Math.abs(right.dot(southEast)), Math.abs(right.dot(northEast)), Math.abs(right.dot(southWest)));
+        var height = Math.max(
+          Math.abs(Cartesian3.dot(up, northWest)),
+          Math.abs(Cartesian3.dot(up, southEast)),
+          Math.abs(Cartesian3.dot(up, northEast)),
+          Math.abs(Cartesian3.dot(up, southWest))
+        );
+        var width = Math.max(
+          Math.abs(Cartesian3.dot(right, northWest)),
+          Math.abs(Cartesian3.dot(right, southEast)),
+          Math.abs(Cartesian3.dot(right, northEast)),
+          Math.abs(Cartesian3.dot(right, southWest))
+        );
 
         var tanPhi = Math.tan(camera.frustum.fovy * 0.5);
         var tanTheta = camera.frustum.aspectRatio * tanPhi;
         var d = Math.max(width / tanTheta, height / tanPhi);
 
-        var scalar = center.magnitude() + d;
+        var scalar = Cartesian3.magnitude(center) + d;
         Cartesian3.normalize(center, center);
-        Cartesian3.multiplyByScalar(center, scalar, camera.position);
+        return Cartesian3.multiplyByScalar(center, scalar, result);
     }
 
     var viewExtentCVCartographic = new Cartographic();
-    var viewExtentCVNorthEast = Cartesian4.UNIT_W.clone();
-    var viewExtentCVSouthWest = Cartesian4.UNIT_W.clone();
+    var viewExtentCVNorthEast = Cartesian4.clone(Cartesian4.UNIT_W);
+    var viewExtentCVSouthWest = Cartesian4.clone(Cartesian4.UNIT_W);
     var viewExtentCVTransform = new Matrix4();
-    function viewExtentColumbusView(camera, extent, projection) {
+    function extentCameraPositionColumbusView(camera, extent, projection, result, positionOnly) {
         var north = extent.north;
         var south = extent.south;
         var east = extent.east;
         var west = extent.west;
 
         var transform = Matrix4.clone(camera.transform, viewExtentCVTransform);
-        transform.setColumn(3, Cartesian4.UNIT_W);
-        var invTransform = camera.getInverseTransform();
+        Matrix4.setColumn(transform, 3, Cartesian4.UNIT_W);
+        var invTransform = camera.inverseTransform;
 
         var cart = viewExtentCVCartographic;
         cart.longitude = east;
@@ -867,20 +1019,28 @@ define([
 
         var tanPhi = Math.tan(camera.frustum.fovy * 0.5);
         var tanTheta = camera.frustum.aspectRatio * tanPhi;
+        if (!defined(result)) {
+            result = new Cartesian3();
+        }
 
-        position = camera.position;
-        position.x = (northEast.x - southWest.x) * 0.5 + southWest.x;
-        position.y = (northEast.y - southWest.y) * 0.5 + southWest.y;
-        position.z = Math.max((northEast.x - southWest.x) / tanTheta, (northEast.y - southWest.y) / tanPhi) * 0.5;
+        result.x = (northEast.x - southWest.x) * 0.5 + southWest.x;
+        result.y = (northEast.y - southWest.y) * 0.5 + southWest.y;
+        result.z = Math.max((northEast.x - southWest.x) / tanTheta, (northEast.y - southWest.y) / tanPhi) * 0.5;
 
-        var direction = Cartesian3.clone(Cartesian3.UNIT_Z, camera.direction);
-        Cartesian3.negate(direction, direction);
-        var right = Cartesian3.clone(Cartesian3.UNIT_X, camera.right);
-        Cartesian3.cross(right, direction, camera.up);
+        if (!positionOnly) {
+            var direction = Cartesian3.clone(Cartesian3.UNIT_Z, camera.direction);
+            Cartesian3.negate(direction, direction);
+            Cartesian3.clone(Cartesian3.UNIT_X, camera.right);
+            Cartesian3.clone(Cartesian3.UNIT_Y, camera.up);
+        }
+
+        return result;
     }
 
     var viewExtent2DCartographic = new Cartographic();
-    function viewExtent2D(camera, extent, projection) {
+    var viewExtent2DNorthEast = new Cartesian3();
+    var viewExtent2DSouthWest = new Cartesian3();
+    function extentCameraPosition2D (camera, extent, projection, result, positionOnly) {
         var north = extent.north;
         var south = extent.south;
         var east = extent.east;
@@ -889,10 +1049,10 @@ define([
         var cart = viewExtent2DCartographic;
         cart.longitude = east;
         cart.latitude = north;
-        var northEast = projection.project(cart);
+        var northEast = projection.project(cart, viewExtent2DNorthEast);
         cart.longitude = west;
         cart.latitude = south;
-        var southWest = projection.project(cart);
+        var southWest = projection.project(cart, viewExtent2DSouthWest);
 
         var width = Math.abs(northEast.x - southWest.x) * 0.5;
         var height = Math.abs(northEast.y - southWest.y) * 0.5;
@@ -908,18 +1068,59 @@ define([
             right = heightRatio;
         }
 
-        camera.frustum.right = right;
-        camera.frustum.left = -right;
-        camera.frustum.top = top;
-        camera.frustum.bottom = -top;
+        height = Math.max(2.0 * right, 2.0 * top);
 
-        camera.position.x = (northEast.x - southWest.x) * 0.5 + southWest.x;
-        camera.position.y = (northEast.y - southWest.y) * 0.5 + southWest.y;
+        if (!defined(result)) {
+            result = new Cartesian3();
+        }
+        result.x = (northEast.x - southWest.x) * 0.5 + southWest.x;
+        result.y = (northEast.y - southWest.y) * 0.5 + southWest.y;
 
-        //Orient the camera north.
-        var cameraRight = Cartesian3.clone(Cartesian3.UNIT_X, camera.right);
-        Cartesian3.cross(cameraRight, camera.direction, camera.up);
+        if (positionOnly) {
+            cart = projection.unproject(result, cart);
+            cart.height = height;
+            result = projection.project(cart, result);
+        } else {
+            var frustum = camera.frustum;
+            frustum.right = right;
+            frustum.left = -right;
+            frustum.top = top;
+            frustum.bottom = -top;
+
+            var direction = Cartesian3.clone(Cartesian3.UNIT_Z, camera.direction);
+            Cartesian3.negate(direction, direction);
+            Cartesian3.clone(Cartesian3.UNIT_X, camera.right);
+            Cartesian3.clone(Cartesian3.UNIT_Y, camera.up);
+        }
+
+        return result;
     }
+    /**
+     * Get the camera position needed to view an extent on an ellipsoid or map
+     * @memberof CameraController
+     *
+     * @param {Extent} extent The extent to view.
+     * @param {Cartesian3} [result] The camera position needed to view the extent
+     *
+     * @returns {Cartesian3} The camera position needed to view the extent
+     *
+     * @exception {DeveloperError} extent is required.
+     */
+    CameraController.prototype.getExtentCameraCoordinates = function(extent, result) {
+        if (!defined(extent)) {
+            throw new DeveloperError('extent is required');
+        }
+
+        if (this._mode === SceneMode.SCENE3D) {
+            return extentCameraPosition3D(this._camera, extent, this._projection.getEllipsoid(), result, true);
+        } else if (this._mode === SceneMode.COLUMBUS_VIEW) {
+            return extentCameraPositionColumbusView(this._camera, extent, this._projection, result, true);
+        } else if (this._mode === SceneMode.SCENE2D) {
+            return extentCameraPosition2D(this._camera, extent, this._projection, result, true);
+        }
+
+        return undefined;
+    };
 
     /**
      * View an extent on an ellipsoid or map.
@@ -931,23 +1132,23 @@ define([
      * @exception {DeveloperError} extent is required.
      */
     CameraController.prototype.viewExtent = function(extent, ellipsoid) {
-        if (typeof extent === 'undefined') {
+        if (!defined(extent)) {
             throw new DeveloperError('extent is required.');
         }
-        ellipsoid = (typeof ellipsoid === 'undefined') ? Ellipsoid.WGS84 : ellipsoid;
+        ellipsoid = defaultValue(ellipsoid, Ellipsoid.WGS84);
 
         if (this._mode === SceneMode.SCENE3D) {
-            viewExtent3D(this._camera, extent, ellipsoid);
+            extentCameraPosition3D(this._camera, extent, ellipsoid, this._camera.position);
         } else if (this._mode === SceneMode.COLUMBUS_VIEW) {
-            viewExtentColumbusView(this._camera, extent, this._projection);
+            extentCameraPositionColumbusView(this._camera, extent, this._projection, this._camera.position);
         } else if (this._mode === SceneMode.SCENE2D) {
-            viewExtent2D(this._camera, extent, this._projection);
+            extentCameraPosition2D(this._camera, extent, this._projection, this._camera.position);
         }
     };
 
     var pickEllipsoid3DRay = new Ray();
     function pickEllipsoid3D(controller, windowPosition, ellipsoid, result) {
-        ellipsoid = ellipsoid || Ellipsoid.WGS84;
+        ellipsoid = defaultValue(ellipsoid, Ellipsoid.WGS84);
         var ray = controller.getPickRay(windowPosition, pickEllipsoid3DRay);
         var intersection = IntersectionTests.rayEllipsoid(ray, ellipsoid);
         if (!intersection) {
@@ -998,19 +1199,19 @@ define([
      *
      * @exception {DeveloperError} windowPosition is required.
      *
-     * @return {Cartesian3} If the ellipsoid or map was picked, returns the point on the surface of the ellipsoid or map
+     * @returns {Cartesian3} If the ellipsoid or map was picked, returns the point on the surface of the ellipsoid or map
      * in world coordinates. If the ellipsoid or map was not picked, returns undefined.
      */
     CameraController.prototype.pickEllipsoid = function(windowPosition, ellipsoid, result) {
-        if (typeof windowPosition === 'undefined') {
+        if (!defined(windowPosition)) {
             throw new DeveloperError('windowPosition is required.');
         }
 
-        if (typeof result === 'undefined') {
+        if (!defined(result)) {
             result = new Cartesian3();
         }
 
-        ellipsoid = ellipsoid || Ellipsoid.WGS84;
+        ellipsoid = defaultValue(ellipsoid, Ellipsoid.WGS84);
 
         if (this._mode === SceneMode.SCENE3D) {
             result = pickEllipsoid3D(this, windowPosition, ellipsoid, result);
@@ -1027,8 +1228,8 @@ define([
     var pickPerspXDir = new Cartesian3();
     var pickPerspYDir = new Cartesian3();
     function getPickRayPerspective(camera, windowPosition, result) {
-        var width = camera._canvas.clientWidth;
-        var height = camera._canvas.clientHeight;
+        var width = camera._context._canvas.clientWidth;
+        var height = camera._context._canvas.clientHeight;
 
         var tanPhi = Math.tan(camera.frustum.fovy * 0.5);
         var tanTheta = camera.frustum.aspectRatio * tanPhi;
@@ -1037,13 +1238,13 @@ define([
         var x = (2.0 / width) * windowPosition.x - 1.0;
         var y = (2.0 / height) * (height - windowPosition.y) - 1.0;
 
-        var position = camera.getPositionWC();
+        var position = camera.positionWC;
         Cartesian3.clone(position, result.origin);
 
-        var nearCenter = Cartesian3.multiplyByScalar(camera.getDirectionWC(), near, pickPerspCenter);
+        var nearCenter = Cartesian3.multiplyByScalar(camera.directionWC, near, pickPerspCenter);
         Cartesian3.add(position, nearCenter, nearCenter);
-        var xDir = Cartesian3.multiplyByScalar(camera.getRightWC(), x * near * tanTheta, pickPerspXDir);
-        var yDir = Cartesian3.multiplyByScalar(camera.getUpWC(), y * near * tanPhi, pickPerspYDir);
+        var xDir = Cartesian3.multiplyByScalar(camera.rightWC, x * near * tanTheta, pickPerspXDir);
+        var yDir = Cartesian3.multiplyByScalar(camera.upWC, y * near * tanPhi, pickPerspYDir);
         var direction = Cartesian3.add(nearCenter, xDir, result.direction);
         Cartesian3.add(direction, yDir, direction);
         Cartesian3.subtract(direction, position, direction);
@@ -1053,8 +1254,8 @@ define([
     }
 
     function getPickRayOrthographic(camera, windowPosition, result) {
-        var width = camera._canvas.clientWidth;
-        var height = camera._canvas.clientHeight;
+        var width = camera._context._canvas.clientWidth;
+        var height = camera._context._canvas.clientHeight;
 
         var x = (2.0 / width) * windowPosition.x - 1.0;
         x *= (camera.frustum.right - camera.frustum.left) * 0.5;
@@ -1066,7 +1267,7 @@ define([
         origin.x += x;
         origin.y += y;
 
-        Cartesian3.clone(camera.getDirectionWC(), result.direction);
+        Cartesian3.clone(camera.directionWC, result.direction);
 
         return result;
     }
@@ -1082,20 +1283,20 @@ define([
      *
      * @exception {DeveloperError} windowPosition is required.
      *
-     * @return {Object} Returns the {@link Cartesian3} position and direction of the ray.
+     * @returns {Object} Returns the {@link Cartesian3} position and direction of the ray.
      */
     CameraController.prototype.getPickRay = function(windowPosition, result) {
-        if (typeof windowPosition === 'undefined') {
+        if (!defined(windowPosition)) {
             throw new DeveloperError('windowPosition is required.');
         }
 
-        if (typeof result === 'undefined') {
+        if (!defined(result)) {
             result = new Ray();
         }
 
         var camera = this._camera;
         var frustum = camera.frustum;
-        if (typeof frustum.aspectRatio !== 'undefined' && typeof frustum.fovy !== 'undefined' && typeof frustum.near !== 'undefined') {
+        if (defined(frustum.aspectRatio) && defined(frustum.fovy) && defined(frustum.near)) {
             return getPickRayPerspective(camera, windowPosition, result);
         }
 
@@ -1119,7 +1320,7 @@ define([
         var animateFrustum = right > controller._frustum.right;
 
         if (animatePosition || animateFrustum) {
-            var translatedPosition = position.clone();
+            var translatedPosition = Cartesian3.clone(position);
 
             if (translatedPosition.x > controller._maxCoord.x) {
                 translatedPosition.x = controller._maxCoord.x;
@@ -1135,7 +1336,7 @@ define([
 
             var update2D = function(value) {
                 if (animatePosition) {
-                    camera.position = position.lerp(translatedPosition, value.time);
+                    camera.position = Cartesian3.lerp(position, translatedPosition, value.time);
                 }
                 if (animateFrustum) {
                     camera.frustum.top = CesiumMath.lerp(top, startFrustum.top, value.time);
@@ -1162,7 +1363,7 @@ define([
     }
 
     function createAnimationTemplateCV(controller, position, center, maxX, maxY, duration) {
-        var newPosition = position.clone();
+        var newPosition = Cartesian3.clone(position);
 
         if (center.y > maxX) {
             newPosition.y -= center.y - maxX;
@@ -1178,9 +1379,9 @@ define([
 
         var camera = controller._camera;
         var updateCV = function(value) {
-            var interp = position.lerp(newPosition, value.time);
+            var interp = Cartesian3.lerp(position, newPosition, value.time);
             var pos = new Cartesian4(interp.x, interp.y, interp.z, 1.0);
-            camera.position = Cartesian3.fromCartesian4(camera.getInverseTransform().multiplyByVector(pos));
+            camera.position = Cartesian3.fromCartesian4(Matrix4.multiplyByVector(camera.inverseTransform, pos));
         };
 
         return {
@@ -1201,18 +1402,18 @@ define([
         var position = camera.position;
         var direction = camera.direction;
 
-        var normal = Cartesian3.fromCartesian4(camera.getInverseTransform().multiplyByVector(Cartesian4.UNIT_X));
-        var scalar = -normal.dot(position) / normal.dot(direction);
-        var center = position.add(direction.multiplyByScalar(scalar));
+        var normal = Cartesian3.fromCartesian4(Matrix4.multiplyByVector(camera.inverseTransform, Cartesian4.UNIT_X));
+        var scalar = -Cartesian3.dot(normal, position) / Cartesian3.dot(normal, direction);
+        var center = Cartesian3.add(position, Cartesian3.multiplyByScalar(direction, scalar));
         center = new Cartesian4(center.x, center.y, center.z, 1.0);
-        var centerWC = camera.transform.multiplyByVector(center);
+        var centerWC = Matrix4.multiplyByVector(camera.transform, center);
 
         var cameraPosition = new Cartesian4(camera.position.x, camera.position.y, camera.position.z, 1.0);
-        var positionWC = camera.transform.multiplyByVector(cameraPosition);
+        var positionWC = Matrix4.multiplyByVector(camera.transform, cameraPosition);
 
         var tanPhi = Math.tan(controller._camera.frustum.fovy * 0.5);
         var tanTheta = controller._camera.frustum.aspectRatio * tanPhi;
-        var distToC = positionWC.subtract(centerWC).magnitude();
+        var distToC = Cartesian3.magnitude(Cartesian3.subtract(positionWC, centerWC));
         var dWidth = tanTheta * distToC;
         var dHeight = tanPhi * distToC;
 
@@ -1241,7 +1442,7 @@ define([
      * @returns {Object} The animation or undefined if the scene mode is 3D or the map is already ion view.
      */
     CameraController.prototype.createCorrectPositionAnimation = function(duration) {
-        if (typeof duration === 'undefined') {
+        if (!defined(duration)) {
             throw new DeveloperError('duration is required.');
         }
 

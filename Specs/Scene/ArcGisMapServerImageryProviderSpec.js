@@ -1,8 +1,10 @@
 /*global defineSuite*/
 defineSuite([
          'Scene/ArcGisMapServerImageryProvider',
+         'Core/defined',
          'Core/jsonp',
          'Core/loadImage',
+         'Core/loadWithXhr',
          'Core/DefaultProxy',
          'Scene/DiscardMissingTileImagePolicy',
          'Scene/GeographicTilingScheme',
@@ -14,8 +16,10 @@ defineSuite([
          'ThirdParty/when'
      ], function(
          ArcGisMapServerImageryProvider,
+         defined,
          jsonp,
          loadImage,
+         loadWithXhr,
          DefaultProxy,
          DiscardMissingTileImagePolicy,
          GeographicTilingScheme,
@@ -31,6 +35,7 @@ defineSuite([
     afterEach(function() {
         jsonp.loadAndExecuteScript = jsonp.defaultLoadAndExecuteScript;
         loadImage.createImage = loadImage.defaultCreateImage;
+        loadWithXhr.load = loadWithXhr.defaultLoad;
     });
 
     it('conforms to ImageryProvider interface', function() {
@@ -90,17 +95,25 @@ defineSuite([
             expect(provider.getTileHeight()).toEqual(256);
             expect(provider.getMaximumLevel()).toEqual(2);
             expect(provider.getTilingScheme()).toBeInstanceOf(WebMercatorTilingScheme);
-            expect(provider.getLogo()).toBeDefined();
+            expect(provider.getCredit()).toBeDefined();
             expect(provider.getTileDiscardPolicy()).toBeInstanceOf(DiscardMissingTileImagePolicy);
             expect(provider.getExtent()).toEqual(new WebMercatorTilingScheme().getExtent());
             expect(provider.isUsingPrecachedTiles()).toEqual(true);
 
             loadImage.createImage = function(url, crossOrigin, deferred) {
-                expect(url).toEqual(baseUrl + '/tile/0/0/0');
-                expect(crossOrigin).toEqual(true);
+                if (url.indexOf('blob:') !== 0) {
+                    expect(url).toEqual(baseUrl + '/tile/0/0/0');
+                }
 
                 // Just return any old image.
                 return loadImage.defaultCreateImage('Data/Images/Red16x16.png', crossOrigin, deferred);
+            };
+
+            loadWithXhr.load = function(url, responseType, headers, deferred) {
+                expect(url).toEqual(baseUrl + '/tile/0/0/0');
+
+                // Just return any old image.
+                return loadWithXhr.defaultLoad('Data/Images/Red16x16.png', responseType, headers, deferred);
             };
 
             when(provider.requestImage(0, 0, 0), function(image) {
@@ -109,7 +122,7 @@ defineSuite([
         });
 
         waitsFor(function() {
-            return typeof tile000Image !== 'undefined';
+            return defined(tile000Image);
         }, 'requested tile to be loaded');
 
         runs(function() {
@@ -163,17 +176,25 @@ defineSuite([
             expect(provider.getTileHeight()).toEqual(256);
             expect(provider.getMaximumLevel()).toEqual(2);
             expect(provider.getTilingScheme()).toBeInstanceOf(GeographicTilingScheme);
-            expect(provider.getLogo()).toBeDefined();
+            expect(provider.getCredit()).toBeDefined();
             expect(provider.getTileDiscardPolicy()).toBeInstanceOf(DiscardMissingTileImagePolicy);
             expect(provider.getExtent()).toEqual(new GeographicTilingScheme().getExtent());
             expect(provider.isUsingPrecachedTiles()).toEqual(true);
 
             loadImage.createImage = function(url, crossOrigin, deferred) {
-                expect(url).toEqual(baseUrl + '/tile/0/0/0');
-                expect(crossOrigin).toEqual(true);
+                if (url.indexOf('blob:') !== 0) {
+                    expect(url).toEqual(baseUrl + '/tile/0/0/0');
+                }
 
                 // Just return any old image.
                 return loadImage.defaultCreateImage('Data/Images/Red16x16.png', crossOrigin, deferred);
+            };
+
+            loadWithXhr.load = function(url, responseType, headers, deferred) {
+                expect(url).toEqual(baseUrl + '/tile/0/0/0');
+
+                // Just return any old image.
+                return loadWithXhr.defaultLoad('Data/Images/Red16x16.png', responseType, headers, deferred);
             };
 
             when(provider.requestImage(0, 0, 0), function(image) {
@@ -182,7 +203,7 @@ defineSuite([
         });
 
         waitsFor(function() {
-            return typeof tile000Image !== 'undefined';
+            return defined(tile000Image);
         }, 'requested tile to be loaded');
 
         runs(function() {
@@ -220,7 +241,7 @@ defineSuite([
             expect(provider.getTileHeight()).toEqual(256);
             expect(provider.getMaximumLevel()).toBeUndefined();
             expect(provider.getTilingScheme()).toBeInstanceOf(GeographicTilingScheme);
-            expect(provider.getLogo()).toBeDefined();
+            expect(provider.getCredit()).toBeDefined();
             expect(provider.getTileDiscardPolicy()).toBeUndefined();
             expect(provider.getExtent()).toEqual(new GeographicTilingScheme().getExtent());
             expect(provider.isUsingPrecachedTiles()).toEqual(false);
@@ -233,7 +254,6 @@ defineSuite([
                 expect(url).toMatch('format=png');
                 expect(url).toMatch('transparent=true');
                 expect(url).toMatch('size=256%2C256');
-                expect(crossOrigin).toEqual(true);
 
                 // Just return any old image.
                 return loadImage.defaultCreateImage('Data/Images/Red16x16.png', crossOrigin, deferred);
@@ -245,7 +265,7 @@ defineSuite([
         });
 
         waitsFor(function() {
-            return typeof tile000Image !== 'undefined';
+            return defined(tile000Image);
         }, 'requested tile to be loaded');
 
         runs(function() {
@@ -305,18 +325,26 @@ defineSuite([
             expect(provider.getTileHeight()).toEqual(256);
             expect(provider.getMaximumLevel()).toEqual(2);
             expect(provider.getTilingScheme()).toBeInstanceOf(GeographicTilingScheme);
-            expect(provider.getLogo()).toBeDefined();
+            expect(provider.getCredit()).toBeDefined();
             expect(provider.getTileDiscardPolicy()).toBeInstanceOf(DiscardMissingTileImagePolicy);
             expect(provider.getExtent()).toEqual(new GeographicTilingScheme().getExtent());
             expect(provider.getProxy()).toEqual(proxy);
             expect(provider.isUsingPrecachedTiles()).toEqual(true);
 
             loadImage.createImage = function(url, crossOrigin, deferred) {
-                expect(url).toEqual(proxy.getURL(baseUrl + '/tile/0/0/0'));
-                expect(crossOrigin).toEqual(true);
+                if (url.indexOf('blob:') !== 0) {
+                    expect(url).toEqual(proxy.getURL(baseUrl + '/tile/0/0/0'));
+                }
 
                 // Just return any old image.
                 return loadImage.defaultCreateImage('Data/Images/Red16x16.png', crossOrigin, deferred);
+            };
+
+            loadWithXhr.load = function(url, responseType, headers, deferred) {
+                expect(url).toEqual(proxy.getURL(baseUrl + '/tile/0/0/0'));
+
+                // Just return any old image.
+                return loadWithXhr.defaultLoad('Data/Images/Red16x16.png', responseType, headers, deferred);
             };
 
             when(provider.requestImage(0, 0, 0), function(image) {
@@ -325,7 +353,7 @@ defineSuite([
         });
 
         waitsFor(function() {
-            return typeof tile000Image !== 'undefined';
+            return defined(tile000Image);
         }, 'requested tile to be loaded');
 
         runs(function() {

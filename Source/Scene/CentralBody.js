@@ -4,39 +4,38 @@ define([
         '../Core/combine',
         '../Core/loadImage',
         '../Core/defaultValue',
+        '../Core/defined',
         '../Core/destroyObject',
         '../Core/BoundingRectangle',
         '../Core/BoundingSphere',
         '../Core/Cartesian2',
         '../Core/Cartesian3',
-        '../Core/Cartesian4',
         '../Core/Cartographic',
         '../Core/ComponentDatatype',
-        '../Core/CubeMapEllipsoidTessellator',
         '../Core/Ellipsoid',
         '../Core/Extent',
+        '../Core/FeatureDetection',
         '../Core/GeographicProjection',
+        '../Core/Geometry',
+        '../Core/GeometryAttribute',
         '../Core/Intersect',
         '../Core/Math',
         '../Core/Matrix4',
-        '../Core/MeshFilters',
         '../Core/Occluder',
         '../Core/PrimitiveType',
         '../Core/Transforms',
-        './Material',
         '../Renderer/BufferUsage',
         '../Renderer/ClearCommand',
         '../Renderer/CommandLists',
-        '../Renderer/CullFace',
         '../Renderer/DepthFunction',
         '../Renderer/DrawCommand',
-        '../Renderer/PixelFormat',
-        '../Renderer/BlendingState',
-        '../Renderer/Texture',
+        '../Renderer/createShaderSource',
         './CentralBodySurface',
         './CentralBodySurfaceShaderSet',
+        './CreditDisplay',
         './EllipsoidTerrainProvider',
         './ImageryLayerCollection',
+        './Material',
         './SceneMode',
         './TerrainProvider',
         './ViewportQuad',
@@ -52,39 +51,38 @@ define([
         combine,
         loadImage,
         defaultValue,
+        defined,
         destroyObject,
         BoundingRectangle,
         BoundingSphere,
         Cartesian2,
         Cartesian3,
-        Cartesian4,
         Cartographic,
         ComponentDatatype,
-        CubeMapEllipsoidTessellator,
         Ellipsoid,
         Extent,
+        FeatureDetection,
         GeographicProjection,
+        Geometry,
+        GeometryAttribute,
         Intersect,
         CesiumMath,
         Matrix4,
-        MeshFilters,
         Occluder,
         PrimitiveType,
         Transforms,
-        Material,
         BufferUsage,
         ClearCommand,
         CommandLists,
-        CullFace,
         DepthFunction,
         DrawCommand,
-        PixelFormat,
-        BlendingState,
-        Texture,
+        createShaderSource,
         CentralBodySurface,
         CentralBodySurfaceShaderSet,
+        CreditDisplay,
         EllipsoidTerrainProvider,
         ImageryLayerCollection,
+        Material,
         SceneMode,
         TerrainProvider,
         ViewportQuad,
@@ -131,16 +129,23 @@ define([
         this._rsColor = undefined;
         this._rsColorWithoutDepthTest = undefined;
 
-        this._clearDepthCommand = new ClearCommand();
+        var clearDepthCommand = new ClearCommand();
+        clearDepthCommand.depth = 1.0;
+        clearDepthCommand.stencil = 0;
+        clearDepthCommand.owner = this;
+        this._clearDepthCommand = clearDepthCommand;
 
         this._depthCommand = new DrawCommand();
         this._depthCommand.primitiveType = PrimitiveType.TRIANGLES;
         this._depthCommand.boundingVolume = new BoundingSphere(Cartesian3.ZERO, ellipsoid.getMaximumRadius());
+        this._depthCommand.owner = this;
 
         this._northPoleCommand = new DrawCommand();
         this._northPoleCommand.primitiveType = PrimitiveType.TRIANGLE_FAN;
+        this._northPoleCommand.owner = this;
         this._southPoleCommand = new DrawCommand();
         this._southPoleCommand.primitiveType = PrimitiveType.TRIANGLE_FAN;
+        this._southPoleCommand.owner = this;
 
         this._drawNorthPole = false;
         this._drawSouthPole = false;
@@ -152,6 +157,7 @@ define([
          * extend over the north pole, it will be filled with this color before applying lighting.
          *
          * @type {Cartesian3}
+         * @default Cartesian3(2.0 / 255.0, 6.0 / 255.0, 18.0 / 255.0)
          */
         this.northPoleColor = new Cartesian3(2.0 / 255.0, 6.0 / 255.0, 18.0 / 255.0);
 
@@ -160,18 +166,9 @@ define([
          * extend over the south pole, it will be filled with this color before applying lighting.
          *
          * @type {Cartesian3}
+         * @default Cartesian3(1.0, 1.0, 1.0)
          */
         this.southPoleColor = new Cartesian3(1.0, 1.0, 1.0);
-
-        /**
-         * The offset, relative to the bottom left corner of the viewport,
-         * where the logo for terrain and imagery providers will be drawn.
-         *
-         * @type {Cartesian2}
-         */
-        this.logoOffset = Cartesian2.ZERO.clone();
-        this._logos = [];
-        this._logoQuad = undefined;
 
         /**
          * Determines if the central body will be shown.
@@ -181,16 +178,6 @@ define([
          */
         this.show = true;
 
-        /**
-         * The current morph transition time between 2D/Columbus View and 3D,
-         * with 0.0 being 2D or Columbus View and 1.0 being 3D.
-         *
-         * @type Number
-         *
-         * @default 1.0
-         */
-        this.morphTime = 1.0;
-
         this._mode = SceneMode.SCENE3D;
         this._projection = undefined;
 
@@ -198,7 +185,8 @@ define([
          * The normal map to use for rendering waves in the ocean.  Setting this property will
          * only have an effect if the configured terrain provider includes a water mask.
          *
-         * @type String
+         * @type {String}
+         * @default buildModuleUrl('Assets/Textures/waterNormalsSmall.jpg')
          */
         this.oceanNormalMapUrl = buildModuleUrl('Assets/Textures/waterNormalsSmall.jpg');
 
@@ -209,7 +197,8 @@ define([
          * testing primitives against terrain is that slight numerical noise or terrain level-of-detail
          * switched can sometimes make a primitive that should be on the surface disappear underneath it.
          *
-         * @type Boolean
+         * @type {Boolean}
+         * @default false
          */
         this.depthTestAgainstTerrain = false;
 
@@ -219,30 +208,56 @@ define([
          * this frame.  A larger number will consume more memory but will show detail faster
          * when, for example, zooming out and then back in.
          *
-         * @type Number
+         * @type {Number}
+         * @default 100
          */
         this.tileCacheSize = 100;
+
+        /**
+         * Enable lighting the globe with the sun as a light source.
+         *
+         * @type {Boolean}
+         * @default false
+         */
+        this.enableLighting = false;
+        this._enableLighting = false;
+
+        /**
+         * The distance where everything becomes lit. This only takes effect
+         * when <code>enableLighting</code> is <code>true</code>.
+         *
+         * @type {Number}
+         * @default 6500000.0
+         */
+        this.lightingFadeOutDistance = 6500000.0;
+
+        /**
+         * The distance where lighting resumes. This only takes effect
+         * when <code>enableLighting</code> is <code>true</code>.
+         *
+         * @type {Number}
+         * @default 9000000.0
+         */
+        this.lightingFadeInDistance = 9000000.0;
 
         this._lastOceanNormalMapUrl = undefined;
         this._oceanNormalMap = undefined;
         this._zoomedOutOceanSpecularIntensity = 0.5;
         this._showingPrettyOcean = false;
         this._hasWaterMask = false;
+        this._lightingFadeDistance = new Cartesian2(this.lightingFadeOutDistance, this.lightingFadeInDistance);
 
         var that = this;
 
         this._drawUniforms = {
-            u_mode : function() {
-                return that._mode;
-            },
-            u_morphTime : function() {
-                return that.morphTime;
-            },
             u_zoomedOutOceanSpecularIntensity : function() {
                 return that._zoomedOutOceanSpecularIntensity;
             },
             u_oceanNormalMap : function() {
                 return that._oceanNormalMap;
+            },
+            u_lightingFadeDistance : function() {
+                return that._lightingFadeDistance;
             }
         };
     };
@@ -252,7 +267,7 @@ define([
      *
      * @memberof CentralBody
      *
-     * @return {Ellipsoid}
+     * @returns {Ellipsoid}
      */
     CentralBody.prototype.getEllipsoid = function() {
         return this._ellipsoid;
@@ -269,60 +284,75 @@ define([
         return this._imageryLayerCollection;
     };
 
-    CentralBody.prototype._computeDepthQuad = function(frameState) {
-        var radii = this._ellipsoid.getRadii();
-        var p = frameState.camera.getPositionWC();
+    var depthQuadScratch = FeatureDetection.supportsTypedArrays() ? new Float32Array(12) : [];
+
+    function computeDepthQuad(centralBody, frameState) {
+        var radii = centralBody._ellipsoid.getRadii();
+        var p = frameState.camera.positionWC;
 
         // Find the corresponding position in the scaled space of the ellipsoid.
-        var q = this._ellipsoid.getOneOverRadii().multiplyComponents(p);
+        var q = Cartesian3.multiplyComponents(centralBody._ellipsoid.getOneOverRadii(), p);
 
-        var qMagnitude = q.magnitude();
-        var qUnit = q.normalize();
+        var qMagnitude = Cartesian3.magnitude(q);
+        var qUnit = Cartesian3.normalize(q);
 
         // Determine the east and north directions at q.
-        var eUnit = Cartesian3.UNIT_Z.cross(q).normalize();
-        var nUnit = qUnit.cross(eUnit).normalize();
+        var eUnit = Cartesian3.normalize(Cartesian3.cross(Cartesian3.UNIT_Z, q));
+        var nUnit = Cartesian3.normalize(Cartesian3.cross(qUnit, eUnit));
 
         // Determine the radius of the 'limb' of the ellipsoid.
-        var wMagnitude = Math.sqrt(q.magnitudeSquared() - 1.0);
+        var wMagnitude = Math.sqrt(Cartesian3.magnitudeSquared(q) - 1.0);
 
         // Compute the center and offsets.
-        var center = qUnit.multiplyByScalar(1.0 / qMagnitude);
+        var center = Cartesian3.multiplyByScalar(qUnit, 1.0 / qMagnitude);
         var scalar = wMagnitude / qMagnitude;
-        var eastOffset = eUnit.multiplyByScalar(scalar);
-        var northOffset = nUnit.multiplyByScalar(scalar);
+        var eastOffset = Cartesian3.multiplyByScalar(eUnit, scalar);
+        var northOffset = Cartesian3.multiplyByScalar(nUnit, scalar);
 
         // A conservative measure for the longitudes would be to use the min/max longitudes of the bounding frustum.
-        var upperLeft = radii.multiplyComponents(center.add(northOffset).subtract(eastOffset));
-        var upperRight = radii.multiplyComponents(center.add(northOffset).add(eastOffset));
-        var lowerLeft = radii.multiplyComponents(center.subtract(northOffset).subtract(eastOffset));
-        var lowerRight = radii.multiplyComponents(center.subtract(northOffset).add(eastOffset));
-        return [upperLeft.x, upperLeft.y, upperLeft.z, lowerLeft.x, lowerLeft.y, lowerLeft.z, upperRight.x, upperRight.y, upperRight.z, lowerRight.x, lowerRight.y, lowerRight.z];
-    };
+        var upperLeft = Cartesian3.multiplyComponents(radii, Cartesian3.subtract(Cartesian3.add(center, northOffset), eastOffset));
+        var upperRight = Cartesian3.multiplyComponents(radii, Cartesian3.add(Cartesian3.add(center, northOffset), eastOffset));
+        var lowerLeft = Cartesian3.multiplyComponents(radii, Cartesian3.subtract(Cartesian3.subtract(center, northOffset), eastOffset));
+        var lowerRight = Cartesian3.multiplyComponents(radii, Cartesian3.add(Cartesian3.subtract(center, northOffset), eastOffset));
 
-    CentralBody.prototype._computePoleQuad = function(frameState, maxLat, maxGivenLat, viewProjMatrix, viewportTransformation) {
-        var pt1 = this._ellipsoid.cartographicToCartesian(new Cartographic(0.0, maxGivenLat));
-        var pt2 = this._ellipsoid.cartographicToCartesian(new Cartographic(Math.PI, maxGivenLat));
-        var radius = pt1.subtract(pt2).magnitude() * 0.5;
+        depthQuadScratch[0] = upperLeft.x;
+        depthQuadScratch[1] = upperLeft.y;
+        depthQuadScratch[2] = upperLeft.z;
+        depthQuadScratch[3] = lowerLeft.x;
+        depthQuadScratch[4] = lowerLeft.y;
+        depthQuadScratch[5] = lowerLeft.z;
+        depthQuadScratch[6] = upperRight.x;
+        depthQuadScratch[7] = upperRight.y;
+        depthQuadScratch[8] = upperRight.z;
+        depthQuadScratch[9] = lowerRight.x;
+        depthQuadScratch[10] = lowerRight.y;
+        depthQuadScratch[11] = lowerRight.z;
+        return depthQuadScratch;
+    }
 
-        var center = this._ellipsoid.cartographicToCartesian(new Cartographic(0.0, maxLat));
+    function computePoleQuad(centralBody, frameState, maxLat, maxGivenLat, viewProjMatrix, viewportTransformation) {
+        var pt1 = centralBody._ellipsoid.cartographicToCartesian(new Cartographic(0.0, maxGivenLat));
+        var pt2 = centralBody._ellipsoid.cartographicToCartesian(new Cartographic(Math.PI, maxGivenLat));
+        var radius = Cartesian3.magnitude(Cartesian3.subtract(pt1, pt2)) * 0.5;
+
+        var center = centralBody._ellipsoid.cartographicToCartesian(new Cartographic(0.0, maxLat));
 
         var right;
         var dir = frameState.camera.direction;
-        if (1.0 - Cartesian3.UNIT_Z.negate().dot(dir) < CesiumMath.EPSILON6) {
+        if (1.0 - Cartesian3.dot(Cartesian3.negate(Cartesian3.UNIT_Z), dir) < CesiumMath.EPSILON6) {
             right = Cartesian3.UNIT_X;
         } else {
-            right = dir.cross(Cartesian3.UNIT_Z).normalize();
+            right = Cartesian3.normalize(Cartesian3.cross(dir, Cartesian3.UNIT_Z));
         }
 
-        var screenRight = center.add(right.multiplyByScalar(radius));
-        var screenUp = center.add(Cartesian3.UNIT_Z.cross(right).normalize().multiplyByScalar(radius));
+        var screenRight = Cartesian3.add(center, Cartesian3.multiplyByScalar(right, radius));
+        var screenUp = Cartesian3.add(center, Cartesian3.multiplyByScalar(Cartesian3.normalize(Cartesian3.cross(Cartesian3.UNIT_Z, right)), radius));
 
         Transforms.pointToWindowCoordinates(viewProjMatrix, viewportTransformation, center, center);
         Transforms.pointToWindowCoordinates(viewProjMatrix, viewportTransformation, screenRight, screenRight);
         Transforms.pointToWindowCoordinates(viewProjMatrix, viewportTransformation, screenUp, screenUp);
 
-        var halfWidth = Math.floor(Math.max(screenUp.subtract(center).magnitude(), screenRight.subtract(center).magnitude()));
+        var halfWidth = Math.floor(Math.max(Cartesian3.distance(screenUp, center), Cartesian3.distance(screenRight, center)));
         var halfHeight = halfWidth;
 
         return new BoundingRectangle(
@@ -330,12 +360,14 @@ define([
                 Math.floor(center.y) - halfHeight,
                 halfWidth * 2.0,
                 halfHeight * 2.0);
-    };
+    }
 
     var viewportScratch = new BoundingRectangle();
     var vpTransformScratch = new Matrix4();
-    CentralBody.prototype._fillPoles = function(context, frameState) {
-        var terrainProvider = this._surface._terrainProvider;
+    var polePositionsScratch = FeatureDetection.supportsTypedArrays() ? new Float32Array(8) : [];
+
+    function fillPoles(centralBody, context, frameState) {
+        var terrainProvider = centralBody._surface._terrainProvider;
         if (frameState.mode !== SceneMode.SCENE3D) {
             return;
         }
@@ -347,8 +379,8 @@ define([
 
         var viewProjMatrix = context.getUniformState().getViewProjection();
         var viewport = viewportScratch;
-        viewport.width = context.getCanvas().clientWidth;
-        viewport.height = context.getCanvas().clientHeight;
+        viewport.width = context.getDrawingBufferWidth();
+        viewport.height = context.getDrawingBufferHeight();
         var viewportTransformation = Matrix4.computeViewportTransformation(viewport, 0.0, 1.0, vpTransformScratch);
         var latitudeExtension = 0.05;
 
@@ -357,11 +389,9 @@ define([
         var frustumCull;
         var occludeePoint;
         var occluded;
-        var datatype;
-        var mesh;
+        var geometry;
         var rect;
-        var positions;
-        var occluder = this._occluder;
+        var occluder = centralBody._occluder;
 
         // handle north pole
         if (terrainMaxExtent.north < CesiumMath.PI_OVER_TWO) {
@@ -371,42 +401,43 @@ define([
                 Math.PI,
                 CesiumMath.PI_OVER_TWO
             );
-            boundingVolume = BoundingSphere.fromExtent3D(extent, this._ellipsoid);
+            boundingVolume = BoundingSphere.fromExtent3D(extent, centralBody._ellipsoid);
             frustumCull = frameState.cullingVolume.getVisibility(boundingVolume) === Intersect.OUTSIDE;
-            occludeePoint = Occluder.computeOccludeePointFromExtent(extent, this._ellipsoid);
+            occludeePoint = Occluder.computeOccludeePointFromExtent(extent, centralBody._ellipsoid);
             occluded = (occludeePoint && !occluder.isPointVisible(occludeePoint, 0.0)) || !occluder.isBoundingSphereVisible(boundingVolume);
 
-            this._drawNorthPole = !frustumCull && !occluded;
-            if (this._drawNorthPole) {
-                rect = this._computePoleQuad(frameState, extent.north, extent.south - latitudeExtension, viewProjMatrix, viewportTransformation);
-                positions = [
-                    rect.x, rect.y,
-                    rect.x + rect.width, rect.y,
-                    rect.x + rect.width, rect.y + rect.height,
-                    rect.x, rect.y + rect.height
-                ];
+            centralBody._drawNorthPole = !frustumCull && !occluded;
+            if (centralBody._drawNorthPole) {
+                rect = computePoleQuad(centralBody, frameState, extent.north, extent.south - latitudeExtension, viewProjMatrix, viewportTransformation);
+                polePositionsScratch[0] = rect.x;
+                polePositionsScratch[1] = rect.y;
+                polePositionsScratch[2] = rect.x + rect.width;
+                polePositionsScratch[3] = rect.y;
+                polePositionsScratch[4] = rect.x + rect.width;
+                polePositionsScratch[5] = rect.y + rect.height;
+                polePositionsScratch[6] = rect.x;
+                polePositionsScratch[7] = rect.y + rect.height;
 
-                if (typeof this._northPoleCommand.vertexArray === 'undefined') {
-                    this._northPoleCommand.boundingVolume = BoundingSphere.fromExtent3D(extent, this._ellipsoid);
-                    mesh = {
+                if (!defined(centralBody._northPoleCommand.vertexArray)) {
+                    centralBody._northPoleCommand.boundingVolume = BoundingSphere.fromExtent3D(extent, centralBody._ellipsoid);
+                    geometry = new Geometry({
                         attributes : {
-                            position : {
+                            position : new GeometryAttribute({
                                 componentDatatype : ComponentDatatype.FLOAT,
                                 componentsPerAttribute : 2,
-                                values : positions
-                            }
+                                values : polePositionsScratch
+                            })
                         }
-                    };
-                    this._northPoleCommand.vertexArray = context.createVertexArrayFromMesh({
-                        mesh : mesh,
+                    });
+                    centralBody._northPoleCommand.vertexArray = context.createVertexArrayFromGeometry({
+                        geometry : geometry,
                         attributeIndices : {
                             position : 0
                         },
                         bufferUsage : BufferUsage.STREAM_DRAW
                     });
                 } else {
-                    datatype = ComponentDatatype.FLOAT;
-                    this._northPoleCommand.vertexArray.getAttribute(0).vertexBuffer.copyFromArrayView(datatype.toTypedArray(positions));
+                    centralBody._northPoleCommand.vertexArray.getAttribute(0).vertexBuffer.copyFromArrayView(polePositionsScratch);
                 }
             }
         }
@@ -419,49 +450,50 @@ define([
                 Math.PI,
                 terrainMaxExtent.south
             );
-            boundingVolume = BoundingSphere.fromExtent3D(extent, this._ellipsoid);
+            boundingVolume = BoundingSphere.fromExtent3D(extent, centralBody._ellipsoid);
             frustumCull = frameState.cullingVolume.getVisibility(boundingVolume) === Intersect.OUTSIDE;
-            occludeePoint = Occluder.computeOccludeePointFromExtent(extent, this._ellipsoid);
+            occludeePoint = Occluder.computeOccludeePointFromExtent(extent, centralBody._ellipsoid);
             occluded = (occludeePoint && !occluder.isPointVisible(occludeePoint)) || !occluder.isBoundingSphereVisible(boundingVolume);
 
-            this._drawSouthPole = !frustumCull && !occluded;
-            if (this._drawSouthPole) {
-                rect = this._computePoleQuad(frameState, extent.south, extent.north + latitudeExtension, viewProjMatrix, viewportTransformation);
-                positions = [
-                     rect.x, rect.y,
-                     rect.x + rect.width, rect.y,
-                     rect.x + rect.width, rect.y + rect.height,
-                     rect.x, rect.y + rect.height
-                 ];
+            centralBody._drawSouthPole = !frustumCull && !occluded;
+            if (centralBody._drawSouthPole) {
+                rect = computePoleQuad(centralBody, frameState, extent.south, extent.north + latitudeExtension, viewProjMatrix, viewportTransformation);
+                polePositionsScratch[0] = rect.x;
+                polePositionsScratch[1] = rect.y;
+                polePositionsScratch[2] = rect.x + rect.width;
+                polePositionsScratch[3] = rect.y;
+                polePositionsScratch[4] = rect.x + rect.width;
+                polePositionsScratch[5] = rect.y + rect.height;
+                polePositionsScratch[6] = rect.x;
+                polePositionsScratch[7] = rect.y + rect.height;
 
-                 if (typeof this._southPoleCommand.vertexArray === 'undefined') {
-                     this._southPoleCommand.boundingVolume = BoundingSphere.fromExtent3D(extent, this._ellipsoid);
-                     mesh = {
+                 if (!defined(centralBody._southPoleCommand.vertexArray)) {
+                     centralBody._southPoleCommand.boundingVolume = BoundingSphere.fromExtent3D(extent, centralBody._ellipsoid);
+                     geometry = new Geometry({
                          attributes : {
-                             position : {
+                             position : new GeometryAttribute({
                                  componentDatatype : ComponentDatatype.FLOAT,
                                  componentsPerAttribute : 2,
-                                 values : positions
-                             }
+                                 values : polePositionsScratch
+                             })
                          }
-                     };
-                     this._southPoleCommand.vertexArray = context.createVertexArrayFromMesh({
-                         mesh : mesh,
+                     });
+                     centralBody._southPoleCommand.vertexArray = context.createVertexArrayFromGeometry({
+                         geometry : geometry,
                          attributeIndices : {
                              position : 0
                          },
                          bufferUsage : BufferUsage.STREAM_DRAW
                      });
                  } else {
-                     datatype = ComponentDatatype.FLOAT;
-                     this._southPoleCommand.vertexArray.getAttribute(0).vertexBuffer.copyFromArrayView(datatype.toTypedArray(positions));
+                     centralBody._southPoleCommand.vertexArray.getAttribute(0).vertexBuffer.copyFromArrayView(polePositionsScratch);
                  }
             }
         }
 
         var poleIntensity = 0.0;
-        var baseLayer = this._imageryLayerCollection.getLength() > 0 ? this._imageryLayerCollection.get(0) : undefined;
-        if (typeof baseLayer !== 'undefined' && typeof baseLayer.getImageryProvider() !== 'undefined' && typeof baseLayer.getImageryProvider().getPoleIntensity !== 'undefined') {
+        var baseLayer = centralBody._imageryLayerCollection.getLength() > 0 ? centralBody._imageryLayerCollection.get(0) : undefined;
+        if (defined(baseLayer) && defined(baseLayer.getImageryProvider()) && defined(baseLayer.getImageryProvider().getPoleIntensity)) {
             poleIntensity = baseLayer.getImageryProvider().getPoleIntensity();
         }
 
@@ -471,25 +503,25 @@ define([
             }
         };
 
-        var that = this;
-        if (typeof this._northPoleCommand.uniformMap === 'undefined') {
+        var that = centralBody;
+        if (!defined(centralBody._northPoleCommand.uniformMap)) {
             var northPoleUniforms = combine([drawUniforms, {
                 u_color : function() {
                     return that.northPoleColor;
                 }
             }], false, false);
-            this._northPoleCommand.uniformMap = combine([northPoleUniforms, this._drawUniforms], false, false);
+            centralBody._northPoleCommand.uniformMap = combine([northPoleUniforms, centralBody._drawUniforms], false, false);
         }
 
-        if (typeof this._southPoleCommand.uniformMap === 'undefined') {
+        if (!defined(centralBody._southPoleCommand.uniformMap)) {
             var southPoleUniforms = combine([drawUniforms, {
                 u_color : function() {
                     return that.southPoleColor;
                 }
             }], false, false);
-            this._southPoleCommand.uniformMap = combine([southPoleUniforms, this._drawUniforms], false, false);
+            centralBody._southPoleCommand.uniformMap = combine([southPoleUniforms, centralBody._drawUniforms], false, false);
         }
-    };
+    }
 
     /**
      * @private
@@ -499,8 +531,8 @@ define([
             return;
         }
 
-        var width = context.getCanvas().clientWidth;
-        var height = context.getCanvas().clientHeight;
+        var width = context.getDrawingBufferWidth();
+        var height = context.getDrawingBufferHeight();
 
         if (width === 0 || height === 0) {
             return;
@@ -510,7 +542,7 @@ define([
         var projection = frameState.scene2D.projection;
         var modeChanged = false;
 
-        if (this._mode !== mode || typeof this._rsColor === 'undefined') {
+        if (this._mode !== mode || !defined(this._rsColor)) {
             modeChanged = true;
             if (mode === SceneMode.SCENE3D || mode === SceneMode.COLUMBUS_VIEW) {
                 this._rsColor = context.createRenderState({ // Write color and depth
@@ -541,10 +573,6 @@ define([
                         alpha : false
                     }
                 });
-                this._clearDepthCommand.clearState = context.createClearState({ // Clear depth only
-                    depth : 1.0,
-                    stencil : 0.0
-                });
             } else {
                 this._rsColor = context.createRenderState({
                     cull : {
@@ -568,44 +596,40 @@ define([
         this._southPoleCommand.renderState = this._rsColorWithoutDepthTest;
 
         // update depth plane
-        var depthQuad = this._computeDepthQuad(frameState);
+        var depthQuad = computeDepthQuad(this, frameState);
 
         // depth plane
         if (!this._depthCommand.vertexArray) {
-            var mesh = {
+            var geometry = new Geometry({
                 attributes : {
-                    position : {
+                    position : new GeometryAttribute({
                         componentDatatype : ComponentDatatype.FLOAT,
                         componentsPerAttribute : 3,
                         values : depthQuad
-                    }
+                    })
                 },
-                indexLists : [{
-                    primitiveType : PrimitiveType.TRIANGLES,
-                    values : [0, 1, 2, 2, 1, 3]
-                }]
-            };
-            this._depthCommand.vertexArray = context.createVertexArrayFromMesh({
-                mesh : mesh,
+                indices : [0, 1, 2, 2, 1, 3],
+                primitiveType : PrimitiveType.TRIANGLES
+            });
+            this._depthCommand.vertexArray = context.createVertexArrayFromGeometry({
+                geometry : geometry,
                 attributeIndices : {
                     position : 0
                 },
                 bufferUsage : BufferUsage.DYNAMIC_DRAW
             });
         } else {
-            var datatype = ComponentDatatype.FLOAT;
-            this._depthCommand.vertexArray.getAttribute(0).vertexBuffer.copyFromArrayView(datatype.toTypedArray(depthQuad));
+            this._depthCommand.vertexArray.getAttribute(0).vertexBuffer.copyFromArrayView(depthQuad);
         }
 
         var shaderCache = context.getShaderCache();
 
-        if (typeof this._depthCommand.shaderProgram === 'undefined') {
+        if (!defined(this._depthCommand.shaderProgram)) {
             this._depthCommand.shaderProgram = shaderCache.getShaderProgram(
-                    CentralBodyVSDepth,
-                    '#line 0\n' +
-                    CentralBodyFSDepth, {
-                        position : 0
-                    });
+                CentralBodyVSDepth,
+                CentralBodyFSDepth, {
+                    position : 0
+                });
         }
 
         if (this._surface._terrainProvider.hasWaterMask() &&
@@ -614,7 +638,7 @@ define([
             this._lastOceanNormalMapUrl = this.oceanNormalMapUrl;
 
             var that = this;
-            when(loadImage(this.oceanNormalMapUrl, true), function(image) {
+            when(loadImage(this.oceanNormalMapUrl), function(image) {
                 that._oceanNormalMap = that._oceanNormalMap && that._oceanNormalMap.destroy();
                 that._oceanNormalMap = context.createTexture2D({
                     source : image
@@ -626,14 +650,16 @@ define([
         var projectionChanged = this._projection !== projection;
         var hasWaterMask = this._surface._terrainProvider.hasWaterMask();
         var hasWaterMaskChanged = this._hasWaterMask !== hasWaterMask;
+        var hasEnableLightingChanged = this._enableLighting !== this.enableLighting;
 
-        if (typeof this._surfaceShaderSet === 'undefined' ||
-            typeof this._northPoleCommand.shaderProgram === 'undefined' ||
-            typeof this._southPoleCommand.shaderProgram === 'undefined' ||
+        if (!defined(this._surfaceShaderSet) ||
+            !defined(this._northPoleCommand.shaderProgram) ||
+            !defined(this._southPoleCommand.shaderProgram) ||
             modeChanged ||
             projectionChanged ||
             hasWaterMaskChanged ||
-            (typeof this._oceanNormalMap !== 'undefined') !== this._showingPrettyOcean) {
+            hasEnableLightingChanged ||
+            (defined(this._oceanNormalMap)) !== this._showingPrettyOcean) {
 
             var getPosition3DMode = 'vec4 getPosition(vec3 position3DWC) { return getPosition3DMode(position3DWC); }';
             var getPosition2DMode = 'vec4 getPosition(vec3 position3DWC) { return getPosition2DMode(position3DWC); }';
@@ -668,18 +694,24 @@ define([
                 get2DYPositionFraction = get2DYPositionFractionMercatorProjection;
             }
 
-            this._surfaceShaderSet.baseVertexShaderString =
-                 CentralBodyVS + '\n' +
-                 getPositionMode + '\n' +
-                 get2DYPositionFraction;
+            this._surfaceShaderSet.baseVertexShaderString = createShaderSource({
+                defines : [
+                    (hasWaterMask ? 'SHOW_REFLECTIVE_OCEAN' : ''),
+                    (this.enableLighting ? 'ENABLE_LIGHTING' : '')
+                ],
+                sources : [CentralBodyVS, getPositionMode, get2DYPositionFraction]
+            });
 
-            var showPrettyOcean = hasWaterMask && typeof this._oceanNormalMap !== 'undefined';
+            var showPrettyOcean = hasWaterMask && defined(this._oceanNormalMap);
 
-            this._surfaceShaderSet.baseFragmentShaderString =
-                (hasWaterMask ? '#define SHOW_REFLECTIVE_OCEAN\n' : '') +
-                (showPrettyOcean ? '#define SHOW_OCEAN_WAVES\n' : '') +
-                '#line 0\n' +
-                CentralBodyFS;
+            this._surfaceShaderSet.baseFragmentShaderString = createShaderSource({
+                defines : [
+                    (hasWaterMask ? 'SHOW_REFLECTIVE_OCEAN' : ''),
+                    (showPrettyOcean ? 'SHOW_OCEAN_WAVES' : ''),
+                    (this.enableLighting ? 'ENABLE_LIGHTING' : '')
+                ],
+                sources : [CentralBodyFS]
+            });
             this._surfaceShaderSet.invalidateShaders();
 
             var poleShaderProgram = shaderCache.replaceShaderProgram(this._northPoleCommand.shaderProgram,
@@ -688,15 +720,15 @@ define([
             this._northPoleCommand.shaderProgram = poleShaderProgram;
             this._southPoleCommand.shaderProgram = poleShaderProgram;
 
-            this._showingPrettyOcean = typeof this._oceanNormalMap !== 'undefined';
+            this._showingPrettyOcean = defined(this._oceanNormalMap);
             this._hasWaterMask = hasWaterMask;
         }
 
-        var cameraPosition = frameState.camera.getPositionWC();
+        var cameraPosition = frameState.camera.positionWC;
 
         this._occluder.setCameraPosition(cameraPosition);
 
-        this._fillPoles(context, frameState);
+        fillPoles(this, context, frameState);
 
         this._mode = mode;
         this._projection = projection;
@@ -706,7 +738,7 @@ define([
         commandLists.removeAll();
 
         if (pass.color) {
-            var colorCommandList = commandLists.colorList;
+            var colorCommandList = commandLists.opaqueList;
 
             // render quads to fill the poles
             if (mode === SceneMode.SCENE3D) {
@@ -719,8 +751,6 @@ define([
                 }
             }
 
-            var drawUniforms = this._drawUniforms;
-
             // Don't show the ocean specular highlights when zoomed out in 2D and Columbus View.
             if (mode === SceneMode.SCENE3D) {
                 this._zoomedOutOceanSpecularIntensity = 0.5;
@@ -728,24 +758,28 @@ define([
                 this._zoomedOutOceanSpecularIntensity = 0.0;
             }
 
+            this._lightingFadeDistance.x = this.lightingFadeOutDistance;
+            this._lightingFadeDistance.y = this.lightingFadeInDistance;
+
             this._surface._tileCacheSize = this.tileCacheSize;
             this._surface.setTerrainProvider(this.terrainProvider);
             this._surface.update(context,
                     frameState,
                     colorCommandList,
-                    drawUniforms,
+                    this._drawUniforms,
                     this._surfaceShaderSet,
                     this._rsColor,
-                    this._mode,
                     this._projection);
 
-            updateLogos(this, context, frameState, commandList);
+            displayCredits(this, frameState);
 
             // render depth plane
-            if (mode === SceneMode.SCENE3D) {
+            if (mode === SceneMode.SCENE3D || mode === SceneMode.COLUMBUS_VIEW) {
                 if (!this.depthTestAgainstTerrain) {
                     colorCommandList.push(this._clearDepthCommand);
-                    colorCommandList.push(this._depthCommand);
+                    if (mode === SceneMode.SCENE3D) {
+                        colorCommandList.push(this._depthCommand);
+                    }
                 }
             }
         }
@@ -753,7 +787,7 @@ define([
         if (pass.pick) {
             // Not actually pickable, but render depth-only so primitives on the backface
             // of the globe are not picked.
-            commandLists.pickList.push(this._depthCommand);
+            commandLists.pickList.opaqueList.push(this._depthCommand);
         }
 
         if (!commandLists.empty()) {
@@ -769,7 +803,7 @@ define([
      *
      * @memberof CentralBody
      *
-     * @return {Boolean} True if this object was destroyed; otherwise, false.
+     * @returns {Boolean} True if this object was destroyed; otherwise, false.
      *
      * @see CentralBody#destroy
      */
@@ -787,7 +821,7 @@ define([
      *
      * @memberof CentralBody
      *
-     * @return {undefined}
+     * @returns {undefined}
      *
      * @exception {DeveloperError} This object was destroyed, i.e., destroy() was called.
      *
@@ -815,112 +849,22 @@ define([
         return destroyObject(this);
     };
 
-    var logoData = {
-        logos : undefined,
-        logoIndex : 0,
-        rebuildLogo : false,
-        totalLogoWidth : 0,
-        totalLogoHeight : 0
-    };
-
-    function updateLogos(centralBody, context, frameState, commandList) {
-        logoData.logos = centralBody._logos;
-        logoData.logoIndex = 0;
-        logoData.rebuildLogo = false;
-        logoData.totalLogoWidth = 0;
-        logoData.totalLogoHeight = 0;
-
-        checkLogo(logoData, centralBody._surface._terrainProvider);
+    function displayCredits(centralBody, frameState) {
+        var creditDisplay = frameState.creditDisplay;
+        var credit = centralBody._surface._terrainProvider.getCredit();
+        if (defined(credit)) {
+            creditDisplay.addCredit(credit);
+        }
 
         var imageryLayerCollection = centralBody._imageryLayerCollection;
         for ( var i = 0, len = imageryLayerCollection.getLength(); i < len; ++i) {
             var layer = imageryLayerCollection.get(i);
             if (layer.show) {
-                checkLogo(logoData, layer.getImageryProvider());
-            }
-        }
-
-        if (logoData.logos.length !== logoData.logoIndex) {
-            logoData.rebuildLogo = true;
-            logoData.logos.length = logoData.logoIndex;
-        }
-
-        var totalLogoWidth = logoData.totalLogoWidth;
-        var totalLogoHeight = logoData.totalLogoHeight;
-
-        var logoQuad = centralBody._logoQuad;
-        if (totalLogoWidth === 0 || totalLogoHeight === 0) {
-            if (typeof logoQuad !== 'undefined') {
-                logoQuad.material = logoQuad.material && logoQuad.material.destroy();
-                logoQuad.destroy();
-                centralBody._logoQuad = undefined;
-            }
-            return;
-        }
-
-        if (typeof logoQuad === 'undefined') {
-            logoQuad = new ViewportQuad();
-            logoQuad.material.destroy();
-            logoQuad.material = Material.fromType(context, Material.ImageType);
-            logoQuad.material.uniforms.image = undefined;
-
-            centralBody._logoQuad = logoQuad;
-        }
-
-        var logoOffset = centralBody.logoOffset;
-        var rectangle = logoQuad.rectangle;
-        rectangle.x = logoOffset.x;
-        rectangle.y = logoOffset.y;
-        rectangle.width = totalLogoWidth;
-        rectangle.height = totalLogoHeight;
-
-        if (logoData.rebuildLogo) {
-            var texture = logoQuad.material.uniforms.image;
-
-            // always delete and recreate the texture to get rid of leftover pixels
-            texture = texture && texture.destroy();
-            texture = context.createTexture2D({
-                width : totalLogoWidth,
-                height : totalLogoHeight
-            });
-            logoQuad.material.uniforms.image = texture;
-
-            var yOffset = 0;
-            for (i = 0, len = logoData.logos.length; i < len; i++) {
-                var logo = logoData.logos[i];
-                if (typeof logo !== 'undefined') {
-                    texture.copyFrom(logo, 0, yOffset);
-                    yOffset += logo.height + 2;
+                credit = layer.getImageryProvider().getCredit();
+                if (defined(credit)) {
+                    creditDisplay.addCredit(credit);
                 }
             }
-        }
-
-        if (typeof logoQuad !== 'undefined') {
-            logoQuad.update(context, frameState, commandList);
-        }
-    }
-
-    function checkLogo(logoData, logoSource) {
-        if (typeof logoSource.isReady === 'function' && !logoSource.isReady()) {
-            return;
-        }
-
-        var logo;
-        if (typeof logoSource.getLogo === 'function') {
-            logo = logoSource.getLogo();
-        } else {
-            logo = undefined;
-        }
-
-        if (logoData.logos[logoData.logoIndex] !== logo) {
-            logoData.rebuildLogo = true;
-            logoData.logos[logoData.logoIndex] = logo;
-        }
-        logoData.logoIndex++;
-
-        if (typeof logo !== 'undefined') {
-            logoData.totalLogoWidth = Math.max(logoData.totalLogoWidth, logo.width);
-            logoData.totalLogoHeight += logo.height + 2;
         }
     }
 

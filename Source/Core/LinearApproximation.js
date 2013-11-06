@@ -1,7 +1,9 @@
 /*global define*/
 define([
+        './defined',
         './DeveloperError'
        ],function(
+         defined,
          DeveloperError) {
     "use strict";
 
@@ -67,7 +69,7 @@ define([
             throw new DeveloperError('There must be at least 1 dependent variable for each independent variable.');
         }
 
-        if (typeof result === 'undefined') {
+        if (!defined(result)) {
             result = new Array(yStride);
         }
 
@@ -76,6 +78,10 @@ define([
         var y1;
         var x0 = xTable[0];
         var x1 = xTable[1];
+
+        if (x0 === x1) {
+            throw new DeveloperError('Divide by zero error: xTable[0] and xTable[1] are equal');
+        }
 
         for (i = 0; i < yStride; i++) {
             y0 = yTable[i];

@@ -6,11 +6,10 @@ defineSuite([
          'Specs/destroyContext',
          'Specs/render',
          'Core/Cartesian3',
+         'Core/defined',
          'Core/Ellipsoid',
          'Core/Extent',
          'Core/GeographicProjection',
-         'Core/Math',
-         'Core/Matrix4',
          'Core/WebMercatorProjection',
          'Scene/CentralBody',
          'Scene/EllipsoidTerrainProvider',
@@ -26,11 +25,10 @@ defineSuite([
          destroyContext,
          render,
          Cartesian3,
+         defined,
          Ellipsoid,
          Extent,
          GeographicProjection,
-         CesiumMath,
-         Matrix4,
          WebMercatorProjection,
          CentralBody,
          EllipsoidTerrainProvider,
@@ -47,7 +45,7 @@ defineSuite([
         var tilesToRenderByTextureCount = surface._tilesToRenderByTextureCount;
         for (var tileSetIndex = 0, tileSetLength = tilesToRenderByTextureCount.length; tileSetIndex < tileSetLength; ++tileSetIndex) {
             var tileSet = tilesToRenderByTextureCount[tileSetIndex];
-            if (typeof tileSet === 'undefined' || tileSet.length === 0) {
+            if (!defined(tileSet) || tileSet.length === 0) {
                 continue;
             }
 
@@ -58,11 +56,11 @@ defineSuite([
             }
         }
 
-        if (typeof minimumTiles !== 'undefined') {
+        if (defined(minimumTiles)) {
             expect(tileCount).not.toBeLessThan(minimumTiles);
         }
 
-        if (typeof maximumTiles !== 'undefined') {
+        if (defined(maximumTiles)) {
             expect(tileCount).not.toBeGreaterThan(maximumTiles);
         }
     }
@@ -77,7 +75,7 @@ defineSuite([
             surface._debug.enableDebugOutput = true;
             var commandLists = [];
             cb.update(context, frameState, commandLists);
-            return typeof cb._surface._tileLoadQueue.head === 'undefined' && surface._debug.tilesWaitingForChildren === 0;
+            return !defined(cb._surface._tileLoadQueue.head) && surface._debug.tilesWaitingForChildren === 0;
         }, 'updating to complete');
     }
 
@@ -151,7 +149,7 @@ defineSuite([
                 forEachRenderedTile(surface, 1, undefined, function(tile) {
                     expect(tile.imagery.length).toBeGreaterThan(0);
                     for (var i = 0; i < tile.imagery.length; ++i) {
-                        expect(tile.imagery[i].imagery.imageryLayer).toEqual(layer);
+                        expect(tile.imagery[i].readyImagery.imageryLayer).toEqual(layer);
                     }
                 });
 
@@ -187,7 +185,11 @@ defineSuite([
                     expect(tile.imagery.length).toBeGreaterThan(0);
                     var hasImageFromLayer2 = false;
                     for (var i = 0; i < tile.imagery.length; ++i) {
-                        if (tile.imagery[i].imagery.imageryLayer === layer2) {
+                        var imageryTile = tile.imagery[i].readyImagery;
+                        if (!defined(imageryTile)) {
+                            imageryTile = tile.imagery[i].loadingImagery;
+                        }
+                        if (imageryTile.imageryLayer === layer2) {
                             hasImageFromLayer2 = true;
                         }
                     }
@@ -212,11 +214,11 @@ defineSuite([
                     var indexOfLastLayer1 = -1;
                     var indexOfFirstLayer2 = tile.imagery.length;
                     for (var i = 0; i < tile.imagery.length; ++i) {
-                        if (tile.imagery[i].imagery.imageryLayer === layer1) {
+                        if (tile.imagery[i].readyImagery.imageryLayer === layer1) {
                             indexOfFirstLayer1 = Math.min(indexOfFirstLayer1, i);
                             indexOfLastLayer1 = i;
                         } else {
-                            expect(tile.imagery[i].imagery.imageryLayer).toEqual(layer2);
+                            expect(tile.imagery[i].readyImagery.imageryLayer).toEqual(layer2);
                             indexOfFirstLayer2 = Math.min(indexOfFirstLayer2, i);
                         }
                     }
@@ -236,11 +238,11 @@ defineSuite([
                     var indexOfLastLayer2 = -1;
                     var indexOfFirstLayer1 = tile.imagery.length;
                     for (var i = 0; i < tile.imagery.length; ++i) {
-                        if (tile.imagery[i].imagery.imageryLayer === layer2) {
+                        if (tile.imagery[i].readyImagery.imageryLayer === layer2) {
                             indexOfFirstLayer2 = Math.min(indexOfFirstLayer2, i);
                             indexOfLastLayer2 = i;
                         } else {
-                            expect(tile.imagery[i].imagery.imageryLayer).toEqual(layer1);
+                            expect(tile.imagery[i].readyImagery.imageryLayer).toEqual(layer1);
                             indexOfFirstLayer1 = Math.min(indexOfFirstLayer1, i);
                         }
                     }
@@ -391,13 +393,13 @@ defineSuite([
             var tileCommandCount = 0;
 
             for (var i = 0; i < commandLists.length; ++i) {
-                var commandList = commandLists[i].colorList;
+                var commandList = commandLists[i].opaqueList;
                 var commandListLength = commandList.length;
                 for (var j = 0; j < commandListLength; ++j) {
                     var command = commandList[j];
 
                     var uniforms = command.uniformMap;
-                    if (typeof uniforms === 'undefined' || typeof uniforms.u_dayTextureAlpha === 'undefined') {
+                    if (!defined(uniforms) || !defined(uniforms.u_dayTextureAlpha)) {
                         continue;
                     }
 
@@ -450,13 +452,13 @@ defineSuite([
             var tileCommandCount = 0;
 
             for (var i = 0; i < commandLists.length; ++i) {
-                var commandList = commandLists[i].colorList;
+                var commandList = commandLists[i].opaqueList;
                 var commandListLength = commandList.length;
                 for (var j = 0; j < commandListLength; ++j) {
                     var command = commandList[j];
 
                     var uniforms = command.uniformMap;
-                    if (typeof uniforms === 'undefined' || typeof uniforms.u_dayTextureAlpha === 'undefined') {
+                    if (!defined(uniforms) || !defined(uniforms.u_dayTextureAlpha)) {
                         continue;
                     }
 
@@ -493,13 +495,13 @@ defineSuite([
             var tileCommandCount = 0;
 
             for (var i = 0; i < commandLists.length; ++i) {
-                var commandList = commandLists[i].colorList;
+                var commandList = commandLists[i].opaqueList;
                 var commandListLength = commandList.length;
                 for (var j = 0; j < commandListLength; ++j) {
                     var command = commandList[j];
 
                     var uniforms = command.uniformMap;
-                    if (typeof uniforms === 'undefined' || typeof uniforms.u_dayTextureAlpha === 'undefined') {
+                    if (!defined(uniforms) || !defined(uniforms.u_dayTextureAlpha)) {
                         continue;
                     }
 
@@ -584,4 +586,21 @@ defineSuite([
             });
         });
     }, 'WebGL');
+
+    it('renders back side of globe when camera is near the poles', function() {
+        var camera = frameState.camera;
+        camera.position = new Cartesian3(2909078.1077849553, -38935053.40234136, -63252400.94628872);
+        camera.direction = new Cartesian3(-0.03928753135806185, 0.44884096070717633, 0.8927476025569903);
+        camera.up = new Cartesian3(0.00002847975895320034, -0.8934368803055558, 0.4491887577613425);
+        camera.right = new Cartesian3(0.99922794650124, 0.017672942642764363, 0.03508814656908402);
+        frameState.cullingVolume = camera.frustum.computeCullingVolume(camera.position, camera.direction, camera.up);
+
+        updateUntilDone(cb);
+
+        runs(function() {
+            // Both level zero tiles should be rendered.
+            forEachRenderedTile(surface, 2, 2, function(tile) {
+            });
+        });
+    });
 }, 'WebGL');

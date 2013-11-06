@@ -36,6 +36,62 @@ defineSuite([
         expect(extent.north).toEqual(north);
     });
 
+    it('fromDegrees produces expected values.', function() {
+        var west = -10.0;
+        var south = -20.0;
+        var east = 10.0;
+        var north = 20.0;
+
+        var extent = Extent.fromDegrees(west, south, east, north);
+        expect(extent.west).toEqual(CesiumMath.toRadians(west));
+        expect(extent.south).toEqual(CesiumMath.toRadians(south));
+        expect(extent.east).toEqual(CesiumMath.toRadians(east));
+        expect(extent.north).toEqual(CesiumMath.toRadians(north));
+    });
+
+    it('fromDegrees works with a result parameter.', function() {
+        var west = -10.0;
+        var south = -20.0;
+        var east = 10.0;
+        var north = 20.0;
+
+        var result = new Extent();
+        var extent = Extent.fromDegrees(west, south, east, north, result);
+        expect(result).toBe(extent);
+        expect(extent.west).toEqual(CesiumMath.toRadians(west));
+        expect(extent.south).toEqual(CesiumMath.toRadians(south));
+        expect(extent.east).toEqual(CesiumMath.toRadians(east));
+        expect(extent.north).toEqual(CesiumMath.toRadians(north));
+    });
+
+    it('fromCartographicArray produces expected values.', function() {
+        var minLon = new Cartographic(-0.1, 0.3, 0.0);
+        var minLat = new Cartographic(0.0, -0.2, 0.0);
+        var maxLon = new Cartographic(0.3, -0.1, 0.0);
+        var maxLat = new Cartographic(0.2, 0.4, 0.0);
+
+        var extent = Extent.fromCartographicArray([minLat, minLon, maxLat, maxLon]);
+        expect(extent.west).toEqual(minLon.longitude);
+        expect(extent.south).toEqual(minLat.latitude);
+        expect(extent.east).toEqual(maxLon.longitude);
+        expect(extent.north).toEqual(maxLat.latitude);
+    });
+
+    it('fromCartographicArray works with a result parameter.', function() {
+        var minLon = new Cartographic(-0.1, 0.3, 0.0);
+        var minLat = new Cartographic(0.0, -0.2, 0.0);
+        var maxLon = new Cartographic(0.3, -0.1, 0.0);
+        var maxLat = new Cartographic(0.2, 0.4, 0.0);
+
+        var result = new Extent();
+        var extent = Extent.fromCartographicArray([minLat, minLon, maxLat, maxLon], result);
+        expect(result).toBe(extent);
+        expect(extent.west).toEqual(minLon.longitude);
+        expect(extent.south).toEqual(minLat.latitude);
+        expect(extent.east).toEqual(maxLon.longitude);
+        expect(extent.north).toEqual(maxLat.latitude);
+    });
+
     it('clone works without a result parameter.', function() {
         var extent = new Extent(west, south, east, north);
         var returnedResult = extent.clone();
@@ -59,6 +115,10 @@ defineSuite([
         expect(returnedResult).toBe(extent);
     });
 
+    it('clone works without extent', function() {
+        expect(Extent.clone()).not.toBeDefined();
+    });
+
     it('Equals works in all cases', function() {
         var extent = new Extent(0.1, 0.2, 0.3, 0.4);
         expect(extent.equals(new Extent(0.1, 0.2, 0.3, 0.4))).toEqual(true);
@@ -67,6 +127,16 @@ defineSuite([
         expect(extent.equals(new Extent(0.1, 0.2, 0.5, 0.4))).toEqual(false);
         expect(extent.equals(new Extent(0.1, 0.2, 0.3, 0.5))).toEqual(false);
         expect(extent.equals(undefined)).toEqual(false);
+    });
+
+    it('Static equals works in all cases', function() {
+        var extent = new Extent(0.1, 0.2, 0.3, 0.4);
+        expect(Extent.equals(extent, new Extent(0.1, 0.2, 0.3, 0.4))).toEqual(true);
+        expect(Extent.equals(extent, new Extent(0.5, 0.2, 0.3, 0.4))).toEqual(false);
+        expect(Extent.equals(extent, new Extent(0.1, 0.5, 0.3, 0.4))).toEqual(false);
+        expect(Extent.equals(extent, new Extent(0.1, 0.2, 0.5, 0.4))).toEqual(false);
+        expect(Extent.equals(extent, new Extent(0.1, 0.2, 0.3, 0.5))).toEqual(false);
+        expect(Extent.equals(extent, undefined)).toEqual(false);
     });
 
     it('Equals epsilon works in all cases', function() {
@@ -81,6 +151,12 @@ defineSuite([
         expect(extent.equalsEpsilon(new Extent(0.1, 0.2, 0.5, 0.4), 0.2)).toEqual(true);
         expect(extent.equalsEpsilon(new Extent(0.1, 0.2, 0.3, 0.5), 0.1)).toEqual(true);
         expect(extent.equalsEpsilon(undefined, 0.0)).toEqual(false);
+    });
+
+    it('fromCartographicArray throws with no array', function() {
+        expect(function() {
+            Extent.fromCartographicArray(undefined, new Extent());
+        }).toThrow();
     });
 
     it('validate throws with no west', function() {
@@ -307,7 +383,7 @@ defineSuite([
         var extent = new Extent(west, south, east, north);
         var cartesian0 = new Cartesian3();
         var results = [cartesian0];
-        var returnedResult = extent.subsample(Ellipsoid.WGS84, results);
+        var returnedResult = extent.subsample(Ellipsoid.WGS84, 0.0, results);
         expect(results).toBe(returnedResult);
         expect(results[0]).toBe(cartesian0);
         expect(returnedResult).toEqual([Ellipsoid.WGS84.cartographicToCartesian(extent.getNorthwest()),
@@ -349,6 +425,30 @@ defineSuite([
         var cartographic5 = Ellipsoid.WGS84.cartesianToCartographic(returnedResult[5]);
         expect(cartographic5.latitude).toEqual(0.0);
         expect(cartographic5.longitude).toEqualEpsilon(east, CesiumMath.EPSILON16);
+    });
+
+    it('subsample works at a height above the ellipsoid', function() {
+        var west = 0.1;
+        var south = -0.3;
+        var east = 0.2;
+        var north = -0.4;
+        var extent = new Extent(west, south, east, north);
+        var height = 100000.0;
+        var returnedResult = extent.subsample(Ellipsoid.WGS84, height);
+
+        var nw = extent.getNorthwest();
+        nw.height = height;
+        var ne = extent.getNortheast();
+        ne.height = height;
+        var se = extent.getSoutheast();
+        se.height = height;
+        var sw = extent.getSouthwest();
+        sw.height = height;
+
+        expect(returnedResult).toEqual([Ellipsoid.WGS84.cartographicToCartesian(nw),
+                                        Ellipsoid.WGS84.cartographicToCartesian(ne),
+                                        Ellipsoid.WGS84.cartographicToCartesian(se),
+                                        Ellipsoid.WGS84.cartographicToCartesian(sw)]);
     });
 
     it('equalsEpsilon throws with no epsilon', function() {

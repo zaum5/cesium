@@ -13,9 +13,8 @@ defineSuite([
         'Core/Cartographic',
         'Core/Color',
         'Core/Ellipsoid',
-        'Core/Matrix4',
         'Core/Math',
-        'Core/JulianDate'
+        'Renderer/ClearCommand'
     ], function(
         Material,
         Polygon,
@@ -30,9 +29,8 @@ defineSuite([
         Cartographic,
         Color,
         Ellipsoid,
-        Matrix4,
         CesiumMath,
-        JulianDate) {
+        ClearCommand) {
     "use strict";
     /*global jasmine,describe,xdescribe,it,xit,expect,beforeEach,afterEach,beforeAll,afterAll,spyOn,runs,waits,waitsFor*/
 
@@ -52,7 +50,7 @@ defineSuite([
 
     beforeEach(function() {
         us = context.getUniformState();
-        us.update(createFrameState(createCamera(context, new Cartesian3(1.02, 0.0, 0.0), Cartesian3.ZERO, Cartesian3.UNIT_Z)));
+        us.update(context, createFrameState(createCamera(context, new Cartesian3(1.02, 0.0, 0.0), Cartesian3.ZERO, Cartesian3.UNIT_Z)));
 
         var ellipsoid = Ellipsoid.UNIT_SPHERE;
         polygon = new Polygon();
@@ -64,6 +62,7 @@ defineSuite([
             ellipsoid.cartographicToCartesian(Cartographic.fromDegrees(50.0, 50.0, 0.0)),
             ellipsoid.cartographicToCartesian(Cartographic.fromDegrees(-50.0, 50.0, 0.0))
         ]);
+        polygon.asynchronous = false;
 
         polylines = new PolylineCollection();
         polyline = polylines.add({
@@ -84,7 +83,7 @@ defineSuite([
     function renderMaterial(material) {
         polygon.material = material;
 
-        context.clear();
+        ClearCommand.ALL.execute(context);
         expect(context.readPixels()).toEqual([0, 0, 0, 0]);
 
         render(context, frameState, polygon);
@@ -94,7 +93,7 @@ defineSuite([
     function renderPolylineMaterial(material) {
         polyline.setMaterial(material);
 
-        context.clear();
+        ClearCommand.ALL.execute(context);
         expect(context.readPixels()).toEqual([0, 0, 0, 0]);
 
         render(context, frameState, polylines);
@@ -103,7 +102,6 @@ defineSuite([
 
     function verifyMaterial(type) {
         var material = new Material({
-            context : context,
             strict : true,
             fabric : {
                 type : type
@@ -115,7 +113,6 @@ defineSuite([
 
     function verifyPolylineMaterial(type) {
         var material = new Material({
-            context : context,
             strict : true,
             fabric : {
                 type : type
@@ -237,13 +234,16 @@ defineSuite([
         verifyPolylineMaterial('PolylineArrow');
     });
 
+    it('draws PolylineGlow built-in material', function() {
+        verifyPolylineMaterial('PolylineGlow');
+    });
+
     it('draws PolylineOutline built-in material', function() {
         verifyPolylineMaterial('PolylineOutline');
     });
 
     it('gets the material type', function() {
         var material = new Material({
-            context : context,
             strict : true,
             fabric : {
                 type : 'Color'
@@ -252,9 +252,28 @@ defineSuite([
         expect(material.type).toEqual('Color');
     });
 
+    it('creates opaque/translucent materials', function() {
+        var material = new Material({
+            translucent : true,
+            strict : true,
+            fabric : {
+                type : 'Color'
+            }
+        });
+        expect(material.isTranslucent()).toEqual(true);
+
+        material = new Material({
+            translucent : false,
+            strict : true,
+            fabric : {
+                type : 'Color'
+            }
+        });
+        expect(material.isTranslucent()).toEqual(false);
+    });
+
     it('creates a new material type and builds off of it', function() {
         var material1 = new Material({
-            context : context,
             strict : true,
             fabric : {
                 type : 'New',
@@ -265,7 +284,6 @@ defineSuite([
         });
 
         var material2 = new Material({
-            context : context,
             strict : true,
             fabric : {
                 materials : {
@@ -287,7 +305,6 @@ defineSuite([
 
     it('accesses material properties after construction', function() {
         var material = new Material({
-            context : context,
             strict : true,
             fabric : {
                 materials : {
@@ -316,7 +333,6 @@ defineSuite([
 
     it('creates a material inside a material inside a material', function () {
         var material = new Material({
-            context : context,
             strict : true,
             fabric : {
                 materials : {
@@ -344,7 +360,6 @@ defineSuite([
 
     it('creates a material with an image uniform', function () {
         var material = new Material({
-            context : context,
             strict : true,
             fabric : {
                 type : 'DiffuseMap',
@@ -357,9 +372,8 @@ defineSuite([
         expect(pixel).not.toEqual([0, 0, 0, 0]);
     });
 
-    it('creates a material with a cube map uniform' , function () {
+    it('creates a material with a cube map uniform', function() {
         var material = new Material({
-            context : context,
             strict : true,
             fabric : {
                 type : 'Reflection',
@@ -381,7 +395,6 @@ defineSuite([
 
     it('creates a material with a boolean uniform', function () {
         var material = new Material({
-            context : context,
             strict : true,
             fabric : {
                 uniforms : {
@@ -398,7 +411,6 @@ defineSuite([
 
     it('create a material with a matrix uniform', function () {
         var material1 = new Material({
-            context : context,
             strict : true,
             fabric : {
                 uniforms : {
@@ -414,7 +426,6 @@ defineSuite([
         expect(pixel).not.toEqual([0, 0, 0, 0]);
 
         var material2 = new Material({
-            context : context,
             strict : true,
             fabric : {
                 uniforms : {
@@ -430,7 +441,6 @@ defineSuite([
         expect(pixel).not.toEqual([0, 0, 0, 0]);
 
         var material3 = new Material({
-            context : context,
             strict : true,
             fabric : {
                 uniforms : {
@@ -448,7 +458,6 @@ defineSuite([
 
     it('creates a material using unusual uniform and material names', function () {
         var material = new Material({
-            context : context,
             strict : true,
             fabric : {
                 uniforms : {
@@ -473,16 +482,16 @@ defineSuite([
     });
 
     it('create a material using fromType', function () {
-        var material = Material.fromType(context, 'Color');
+        var material = Material.fromType('Color');
         var pixel = renderMaterial(material);
         expect(pixel).not.toEqual([0, 0, 0, 0]);
     });
 
     it('create multiple materials from the same type', function() {
-        var material1 = Material.fromType(context, 'Color');
+        var material1 = Material.fromType('Color');
         material1.uniforms.color = new Color(0.0, 1.0, 0.0, 1.0);
 
-        var material2 = Material.fromType(context, 'Color');
+        var material2 = Material.fromType('Color');
         material2.uniforms.color = new Color(0.0, 0.0, 1.0, 1.0);
 
         expect(material1.shaderSource).toEqual(material2.shaderSource);
@@ -496,7 +505,6 @@ defineSuite([
 
     it('create material with sub-materials of the same type', function() {
         var material = new Material({
-            context : context,
             fabric : {
                 materials : {
                     color1 : {
@@ -522,21 +530,9 @@ defineSuite([
         expect(pixel).toEqual([0, 255, 255, 255]);
     });
 
-    it('throws without context for material that uses images', function() {
-        expect(function() {
-            return new Material({
-                context : undefined,
-                fabric : {
-                    type : 'DiffuseMap'
-                }
-            });
-        }).toThrow();
-    });
-
     it('throws with source and components in same template', function () {
         expect(function() {
             return new Material({
-                context : context,
                 strict : true,
                 fabric : {
                     components : {
@@ -551,7 +547,6 @@ defineSuite([
 
         expect(function() {
             return new Material({
-                context : context,
                 strict : true,
                 fabric : {
                     type : 'DiffuseMap',
@@ -566,7 +561,6 @@ defineSuite([
     it('throws with duplicate names in materials and uniforms', function () {
         expect(function() {
             return new Material({
-                context : context,
                 strict : false,
                 fabric : {
                     uniforms : {
@@ -584,7 +578,6 @@ defineSuite([
     it('throws with invalid template type', function() {
         expect(function() {
             return new Material({
-                context : context,
                 strict : true,
                 fabric : {
                     invalid : 3.0
@@ -596,7 +589,6 @@ defineSuite([
     it('throws with invalid component type', function () {
         expect(function() {
             return new Material({
-                context : context,
                 strict : true,
                 fabric : {
                     components : {
@@ -610,7 +602,6 @@ defineSuite([
     it('throws with invalid uniform type', function() {
         expect(function() {
             return new Material({
-                context : context,
                 strict : true,
                 fabric : {
                     uniforms : {
@@ -628,7 +619,6 @@ defineSuite([
 
         expect(function() {
             return new Material({
-                context : context,
                 strict : true,
                 fabric : {
                     uniforms : {
@@ -642,7 +632,6 @@ defineSuite([
     it('throws with unused channels', function() {
         expect(function() {
             return new Material({
-                context : context,
                 strict : true,
                 fabric : {
                     uniforms : {
@@ -654,7 +643,6 @@ defineSuite([
 
         // If strict is false, unused uniform strings are ignored.
         var material = new Material({
-            context : context,
             strict : false,
             fabric : {
                 uniforms : {
@@ -669,7 +657,6 @@ defineSuite([
     it('throws with unused uniform', function() {
         expect(function() {
             return new Material({
-                context : context,
                 strict : true,
                 fabric : {
                     uniforms : {
@@ -685,7 +672,6 @@ defineSuite([
 
         // If strict is false, unused uniforms are ignored.
         var material = new Material({
-            context : context,
             strict : false,
             fabric : {
                 uniforms : {
@@ -704,7 +690,6 @@ defineSuite([
     it('throws with unused material', function() {
         expect(function() {
             return new Material({
-                context : context,
                 strict : true,
                 fabric : {
                     materials : {
@@ -718,7 +703,6 @@ defineSuite([
 
         // If strict is false, unused materials are ignored.
         var material = new Material({
-            context : context,
             strict : false,
             fabric : {
                 materials : {
@@ -732,33 +716,14 @@ defineSuite([
         expect(pixel).not.toEqual([0, 0, 0, 0]);
     });
 
-    it('throws with invalid uniform set after creation', function() {
-        expect(function() {
-            var material = new Material({
-                context : context,
-                strict : true,
-                fabric : {
-                    uniforms : {
-                        value : 0.5
-                    },
-                    components : {
-                        diffuse : 'vec3(value)'
-                    }
-                }
-            });
-            material.uniforms.value = {x : 0.5, y : 0.5};
-            renderMaterial(material);
-        }).toThrow();
-    });
-
     it('throws with invalid type sent to fromType', function() {
         expect(function() {
-            return Material.fromType(context, 'Nothing');
+            return Material.fromType('Nothing');
         }).toThrow();
     });
 
     it('destroys material with texture', function() {
-        var material = Material.fromType(context, Material.DiffuseMapType);
+        var material = Material.fromType(Material.DiffuseMapType);
         material.uniforms.image = './Data/Images/Green.png';
         var pixel = renderMaterial(material);
         expect(pixel).not.toEqual([0, 0, 0, 0]);
@@ -768,7 +733,6 @@ defineSuite([
 
     it('destroys sub-materials', function() {
         var material = new Material({
-            context : context,
             strict : true,
             fabric : {
                 materials : {

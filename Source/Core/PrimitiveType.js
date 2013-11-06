@@ -11,68 +11,75 @@ define(['./Enumeration'], function(Enumeration) {
         /**
          * DOC_TBA
          *
-         * @constant
          * @type {Enumeration}
+         * @constant
+         * @default 0x0000
          */
         POINTS : new Enumeration(0x0000, 'POINTS'),
         /**
          * DOC_TBA
          *
-         * @constant
          * @type {Enumeration}
+         * @constant
+         * @default 0x0001
          */
         LINES : new Enumeration(0x0001, 'LINES'),
         /**
          * DOC_TBA
          *
-         * @constant
          * @type {Enumeration}
+         * @constant
+         * @default 0x0002
          */
         LINE_LOOP : new Enumeration(0x0002, 'LINE_LOOP'),
         /**
          * DOC_TBA
          *
-         * @constant
          * @type {Enumeration}
+         * @constant
+         * @default 0x0003
          */
         LINE_STRIP : new Enumeration(0x0003, 'LINE_STRIP'),
         /**
          * DOC_TBA
          *
-         * @constant
          * @type {Enumeration}
+         * @constant
+         * @default 0x0004
          */
         TRIANGLES : new Enumeration(0x0004, 'TRIANGLES'),
         /**
          * DOC_TBA
          *
-         * @constant
          * @type {Enumeration}
+         * @constant
+         * @default 0x0004
          */
         TRIANGLE_STRIP : new Enumeration(0x0005, 'TRIANGLE_STRIP'),
         /**
          * DOC_TBA
          *
-         * @constant
          * @type {Enumeration}
+         * @constant
+         * @default 0x0006
          */
         TRIANGLE_FAN : new Enumeration(0x0006, 'TRIANGLE_FAN'),
 
         /**
          * DOC_TBA
          *
-         * @param primitiveType
+         * @param {PrimitiveType} primitiveType
          *
          * @returns {Boolean}
          */
         validate : function(primitiveType) {
-            return ((primitiveType === PrimitiveType.POINTS) ||
-                    (primitiveType === PrimitiveType.LINES) ||
-                    (primitiveType === PrimitiveType.LINE_LOOP) ||
-                    (primitiveType === PrimitiveType.LINE_STRIP) ||
-                    (primitiveType === PrimitiveType.TRIANGLES) ||
-                    (primitiveType === PrimitiveType.TRIANGLE_STRIP) ||
-                    (primitiveType === PrimitiveType.TRIANGLE_FAN));
+            return ((primitiveType.value === PrimitiveType.POINTS.value) ||
+                    (primitiveType.value === PrimitiveType.LINES.value) ||
+                    (primitiveType.value === PrimitiveType.LINE_LOOP.value) ||
+                    (primitiveType.value === PrimitiveType.LINE_STRIP.value) ||
+                    (primitiveType.value === PrimitiveType.TRIANGLES.value) ||
+                    (primitiveType.value === PrimitiveType.TRIANGLE_STRIP.value) ||
+                    (primitiveType.value === PrimitiveType.TRIANGLE_FAN.value));
         }
     };
 

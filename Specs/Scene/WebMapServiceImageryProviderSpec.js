@@ -1,6 +1,7 @@
 /*global defineSuite*/
 defineSuite([
          'Scene/WebMapServiceImageryProvider',
+         'Core/defined',
          'Core/jsonp',
          'Core/loadImage',
          'Core/DefaultProxy',
@@ -14,6 +15,7 @@ defineSuite([
          'ThirdParty/when'
      ], function(
          WebMapServiceImageryProvider,
+         defined,
          jsonp,
          loadImage,
          DefaultProxy,
@@ -200,8 +202,6 @@ defineSuite([
             expect(provider.getExtent()).toEqual(new GeographicTilingScheme().getExtent());
 
             loadImage.createImage = function(url, crossOrigin, deferred) {
-                expect(crossOrigin).toEqual(true);
-
                 // Just return any old image.
                 return loadImage.defaultCreateImage('Data/Images/Red16x16.png', crossOrigin, deferred);
             };
@@ -212,7 +212,7 @@ defineSuite([
         });
 
         waitsFor(function() {
-            return typeof tile000Image !== 'undefined';
+            return defined(tile000Image);
         }, 'requested tile to be loaded');
 
         runs(function() {
@@ -253,14 +253,14 @@ defineSuite([
             url : 'made/up/wms/server?foo=bar',
             layers : 'someLayer'
         });
-        expect(provider.getLogo()).toBeUndefined();
+        expect(provider.getCredit()).toBeUndefined();
 
         var providerWithCredit = new WebMapServiceImageryProvider({
             url : 'made/up/wms/server?foo=bar',
             layers : 'someLayer',
             credit : 'Thanks to our awesome made up source of this imagery!'
         });
-        expect(providerWithCredit.getLogo()).toBeDefined();
+        expect(providerWithCredit.getCredit()).toBeDefined();
     });
 
     it('routes requests through a proxy if one is specified', function() {
@@ -281,7 +281,6 @@ defineSuite([
             loadImage.createImage = function(url, crossOrigin, deferred) {
                 expect(url.indexOf(proxy.getURL('made/up/wms/server'))).toEqual(0);
                 expect(provider.getProxy()).toEqual(proxy);
-                expect(crossOrigin).toEqual(true);
 
                 // Just return any old image.
                 return loadImage.defaultCreateImage('Data/Images/Red16x16.png', crossOrigin, deferred);
@@ -293,7 +292,7 @@ defineSuite([
         });
 
         waitsFor(function() {
-            return typeof tile000Image !== 'undefined';
+            return defined(tile000Image);
         }, 'requested tile to be loaded');
 
         runs(function() {

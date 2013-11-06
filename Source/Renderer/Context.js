@@ -1,34 +1,30 @@
 /*global define*/
 define([
         '../Core/defaultValue',
+        '../Core/defined',
         '../Core/DeveloperError',
         '../Core/destroyObject',
         '../Core/Color',
+        '../Core/ComponentDatatype',
         '../Core/IndexDatatype',
         '../Core/RuntimeError',
         '../Core/PrimitiveType',
-        '../Core/WindingOrder',
-        '../Core/BoundingRectangle',
+        '../Core/Geometry',
         '../Core/createGuid',
         '../Core/Matrix4',
+        '../Core/Math',
         './Buffer',
         './BufferUsage',
-        './BlendEquation',
-        './BlendFunction',
         './CubeMap',
-        './CullFace',
-        './DepthFunction',
         './Framebuffer',
-        './MipmapHint',
         './PixelDatatype',
         './PixelFormat',
         './PickFramebuffer',
         './Renderbuffer',
         './RenderbufferFormat',
+        './RenderState',
         './ShaderCache',
         './ShaderProgram',
-        './StencilFunction',
-        './StencilOperation',
         './Texture',
         './TextureAtlas',
         './TextureMagnificationFilter',
@@ -41,34 +37,30 @@ define([
         './PassState'
     ], function(
         defaultValue,
+        defined,
         DeveloperError,
         destroyObject,
         Color,
+        ComponentDatatype,
         IndexDatatype,
         RuntimeError,
         PrimitiveType,
-        WindingOrder,
-        BoundingRectangle,
+        Geometry,
         createGuid,
         Matrix4,
+        CesiumMath,
         Buffer,
         BufferUsage,
-        BlendEquation,
-        BlendFunction,
         CubeMap,
-        CullFace,
-        DepthFunction,
         Framebuffer,
-        MipmapHint,
         PixelDatatype,
         PixelFormat,
         PickFramebuffer,
         Renderbuffer,
         RenderbufferFormat,
+        RenderState,
         ShaderCache,
         ShaderProgram,
-        StencilFunction,
-        StencilOperation,
         Texture,
         TextureAtlas,
         TextureMagnificationFilter,
@@ -127,6 +119,20 @@ define([
         }
     }
 
+    function makeGetterSetter(gl, propertyName, logFunc) {
+        return {
+            get : function() {
+                var value = gl[propertyName];
+                logFunc(gl, 'get: ' + propertyName, value);
+                return gl[propertyName];
+            },
+            set : function(value) {
+                gl[propertyName] = value;
+                logFunc(gl, 'set: ' + propertyName, value);
+            }
+        };
+    }
+
     function wrapGL(gl, logFunc) {
         if (!logFunc) {
             return gl;
@@ -154,7 +160,7 @@ define([
             if (typeof property === 'function') {
                 glWrapper[propertyName] = wrapFunction(property);
             } else {
-                glWrapper[propertyName] = property;
+                Object.defineProperty(glWrapper, propertyName, makeGetterSetter(gl, propertyName, logFunc));
             }
         }
 
@@ -176,19 +182,16 @@ define([
             throw new RuntimeError('The browser does not support WebGL.  Visit http://get.webgl.org.');
         }
 
-        if (!canvas) {
+        if (!defined(canvas)) {
             throw new DeveloperError('canvas is required.');
         }
 
         this._canvas = canvas;
 
-        if (typeof options === 'undefined') {
+        if (!defined(options)) {
             options = {};
         }
-        if (typeof options.stencil === 'undefined') {
-            options.stencil = false;
-        }
-        if (typeof options.alpha === 'undefined') {
+        if (!defined(options.alpha)) {
             options.alpha = false;
         }
 
@@ -206,8 +209,6 @@ define([
         this._logShaderCompilation = false;
         this._throwOnWebGLError = false;
 
-        // TODO:  Also need point_size and point_size_enable for ColladaFX
-        // TODO:  Also need sample_alpha_to_coverage_enable for ColladaFX
         this._shaderCache = new ShaderCache(this);
 
         var gl = this._gl = this._originalGLContext;
@@ -236,27 +237,38 @@ define([
         this._aliasedPointSizeRange = gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE); // must include 1
         this._maximumViewportDimensions = gl.getParameter(gl.MAX_VIEWPORT_DIMS);
 
+        this._antialias = gl.getContextAttributes().antialias;
+
         // Query and initialize extensions
         this._standardDerivatives = gl.getExtension('OES_standard_derivatives');
+        this._elementIndexUint = gl.getExtension('OES_element_index_uint');
         this._depthTexture = gl.getExtension('WEBKIT_WEBGL_depth_texture') || gl.getExtension('MOZ_WEBGL_depth_texture');
+        this._textureFloat = gl.getExtension('OES_texture_float');
         var textureFilterAnisotropic = gl.getExtension('EXT_texture_filter_anisotropic') || gl.getExtension('WEBKIT_EXT_texture_filter_anisotropic') || gl.getExtension('MOZ_EXT_texture_filter_anisotropic');
         this._textureFilterAnisotropic = textureFilterAnisotropic;
         this._maximumTextureFilterAnisotropy = textureFilterAnisotropic ? gl.getParameter(textureFilterAnisotropic.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : 1.0;
+        this._vertexArrayObject = gl.getExtension('OES_vertex_array_object');
+        this._fragDepth = gl.getExtension('EXT_frag_depth');
 
         var cc = gl.getParameter(gl.COLOR_CLEAR_VALUE);
         this._clearColor = new Color(cc[0], cc[1], cc[2], cc[3]);
         this._clearDepth = gl.getParameter(gl.DEPTH_CLEAR_VALUE);
         this._clearStencil = gl.getParameter(gl.STENCIL_CLEAR_VALUE);
-        this._defaultClearColor = new Color(cc[0], cc[1], cc[2], cc[3]);
-        this._defaultClearDepth = this._clearDepth;
-        this._defaultClearStencil = this._clearStencil;
 
-        this._us = new UniformState();
-        this._currentFramebuffer = undefined;
-        this._currentSp = undefined;
+        var us = new UniformState();
+        var ps = new PassState(this);
+        var rs = this.createRenderState();
 
+        this._defaultPassState = ps;
+        this._defaultRenderState = rs;
         this._defaultTexture = undefined;
         this._defaultCubeMap = undefined;
+
+        this._us = us;
+        this._currentFramebuffer = undefined;
+        this._currentSp = undefined;
+        this._currentRenderState = rs;
+        this._maxFrameTextureUnitIndex = 0;
 
         this._pickObjects = {};
         this._nextPickColor = new Uint32Array(1);
@@ -272,186 +284,8 @@ define([
          * @type {Object}
          */
         this.cache = {};
-    };
 
-    Context.prototype._enableOrDisable = function(glEnum, enable) {
-        if (enable) {
-            this._gl.enable(glEnum);
-        } else {
-            this._gl.disable(glEnum);
-        }
-    };
-
-    Context.prototype._applyFrontFace = function(frontFace) {
-        this._gl.frontFace(frontFace);
-    };
-
-    Context.prototype._applyCull = function(cull) {
-        var gl = this._gl;
-        var enabled = cull.enabled;
-
-        this._enableOrDisable(gl.CULL_FACE, enabled);
-
-        if (enabled) {
-            gl.cullFace(cull.face);
-        }
-    };
-
-    Context.prototype._applyLineWidth = function(lineWidth) {
-        this._gl.lineWidth(lineWidth);
-    };
-
-    Context.prototype._applyPolygonOffset = function(polygonOffset) {
-        var gl = this._gl;
-        var enabled = polygonOffset.enabled;
-
-        this._enableOrDisable(gl.POLYGON_OFFSET_FILL, enabled);
-
-        if (enabled) {
-            gl.polygonOffset(polygonOffset.factor, polygonOffset.units);
-        }
-    };
-
-    Context.prototype._applyScissorTest = function(scissorTest, passState) {
-        var gl = this._gl;
-        var enabled = (typeof passState.scissorTest !== 'undefined') ? passState.scissorTest.enabled : scissorTest.enabled;
-
-        this._enableOrDisable(gl.SCISSOR_TEST, enabled);
-
-        if (enabled) {
-            var rectangle = (typeof passState.scissorTest !== 'undefined') ? passState.scissorTest.rectangle : scissorTest.rectangle;
-            gl.scissor(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
-        }
-    };
-
-    Context.prototype._applyDepthRange = function(depthRange) {
-        var near = depthRange.near;
-        var far = depthRange.far;
-        this._gl.depthRange(near, far);
-    };
-
-    Context.prototype._applyDepthTest = function(depthTest) {
-        var gl = this._gl;
-        var enabled = depthTest.enabled;
-
-        this._enableOrDisable(gl.DEPTH_TEST, enabled);
-
-        if (enabled) {
-            gl.depthFunc(depthTest.func);
-        }
-    };
-
-    Context.prototype._applyColorMask = function(colorMask) {
-        this._gl.colorMask(colorMask.red, colorMask.green, colorMask.blue, colorMask.alpha);
-    };
-
-    Context.prototype._applyDepthMask = function(depthMask) {
-        this._gl.depthMask(depthMask);
-    };
-
-    Context.prototype._applyStencilMask = function(stencilMask) {
-        this._gl.stencilMask(stencilMask);
-    };
-
-    Context.prototype._applyBlending = function(blending, passState) {
-        var gl = this._gl;
-        var enabled = (typeof passState.blendingEnabled !== 'undefined') ? passState.blendingEnabled : blending.enabled;
-
-        this._enableOrDisable(gl.BLEND, enabled);
-
-        if (enabled) {
-            var color = blending.color;
-            var equationRgb = blending.equationRgb;
-            var equationAlpha = blending.equationAlpha;
-            var functionSourceRgb = blending.functionSourceRgb;
-            var functionDestinationRgb = blending.functionDestinationRgb;
-            var functionSourceAlpha = blending.functionSourceAlpha;
-            var functionDestinationAlpha = blending.functionDestinationAlpha;
-
-            gl.blendColor(color.red, color.green, color.blue, color.alpha);
-            gl.blendEquationSeparate(equationRgb, equationAlpha);
-            gl.blendFuncSeparate(functionSourceRgb, functionDestinationRgb, functionSourceAlpha, functionDestinationAlpha);
-        }
-    };
-
-    Context.prototype._applyStencilTest = function(stencilTest) {
-        var gl = this._gl;
-        var enabled = stencilTest.enabled;
-
-        this._enableOrDisable(gl.STENCIL_TEST, enabled);
-
-        if (enabled) {
-            var frontFunction = stencilTest.frontFunction;
-            var backFunction = stencilTest.backFunction;
-            var reference = stencilTest.reference;
-            var mask = stencilTest.mask;
-
-            // Section 6.8 of the WebGL spec requires the reference and masks to be the same for
-            // front- and back-face tests.  This call prevents invalid operation errors when calling
-            // stencilFuncSeparate on Firefox.  Perhaps they should delay validation to avoid requiring this.
-            gl.stencilFunc(stencilTest.frontFunction, stencilTest.reference, stencilTest.mask);
-            gl.stencilFuncSeparate(gl.BACK, backFunction, reference, mask);
-            gl.stencilFuncSeparate(gl.FRONT, frontFunction, reference, mask);
-
-            var frontOperation = stencilTest.frontOperation;
-            var frontOperationFail = frontOperation.fail;
-            var frontOperationZFail = frontOperation.zFail;
-            var frontOperationZPass = frontOperation.zPass;
-
-            gl.stencilOpSeparate(gl.FRONT, frontOperationFail, frontOperationZFail, frontOperationZPass);
-
-            var backOperation = stencilTest.backOperation;
-            var backOperationFail = backOperation.fail;
-            var backOperationZFail = backOperation.zFail;
-            var backOperationZPass = backOperation.zPass;
-
-            gl.stencilOpSeparate(gl.BACK, backOperationFail, backOperationZFail, backOperationZPass);
-        }
-    };
-
-    Context.prototype._applySampleCoverage = function(sampleCoverage) {
-        var gl = this._gl;
-        var enabled = sampleCoverage.enabled;
-
-        this._enableOrDisable(gl.SAMPLE_COVERAGE, enabled);
-
-        if (enabled) {
-            gl.sampleCoverage(sampleCoverage.value, sampleCoverage.invert);
-        }
-    };
-
-    Context.prototype._applyDither = function(dither) {
-        this._enableOrDisable(this._gl.DITHER, dither);
-    };
-
-    var scratchViewport = new BoundingRectangle();
-    Context.prototype._applyViewport = function(viewport) {
-        if (typeof viewport === 'undefined') {
-            viewport = scratchViewport;
-            viewport.width = this._canvas.clientWidth;
-            viewport.height = this._canvas.clientHeight;
-        }
-
-        this._us.setViewport(viewport);
-        this._gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
-    };
-
-    Context.prototype._applyRenderState = function(state, passState) {
-        this._applyFrontFace(state.frontFace);
-        this._applyCull(state.cull);
-        this._applyLineWidth(state.lineWidth);
-        this._applyPolygonOffset(state.polygonOffset);
-        this._applyScissorTest(state.scissorTest, passState);
-        this._applyDepthRange(state.depthRange);
-        this._applyDepthTest(state.depthTest);
-        this._applyColorMask(state.colorMask);
-        this._applyDepthMask(state.depthMask);
-        this._applyStencilMask(state.stencilMask);
-        this._applyBlending(state.blending, passState);
-        this._applyStencilTest(state.stencilTest);
-        this._applySampleCoverage(state.sampleCoverage);
-        this._applyDither(state.dither);
-        this._applyViewport(state.viewport);
+        RenderState.apply(gl, rs, ps);
     };
 
     /**
@@ -861,6 +695,18 @@ define([
     };
 
     /**
+     * Returns <code>true</code> if the WebGL context supports antialiasing.  By default
+     * antialiasing is requested, but it is not supported by all systems.
+     *
+     * @memberof Context
+     *
+     * @returns {Boolean} <code>true</code> if antialiasing is supported.
+     */
+    Context.prototype.getAntialias = function() {
+        return this._antialias;
+    };
+
+    /**
      * Returns <code>true</code> if the OES_standard_derivatives extension is supported.  This
      * extension provides access to <code>dFdx<code>, <code>dFdy<code>, and <code>fwidth<code>
      * functions from GLSL.  A shader using these functions still needs to explicitly enable the
@@ -877,6 +723,21 @@ define([
     };
 
     /**
+     * Returns <code>true</code> if the OES_element_index_uint extension is supported.  This
+     * extension allows the use of unsigned int indices, which can improve performance by
+     * eliminating batch breaking caused by unsigned short indices.
+     *
+     * @memberof Context
+     *
+     * @returns {Boolean} <code>true</code> if OES_element_index_uint is supported; otherwise, <code>false</code>.
+     *
+     * @see <a href='http://www.khronos.org/registry/webgl/extensions/OES_element_index_uint/'>OES_element_index_uint</a>
+     */
+    Context.prototype.getElementIndexUint = function() {
+        return !!this._elementIndexUint;
+    };
+
+    /**
      * Returns <code>true</code> if WEBGL_depth_texture is supported.  This extension provides
      * access to depth textures that, for example, can be attached to framebuffers for shadow mapping.
      *
@@ -888,6 +749,20 @@ define([
      */
     Context.prototype.getDepthTexture = function() {
         return !!this._depthTexture;
+    };
+
+    /**
+     * Returns <code>true</code> if OES_texture_float is supported.  This extension provides
+     * access to floating point textures that, for example, can be attached to framebuffers for high dynamic range.
+     *
+     * @memberof Context
+     *
+     * @returns {Boolean} <code>true</code> if OES_texture_float is supported; otherwise, <code>false</code>.
+     *
+     * @see <a href='http://www.khronos.org/registry/gles/extensions/OES/OES_texture_float.txt'>OES_texture_float</a>
+     */
+    Context.prototype.getFloatingPointTexture = function() {
+        return !!this._textureFloat;
     };
 
     /**
@@ -912,6 +787,37 @@ define([
      */
     Context.prototype.getMaximumTextureFilterAnisotropy = function() {
         return this._maximumTextureFilterAnisotropy;
+    };
+
+    /**
+     * Returns <code>true</code> if the OES_vertex_array_object extension is supported.  This
+     * extension can improve performance by reducing the overhead of switching vertex arrays.
+     * When enabled, this extension is automatically used by {@link VertexArray}.
+     *
+     * @memberof Context
+     *
+     * @returns {Boolean} <code>true</code> if OES_vertex_array_object is supported; otherwise, <code>false</code>.
+     *
+     * @see <a href='http://www.khronos.org/registry/webgl/extensions/OES_vertex_array_object/'>OES_vertex_array_object</a>
+     */
+    Context.prototype.getVertexArrayObject = function() {
+        return !!this._vertexArrayObject;
+    };
+
+    /**
+     * Returns <code>true</code> if the EXT_frag_depth extension is supported.  This
+     * extension provides access to the <code>gl_FragDepthEXT<code> built-in output variable
+     * from GLSL fragment shaders.  A shader using these functions still needs to explicitly enable the
+     * extension with <code>#extension GL_EXT_frag_depth : enable</code>.
+     *
+     * @memberof Context
+     *
+     * @returns {Boolean} <code>true</code> if EXT_frag_depth is supported; otherwise, <code>false</code>.
+     *
+     * @see <a href='http://www.khronos.org/registry/webgl/extensions/EXT_frag_depth/'>EXT_frag_depth</a>
+     */
+    Context.prototype.getFragmentDepth = function() {
+        return !!this._fragDepth;
     };
 
     /**
@@ -1017,7 +923,7 @@ define([
      * Returns a 1x1 RGBA texture initialized to [255, 255, 255, 255].  This can
      * be used as a placeholder texture while other textures are downloaded.
      *
-     * @return {Texture}
+     * @returns {Texture}
      *
      * @memberof Context
      */
@@ -1040,7 +946,7 @@ define([
      * [255, 255, 255, 255].  This can be used as a placeholder cube map while
      * other cube maps are downloaded.
      *
-     * @return {CubeMap}
+     * @returns {CubeMap}
      *
      * @memberof Context
      */
@@ -1068,6 +974,32 @@ define([
     };
 
     /**
+     * Returns the drawingBufferWidth of the underlying GL context.
+     *
+     * @memberof Context
+     *
+     * @returns {Number} The value in the drawingBufferWidth property of the underlying GL context.
+     *
+     * @see <a href='https://www.khronos.org/registry/webgl/specs/1.0/#DOM-WebGLRenderingContext-drawingBufferWidth'>drawingBufferWidth</a>
+     */
+    Context.prototype.getDrawingBufferHeight = function() {
+        return this._gl.drawingBufferHeight;
+    };
+
+    /**
+     * Returns the drawingBufferHeight of the underlying GL context.
+     *
+     * @memberof Context
+     *
+     * @returns {Number} The value in the drawingBufferHeight property of the underlying GL context.
+     *
+     * @see <a href='https://www.khronos.org/registry/webgl/specs/1.0/#DOM-WebGLRenderingContext-drawingBufferHeight'>drawingBufferHeight</a>
+     */
+    Context.prototype.getDrawingBufferWidth = function() {
+        return this._gl.drawingBufferWidth;
+    };
+
+    /**
      * Creates a shader program given the GLSL source for a vertex and fragment shader.
      * <br /><br />
      * The vertex and fragment shader are individually compiled, and then linked together
@@ -1085,7 +1017,7 @@ define([
      * @param {String} fragmentShaderSource The GLSL source for the fragment shader.
      * @param {Object} [attributeLocations=undefined] An optional object that maps vertex attribute names to indices for use with vertex arrays.
      *
-     * @return {ShaderProgram} The compiled and linked shader program, ready for use in a draw call.
+     * @returns {ShaderProgram} The compiled and linked shader program, ready for use in a draw call.
      *
      * @exception {RuntimeError} Vertex shader failed to compile.
      * @exception {RuntimeError} Fragment shader failed to compile.
@@ -1137,7 +1069,7 @@ define([
 
         if (typeof typedArrayOrSizeInBytes === 'number') {
             sizeInBytes = typedArrayOrSizeInBytes;
-        } else if (typeof typedArrayOrSizeInBytes === 'object' && typeof typedArrayOrSizeInBytes.byteLength !== 'undefined') {
+        } else if (typeof typedArrayOrSizeInBytes === 'object' && typeof typedArrayOrSizeInBytes.byteLength === 'number') {
             sizeInBytes = typedArrayOrSizeInBytes.byteLength;
         } else {
             throw new DeveloperError('typedArrayOrSizeInBytes must be either a typed array or a number.');
@@ -1170,7 +1102,7 @@ define([
      * @param {ArrayBufferView|Number} typedArrayOrSizeInBytes A typed array containing the data to copy to the buffer, or a <code>Number</code> defining the size of the buffer in bytes.
      * @param {BufferUsage} usage Specifies the expected usage pattern of the buffer.  On some GL implementations, this can significantly affect performance.  See {@link BufferUsage}.
      *
-     * @return {VertexBuffer} The vertex buffer, ready to be attached to a vertex array.
+     * @returns {VertexBuffer} The vertex buffer, ready to be attached to a vertex array.
      *
      * @exception {DeveloperError} The size in bytes must be greater than zero.
      * @exception {DeveloperError} Invalid <code>usage</code>.
@@ -1210,8 +1142,9 @@ define([
      * @param {BufferUsage} usage Specifies the expected usage pattern of the buffer.  On some GL implementations, this can significantly affect performance.  See {@link BufferUsage}.
      * @param {IndexDatatype} indexDatatype The datatype of indices in the buffer.
      *
-     * @return {IndexBuffer} The index buffer, ready to be attached to a vertex array.
+     * @returns {IndexBuffer} The index buffer, ready to be attached to a vertex array.
      *
+     * @exception {RuntimeError} IndexDatatype.UNSIGNED_INT requires OES_element_index_uint, which is not supported on this system.
      * @exception {DeveloperError} The size in bytes must be greater than zero.
      * @exception {DeveloperError} Invalid <code>usage</code>.
      * @exception {DeveloperError} Invalid <code>indexDatatype</code>.
@@ -1237,15 +1170,15 @@ define([
      *     BufferUsage.STATIC_DRAW, IndexDatatype.UNSIGNED_SHORT)
      */
     Context.prototype.createIndexBuffer = function(typedArrayOrSizeInBytes, usage, indexDatatype) {
-        var bytesPerIndex;
-
-        if (indexDatatype === IndexDatatype.UNSIGNED_BYTE) {
-            bytesPerIndex = Uint8Array.BYTES_PER_ELEMENT;
-        } else if (indexDatatype === IndexDatatype.UNSIGNED_SHORT) {
-            bytesPerIndex = Uint16Array.BYTES_PER_ELEMENT;
-        } else {
+        if (!IndexDatatype.validate(indexDatatype)) {
             throw new DeveloperError('Invalid indexDatatype.');
         }
+
+        if ((indexDatatype.value === IndexDatatype.UNSIGNED_INT.value) && !this.getElementIndexUint()) {
+            throw new RuntimeError('IndexDatatype.UNSIGNED_INT requires OES_element_index_uint, which is not supported on this system.');
+        }
+
+        var bytesPerIndex = indexDatatype.sizeInBytes;
 
         var gl = this._gl;
         var buffer = createBuffer(gl, gl.ELEMENT_ARRAY_BUFFER, typedArrayOrSizeInBytes, usage);
@@ -1275,7 +1208,7 @@ define([
      * @param {Array} [attributes=undefined] An optional array of attributes.
      * @param {IndexBuffer} [indexBuffer=undefined] An optional index buffer.
      *
-     * @return {VertexArray} The vertex array, ready for use with drawing.
+     * @returns {VertexArray} The vertex array, ready for use with drawing.
      *
      * @exception {DeveloperError} Attribute must have a <code>vertexBuffer</code>.
      * @exception {DeveloperError} Attribute must have a <code>componentsPerAttribute</code>.
@@ -1283,7 +1216,7 @@ define([
      * @exception {DeveloperError} Attribute must have a <code>strideInBytes</code> less than or equal to 255 or not specify it.
      * @exception {DeveloperError} Index n is used by more than one attribute.
      *
-     * @see Context#createVertexArrayFromMesh
+     * @see Context#createVertexArrayFromGeometry
      * @see Context#createVertexBuffer
      * @see Context#createIndexBuffer
      * @see Context#draw
@@ -1353,7 +1286,7 @@ define([
      * var va = context.createVertexArray(attributes);
      */
     Context.prototype.createVertexArray = function(attributes, indexBuffer) {
-        return new VertexArray(this._gl, attributes, indexBuffer);
+        return new VertexArray(this._gl, this._vertexArrayObject, attributes, indexBuffer);
     };
 
     /**
@@ -1363,9 +1296,10 @@ define([
      *
      * @memberof Context
      *
-     * @return {Texture} DOC_TBA.
+     * @returns {Texture} DOC_TBA.
      *
      * @exception {RuntimeError} When description.pixelFormat is DEPTH_COMPONENT or DEPTH_STENCIL, this WebGL implementation must support WEBGL_depth_texture.
+     * @exception {RuntimeError} When description.pixelDatatype is FLOAT, this WebGL implementation must support the OES_texture_float extension.
      * @exception {DeveloperError} description is required.
      * @exception {DeveloperError} description requires a source field to create an initialized texture or width and height fields to create a blank texture.
      * @exception {DeveloperError} Width must be greater than zero.
@@ -1400,7 +1334,7 @@ define([
             }
         }
 
-        if (typeof width === 'undefined' || typeof height === 'undefined') {
+        if (!defined(width) || !defined(height)) {
             throw new DeveloperError('description requires a source field to create an initialized texture or width and height fields to create a blank texture.');
         }
 
@@ -1428,6 +1362,10 @@ define([
         var pixelDatatype = defaultValue(description.pixelDatatype, PixelDatatype.UNSIGNED_BYTE);
         if (!PixelDatatype.validate(pixelDatatype)) {
             throw new DeveloperError('Invalid description.pixelDatatype.');
+        }
+
+        if ((pixelDatatype === PixelDatatype.FLOAT) && !this.getFloatingPointTexture()) {
+            throw new RuntimeError('When description.pixelDatatype is FLOAT, this WebGL implementation must support the OES_texture_float extension.');
         }
 
         if ((pixelFormat === PixelFormat.DEPTH_COMPONENT) &&
@@ -1493,7 +1431,7 @@ define([
      * @param {PixelFormat} [width=canvas.clientWidth] The width of the texture in texels.
      * @param {PixelFormat} [height=canvas.clientHeight] The height of the texture in texels.
      *
-     * @return {Texture} A texture with contents from the framebuffer.
+     * @returns {Texture} A texture with contents from the framebuffer.
      *
      * @exception {DeveloperError} Invalid pixelFormat.
      * @exception {DeveloperError} pixelFormat cannot be DEPTH_COMPONENT or DEPTH_STENCIL.
@@ -1511,11 +1449,13 @@ define([
      * var t = context.createTexture2DFromFramebuffer();
      */
     Context.prototype.createTexture2DFromFramebuffer = function(pixelFormat, framebufferXOffset, framebufferYOffset, width, height) {
-        pixelFormat = pixelFormat || PixelFormat.RGB;
+        var gl = this._gl;
+
+        pixelFormat = defaultValue(pixelFormat, PixelFormat.RGB);
         framebufferXOffset = defaultValue(framebufferXOffset, 0);
         framebufferYOffset = defaultValue(framebufferYOffset, 0);
-        width = defaultValue(width, this._canvas.clientWidth);
-        height = defaultValue(height, this._canvas.clientHeight);
+        width = defaultValue(width, gl.drawingBufferWidth);
+        height = defaultValue(height, gl.drawingBufferHeight);
 
         if (!PixelFormat.validate(pixelFormat)) {
             throw new DeveloperError('Invalid pixelFormat.');
@@ -1533,15 +1473,14 @@ define([
             throw new DeveloperError('framebufferYOffset must be greater than or equal to zero.');
         }
 
-        if (framebufferXOffset + width > this._canvas.clientWidth) {
-            throw new DeveloperError('framebufferXOffset + width must be less than or equal to getCanvas().clientWidth');
+        if (framebufferXOffset + width > gl.drawingBufferWidth) {
+            throw new DeveloperError('framebufferXOffset + width must be less than or equal to drawingBufferWidth');
         }
 
-        if (framebufferYOffset + height > this._canvas.clientHeight) {
-            throw new DeveloperError('framebufferYOffset + height must be less than or equal to getCanvas().clientHeight.');
+        if (framebufferYOffset + height > gl.drawingBufferHeight) {
+            throw new DeveloperError('framebufferYOffset + height must be less than or equal to drawingBufferHeight.');
         }
 
-        var gl = this._gl;
         var textureTarget = gl.TEXTURE_2D;
         var texture = gl.createTexture();
 
@@ -1581,8 +1520,9 @@ define([
      *
      * @memberof Context
      *
-     * @return {CubeMap} DOC_TBA.
+     * @returns {CubeMap} DOC_TBA.
      *
+     * @exception {RuntimeError} When description.pixelDatatype is FLOAT, this WebGL implementation must support the OES_texture_float extension.
      * @exception {DeveloperError} description is required.
      * @exception {DeveloperError} description.source requires positiveX, negativeX, positiveY, negativeY, positiveZ, and negativeZ faces.
      * @exception {DeveloperError} Each face in description.sources must have the same width and height.
@@ -1627,7 +1567,7 @@ define([
             height = description.height;
         }
 
-        if (typeof width === 'undefined' || typeof height === 'undefined') {
+        if (!defined(width) || !defined(height)) {
             throw new DeveloperError('description requires a source field to create an initialized cube map or width and height fields to create a blank cube map.');
         }
 
@@ -1657,6 +1597,10 @@ define([
         var pixelDatatype = defaultValue(description.pixelDatatype, PixelDatatype.UNSIGNED_BYTE);
         if (!PixelDatatype.validate(pixelDatatype)) {
             throw new DeveloperError('Invalid description.pixelDatatype.');
+        }
+
+        if ((pixelDatatype === PixelDatatype.FLOAT) && !this.getFloatingPointTexture()) {
+            throw new RuntimeError('When description.pixelDatatype is FLOAT, this WebGL implementation must support the OES_texture_float extension.');
         }
 
         // Use premultiplied alpha for opaque textures should perform better on Chrome:
@@ -1712,7 +1656,7 @@ define([
      *
      * @param {Object} [description] The initial framebuffer attachments as shown in Example 2.  The possible properties are <code>colorTexture</code>, <code>colorRenderbuffer</code>, <code>depthTexture</code>, <code>depthRenderbuffer</code>, <code>stencilRenderbuffer</code>, <code>depthStencilTexture</code>, and <code>depthStencilRenderbuffer</code>.
      *
-     * @return {Framebuffer} The created framebuffer.
+     * @returns {Framebuffer} The created framebuffer.
      *
      * @exception {DeveloperError} Cannot have both a color texture and color renderbuffer attachment.
      * @exception {DeveloperError} Cannot have both a depth texture and depth renderbuffer attachment.
@@ -1767,7 +1711,7 @@ define([
      *
      * @param {Object} [description] DOC_TBA.
      *
-     * @return {createRenderbuffer} DOC_TBA.
+     * @returns {createRenderbuffer} DOC_TBA.
      *
      * @exception {DeveloperError} Invalid format.
      * @exception {DeveloperError} Width must be greater than zero.
@@ -1778,13 +1722,13 @@ define([
      * @see Context#createFramebuffer
      */
     Context.prototype.createRenderbuffer = function(description) {
-        description = description || {};
-        var format = description.format || RenderbufferFormat.RGBA4;
-        var width = (typeof description.width === 'undefined') ? this._canvas.clientWidth : description.width;
-        var height = (typeof description.height === 'undefined') ? this._canvas.clientHeight : description.height;
-
-
         var gl = this._gl;
+
+        description = defaultValue(description, defaultValue.EMPTY_OBJECT);
+        var format = defaultValue(description.format, RenderbufferFormat.RGBA4);
+        var width = defined(description.width) ? description.width : gl.drawingBufferWidth;
+        var height = defined(description.height) ? description.height : gl.drawingBufferHeight;
+
         if (!RenderbufferFormat.validate(format)) {
             throw new DeveloperError('Invalid format.');
         }
@@ -1808,12 +1752,17 @@ define([
         return new Renderbuffer(gl, format, width, height);
     };
 
+    var nextRenderStateId = 0;
+    var renderStateCache = {};
+
     /**
-     * DOC_TBA.
-     *
-     * Validates and adds defaults for missing states.
+     * Validates and then finds or creates an immutable render state, which defines the pipeline
+     * state for a {@link DrawCommand} or {@link ClearCommand}.  All inputs states are optional.  Omitted states
+     * use the defaults shown in the example below.
      *
      * @memberof Context
+     *
+     * @param {Object} [renderState=undefined] The states defining the render state as shown in the example below.
      *
      * @exception {RuntimeError} renderState.lineWidth is out of range.
      * @exception {DeveloperError} Invalid renderState.frontFace.
@@ -1842,226 +1791,115 @@ define([
      * @exception {DeveloperError} renderState.viewport.width must be less than or equal to the maximum viewport width.
      * @exception {DeveloperError} renderState.viewport.height must be greater than or equal to zero.
      * @exception {DeveloperError} renderState.viewport.height must be less than or equal to the maximum viewport height.
+     *
+     * @example
+     * var defaults = {
+     *     frontFace : WindingOrder.COUNTER_CLOCKWISE,
+     *     cull : {
+     *         enabled : false,
+     *         face : CullFace.BACK
+     *     },
+     *     lineWidth : 1,
+     *     polygonOffset : {
+     *         enabled : false,
+     *         factor : 0,
+     *         units : 0
+     *     },
+     *     scissorTest : {
+     *         enabled : false,
+     *         rectangle : {
+     *             x : 0,
+     *             y : 0,
+     *             width : 0,
+     *             height : 0
+     *         }
+     *     },
+     *     depthRange : {
+     *         near : 0,
+     *         far : 1
+     *     },
+     *     depthTest : {
+     *         enabled : false,
+     *         func : DepthFunction.LESS
+     *      },
+     *     colorMask : {
+     *         red : true,
+     *         green : true,
+     *         blue : true,
+     *         alpha : true
+     *     },
+     *     depthMask : true,
+     *     stencilMask : ~0,
+     *     blending : {
+     *         enabled : false,
+     *         color : {
+     *             red : 0.0,
+     *             green : 0.0,
+     *             blue : 0.0,
+     *             alpha : 0.0
+     *         },
+     *         equationRgb : BlendEquation.ADD,
+     *         equationAlpha : BlendEquation.ADD,
+     *         functionSourceRgb : BlendFunction.ONE,
+     *         functionSourceAlpha : BlendFunction.ONE,
+     *         functionDestinationRgb : BlendFunction.ZERO,
+     *         functionDestinationAlpha : BlendFunction.ZERO
+     *     },
+     *     stencilTest : {
+     *         enabled : false,
+     *         frontFunction : StencilFunction.ALWAYS,
+     *         backFunction : StencilFunction.ALWAYS,
+     *         reference : 0,
+     *         mask : ~0,
+     *         frontOperation : {
+     *             fail : StencilOperation.KEEP,
+     *             zFail : StencilOperation.KEEP,
+     *             zPass : StencilOperation.KEEP
+     *         },
+     *         backOperation : {
+     *             fail : StencilOperation.KEEP,
+     *             zFail : StencilOperation.KEEP,
+     *             zPass : StencilOperation.KEEP
+     *         }
+     *     },
+     *     sampleCoverage : {
+     *         enabled : false,
+     *         value : 1.0,
+     *         invert : false
+     *      },
+     *     dither : true
+     * };
+     *
+     * // Same as just context.createRenderState().
+     * var rs = context.createRenderState(defaults);
+     *
+     * @see DrawCommand
+     * @see ClearCommand
      */
     Context.prototype.createRenderState = function(renderState) {
-        var rs = renderState || {};
-        var cull = rs.cull || {};
-        var polygonOffset = rs.polygonOffset || {};
-        var scissorTest = rs.scissorTest || {};
-        var scissorTestRectangle = scissorTest.rectangle || {};
-        var depthRange = rs.depthRange || {};
-        var depthTest = rs.depthTest || {};
-        var colorMask = rs.colorMask || {};
-        var blending = rs.blending || {};
-        var blendingColor = blending.color || {};
-        var stencilTest = rs.stencilTest || {};
-        var stencilTestFrontOperation = stencilTest.frontOperation || {};
-        var stencilTestBackOperation = stencilTest.backOperation || {};
-        var sampleCoverage = rs.sampleCoverage || {};
-        var viewport = rs.viewport;
-
-        var r = {
-            frontFace : (typeof rs.frontFace === 'undefined') ? WindingOrder.COUNTER_CLOCKWISE : rs.frontFace,
-            cull : {
-                enabled : (typeof cull.enabled === 'undefined') ? false : cull.enabled,
-                face : (typeof cull.face === 'undefined') ? CullFace.BACK : cull.face
-            },
-            lineWidth : (typeof rs.lineWidth === 'undefined') ? 1 : rs.lineWidth,
-            polygonOffset : {
-                enabled : (typeof polygonOffset.enabled === 'undefined') ? false : polygonOffset.enabled,
-                factor : (typeof polygonOffset.factor === 'undefined') ? 0 : polygonOffset.factor,
-                units : (typeof polygonOffset.units === 'undefined') ? 0 : polygonOffset.units
-            },
-            scissorTest : {
-                enabled : (typeof scissorTest.enabled === 'undefined') ? false : scissorTest.enabled,
-                rectangle : BoundingRectangle.clone(scissorTestRectangle)
-            },
-            depthRange : {
-                near : (typeof depthRange.near === 'undefined') ? 0 : depthRange.near,
-                far : (typeof depthRange.far === 'undefined') ? 1 : depthRange.far
-            },
-            depthTest : {
-                enabled : (typeof depthTest.enabled === 'undefined') ? false : depthTest.enabled,
-                func : (typeof depthTest.func === 'undefined') ? DepthFunction.LESS : depthTest.func // func, because function is a JavaScript keyword
-            },
-            colorMask : {
-                red : (typeof colorMask.red === 'undefined') ? true : colorMask.red,
-                green : (typeof colorMask.green === 'undefined') ? true : colorMask.green,
-                blue : (typeof colorMask.blue === 'undefined') ? true : colorMask.blue,
-                alpha : (typeof colorMask.alpha === 'undefined') ? true : colorMask.alpha
-            },
-            depthMask : (typeof rs.depthMask === 'undefined') ? true : rs.depthMask,
-            stencilMask : (typeof rs.stencilMask === 'undefined') ? ~0 : rs.stencilMask,
-            blending : {
-                enabled : (typeof blending.enabled === 'undefined') ? false : blending.enabled,
-                color : new Color(
-                    (typeof blendingColor.red === 'undefined') ? 0.0 : blendingColor.red,
-                    (typeof blendingColor.green === 'undefined') ? 0.0 : blendingColor.green,
-                    (typeof blendingColor.blue === 'undefined') ? 0.0 : blendingColor.blue,
-                    (typeof blendingColor.alpha === 'undefined') ? 0.0 : blendingColor.alpha
-                ),
-                equationRgb : (typeof blending.equationRgb === 'undefined') ? BlendEquation.ADD : blending.equationRgb,
-                equationAlpha : (typeof blending.equationAlpha === 'undefined') ? BlendEquation.ADD : blending.equationAlpha,
-                functionSourceRgb : (typeof blending.functionSourceRgb === 'undefined') ? BlendFunction.ONE : blending.functionSourceRgb,
-                functionSourceAlpha : (typeof blending.functionSourceAlpha === 'undefined') ? BlendFunction.ONE : blending.functionSourceAlpha,
-                functionDestinationRgb : (typeof blending.functionDestinationRgb === 'undefined') ? BlendFunction.ZERO : blending.functionDestinationRgb,
-                functionDestinationAlpha : (typeof blending.functionDestinationAlpha === 'undefined') ? BlendFunction.ZERO : blending.functionDestinationAlpha
-            },
-            stencilTest : {
-                enabled : (typeof stencilTest.enabled === 'undefined') ? false : stencilTest.enabled,
-                frontFunction : (typeof stencilTest.frontFunction === 'undefined') ? StencilFunction.ALWAYS : stencilTest.frontFunction,
-                backFunction : (typeof stencilTest.backFunction === 'undefined') ? StencilFunction.ALWAYS : stencilTest.backFunction,
-                reference : (typeof stencilTest.reference === 'undefined') ? 0 : stencilTest.reference,
-                mask : (typeof stencilTest.mask === 'undefined') ? ~0 : stencilTest.mask,
-                frontOperation : {
-                    fail : (typeof stencilTestFrontOperation.fail === 'undefined') ? StencilOperation.KEEP : stencilTestFrontOperation.fail,
-                    zFail : (typeof stencilTestFrontOperation.zFail === 'undefined') ? StencilOperation.KEEP : stencilTestFrontOperation.zFail,
-                    zPass : (typeof stencilTestFrontOperation.zPass === 'undefined') ? StencilOperation.KEEP : stencilTestFrontOperation.zPass
-                },
-                backOperation : {
-                    fail : (typeof stencilTestBackOperation.fail === 'undefined') ? StencilOperation.KEEP : stencilTestBackOperation.fail,
-                    zFail : (typeof stencilTestBackOperation.zFail === 'undefined') ? StencilOperation.KEEP : stencilTestBackOperation.zFail,
-                    zPass : (typeof stencilTestBackOperation.zPass === 'undefined') ? StencilOperation.KEEP : stencilTestBackOperation.zPass
-                }
-            },
-            // TODO:  Also need point_size and point_size_enable for ColladaFX
-            // TODO:  Also need sample_alpha_to_coverage_enable for ColladaFX
-            sampleCoverage : {
-                enabled : (typeof sampleCoverage.enabled === 'undefined') ? false : sampleCoverage.enabled,
-                value : (typeof sampleCoverage.value === 'undefined') ? 1.0 : sampleCoverage.value,
-                invert : (typeof sampleCoverage.invert === 'undefined') ? false : sampleCoverage.invert
-            },
-            dither : (typeof rs.dither === 'undefined') ? true : rs.dither
-            // viewport is set below because it is allowed to be undefined - meaning always the canvas size.
-        };
-
-        // Validate
-
-        if (!WindingOrder.validate(r.frontFace)) {
-            throw new DeveloperError('Invalid renderState.frontFace.');
+        var partialKey = JSON.stringify(renderState);
+        var cachedState = renderStateCache[partialKey];
+        if (defined(cachedState)) {
+            return cachedState;
         }
 
-        if (!CullFace.validate(r.cull.face)) {
-            throw new DeveloperError('Invalid renderState.cull.face.');
+        // Cache miss.  Fully define render state and try again.
+        var states = new RenderState(this, renderState);
+        var fullKey = JSON.stringify(states);
+        cachedState = renderStateCache[fullKey];
+        if (!defined(cachedState)) {
+            states.id = nextRenderStateId++;
+
+            cachedState = states;
+
+            // Cache full render state.  Multiple partially defined render states may map to this.
+            renderStateCache[fullKey] = cachedState;
         }
 
-        if ((r.lineWidth < this._aliasedLineWidthRange[0]) ||
-            (r.lineWidth > this._aliasedLineWidthRange[1])) {
-            throw new RuntimeError('renderState.lineWidth is out of range.  Check getMinimumAliasedLineWidth() and getMaximumAliasedLineWidth().');
-        }
+        // Cache partial render state so we can skip validation on a cache hit for a partially defined render state
+        renderStateCache[partialKey] = cachedState;
 
-        if ((r.scissorTest.rectangle.width < 0) ||
-            (r.scissorTest.rectangle.height < 0)) {
-            throw new DeveloperError('renderState.scissorTest.rectangle.width and renderState.scissorTest.rectangle.height must be greater than or equal to zero.');
-        }
-
-        if (r.depthRange.near > r.depthRange.far) {
-            // WebGL specific - not an error in GL ES
-            throw new DeveloperError('renderState.depthRange.near can not be greater than renderState.depthRange.far.');
-        }
-
-        if (r.depthRange.near < 0) {
-            // Would be clamped by GL
-            throw new DeveloperError('renderState.depthRange.near must be greater than or equal to zero.');
-        }
-
-        if (r.depthRange.far > 1) {
-            // Would be clamped by GL
-            throw new DeveloperError('renderState.depthRange.far must be less than or equal to one.');
-        }
-
-
-        if (!DepthFunction.validate(r.depthTest.func)) {
-            throw new DeveloperError('Invalid renderState.depthTest.func.');
-        }
-
-        if ((r.blending.color.red < 0.0) || (r.blending.color.red > 1.0) ||
-            (r.blending.color.green < 0.0) || (r.blending.color.green > 1.0) ||
-            (r.blending.color.blue < 0.0) || (r.blending.color.blue > 1.0) ||
-            (r.blending.color.alpha < 0.0) || (r.blending.color.alpha > 1.0)) {
-            // Would be clamped by GL
-            throw new DeveloperError('renderState.blending.color components must be greater than or equal to zero and less than or equal to one.');
-        }
-
-        if (!BlendEquation.validate(r.blending.equationRgb)) {
-            throw new DeveloperError('Invalid renderState.blending.equationRgb.');
-        }
-
-        if (!BlendEquation.validate(r.blending.equationAlpha)) {
-            throw new DeveloperError('Invalid renderState.blending.equationAlpha.');
-        }
-
-        if (!BlendFunction.validate(r.blending.functionSourceRgb)) {
-            throw new DeveloperError('Invalid renderState.blending.functionSourceRgb.');
-        }
-
-        if (!BlendFunction.validate(r.blending.functionSourceAlpha)) {
-            throw new DeveloperError('Invalid renderState.blending.functionSourceAlpha.');
-        }
-
-        if (!BlendFunction.validate(r.blending.functionDestinationRgb)) {
-            throw new DeveloperError('Invalid renderState.blending.functionDestinationRgb.');
-        }
-
-        if (!BlendFunction.validate(r.blending.functionDestinationAlpha)) {
-            throw new DeveloperError('Invalid renderState.blending.functionDestinationAlpha.');
-        }
-
-        if (!StencilFunction.validate(r.stencilTest.frontFunction)) {
-            throw new DeveloperError('Invalid renderState.stencilTest.frontFunction.');
-        }
-
-        if (!StencilFunction.validate(r.stencilTest.backFunction)) {
-            throw new DeveloperError('Invalid renderState.stencilTest.backFunction.');
-        }
-
-        if (!StencilOperation.validate(r.stencilTest.frontOperation.fail)) {
-            throw new DeveloperError('Invalid renderState.stencilTest.frontOperation.fail.');
-        }
-
-        if (!StencilOperation.validate(r.stencilTest.frontOperation.zFail)) {
-            throw new DeveloperError('Invalid renderState.stencilTest.frontOperation.zFail.');
-        }
-
-        if (!StencilOperation.validate(r.stencilTest.frontOperation.zPass)) {
-            throw new DeveloperError('Invalid renderState.stencilTest.frontOperation.zPass.');
-        }
-
-        if (!StencilOperation.validate(r.stencilTest.backOperation.fail)) {
-            throw new DeveloperError('Invalid renderState.stencilTest.backOperation.fail.');
-        }
-
-        if (!StencilOperation.validate(r.stencilTest.backOperation.zFail)) {
-            throw new DeveloperError('Invalid renderState.stencilTest.backOperation.zFail.');
-        }
-
-        if (!StencilOperation.validate(r.stencilTest.backOperation.zPass)) {
-            throw new DeveloperError('Invalid renderState.stencilTest.backOperation.zPass.');
-        }
-
-        if (typeof vieport !== 'undefined') {
-            if (viewport.width < 0) {
-                throw new DeveloperError('renderState.viewport.width must be greater than or equal to zero.');
-            }
-
-            if (viewport.width > this.getMaximumViewportWidth()) {
-                throw new RuntimeError('renderState.viewport.width must be less than or equal to the maximum viewport width (' + this.getMaximumViewportWidth().toString() + ').  Check getMaximumViewportWidth().');
-            }
-
-            if (viewport.height < 0) {
-                throw new DeveloperError('renderState.viewport.height must be greater than or equal to zero.');
-            }
-
-            if (viewport.height > this.getMaximumViewportHeight()) {
-                throw new RuntimeError('renderState.viewport.height must be less than or equal to the maximum viewport height (' + this.getMaximumViewportHeight().toString() + ').  Check getMaximumViewportHeight().');
-            }
-
-            r.viewport = new BoundingRectangle(viewport.x, viewport.y,
-                    (typeof viewport.width === 'undefined') ? this._canvas.clientWidth : viewport.width,
-                    (typeof viewport.height === 'undefined') ? this._canvas.clientHeight : viewport.height);
-        }
-
-        return r;
+        return cachedState;
     };
 
     /**
@@ -2079,11 +1917,11 @@ define([
      */
     Context.prototype.createSampler = function(sampler) {
         var s = {
-            wrapS : sampler.wrapS || TextureWrap.CLAMP,
-            wrapT : sampler.wrapT || TextureWrap.CLAMP,
+            wrapS : sampler.wrapS || TextureWrap.CLAMP_TO_EDGE,
+            wrapT : sampler.wrapT || TextureWrap.CLAMP_TO_EDGE,
             minificationFilter : sampler.minificationFilter || TextureMinificationFilter.LINEAR,
             magnificationFilter : sampler.magnificationFilter || TextureMagnificationFilter.LINEAR,
-            maximumAnisotropy : (typeof sampler.maximumAnisotropy !== 'undefined') ? sampler.maximumAnisotropy : 1.0
+            maximumAnisotropy : (defined(sampler.maximumAnisotropy)) ? sampler.maximumAnisotropy : 1.0
         };
 
         if (!TextureWrap.validate(s.wrapS)) {
@@ -2107,66 +1945,6 @@ define([
         }
 
         return s;
-    };
-
-    /**
-     * DOC_TBA.
-     *
-     * @memberof Context
-     *
-     * Validates and adds defaults for missing states.
-     *
-     * @exception {DeveloperError} clearState.scissorTest.rectangle.width and clearState.scissorTest.rectangle.height must be greater than or equal to zero.
-     *
-     * @see Context#clear
-     */
-    Context.prototype.createClearState = function(clearState) {
-        var cs = clearState || {};
-        var scissorTest = cs.scissorTest || {};
-        var scissorTestRectangle = scissorTest.rectangle || {};
-        var colorMask = cs.colorMask || {};
-
-        var color = cs.color;
-        var depth = cs.depth;
-        var stencil = cs.stencil;
-
-        // Clear everything if nothing is specified
-        if ((typeof color === 'undefined') && (typeof depth === 'undefined') && (typeof stencil === 'undefined')) {
-            color = this._defaultClearColor;
-            depth = this._defaultClearDepth;
-            stencil = this._defaultClearStencil;
-        }
-
-        var c = {
-            scissorTest : {
-                enabled : (typeof scissorTest.enabled === 'undefined') ? false : scissorTest.enabled,
-                rectangle : {
-                    x : (typeof scissorTestRectangle.x === 'undefined') ? 0 : scissorTestRectangle.x,
-                    y : (typeof scissorTestRectangle.y === 'undefined') ? 0 : scissorTestRectangle.y,
-                    width : (typeof scissorTestRectangle.width === 'undefined') ? 0 : scissorTestRectangle.width,
-                    height : (typeof scissorTestRectangle.height === 'undefined') ? 0 : scissorTestRectangle.height
-                }
-            },
-            colorMask : {
-                red : (typeof colorMask.red === 'undefined') ? true : colorMask.red,
-                green : (typeof colorMask.green === 'undefined') ? true : colorMask.green,
-                blue : (typeof colorMask.blue === 'undefined') ? true : colorMask.blue,
-                alpha : (typeof colorMask.alpha === 'undefined') ? true : colorMask.alpha
-            },
-            depthMask : (typeof cs.depthMask === 'undefined') ? true : cs.depthMask,
-            stencilMask : (typeof cs.stencilMask === 'undefined') ? ~0 : cs.stencilMask,
-            dither : (typeof cs.dither === 'undefined') ? true : cs.dither,
-
-            color : (typeof color !== 'undefined') ? Color.clone(color) : undefined,
-            depth : depth,
-            stencil : stencil
-        };
-
-        if ((c.scissorTest.rectangle.width < 0) || (c.scissorTest.rectangle.height < 0)) {
-            throw new DeveloperError('clearState.scissorTest.rectangle.width and clearState.scissorTest.rectangle.height must be greater than or equal to zero.');
-        }
-
-        return c;
     };
 
     Context.prototype._validateFramebuffer = function(framebuffer) {
@@ -2197,40 +1975,41 @@ define([
         }
     };
 
+    function applyRenderState(context, renderState, passState) {
+        var previousState = context._currentRenderState;
+        if (previousState !== renderState) {
+            context._currentRenderState = renderState;
+            RenderState.partialApply(context._gl, previousState, renderState, passState);
+         }
+         // else same render state as before so state is already applied.
+    }
+
     var defaultClearCommand = new ClearCommand();
-    var defaultPassState = new PassState();
 
     /**
      * Executes the specified clear command.
      *
      * @memberof Context
      *
-     * @param {ClearCommand} [clearCommand] The command with which to clear.  If this parameter is undefined
-     *        or its clearState property is undefined, a default clear state is used.
-     * @param {PassState} [passState] The state for the current rendering pass
+     * @param {ClearCommand} [clearCommand] The command with which to clear.
+     * @param {PassState} [passState] The state for the current rendering pass.
      *
      * @memberof Context
      *
-     * @see Context#createClearState
+     * @see ClearCommand
      */
     Context.prototype.clear = function(clearCommand, passState) {
-        var clearState;
         clearCommand = defaultValue(clearCommand, defaultClearCommand);
-        if (typeof clearCommand.clearState !== 'undefined') {
-            clearState = clearCommand.clearState;
-        } else {
-            clearState = this.createClearState();
-        }
-        passState = defaultValue(passState, defaultPassState);
+        passState = defaultValue(passState, this._defaultPassState);
 
         var gl = this._gl;
         var bitmask = 0;
 
-        var c = clearState.color;
-        var d = clearState.depth;
-        var s = clearState.stencil;
+        var c = clearCommand.color;
+        var d = clearCommand.depth;
+        var s = clearCommand.stencil;
 
-        if (typeof c !== 'undefined') {
+        if (defined(c)) {
             if (!Color.equals(this._clearColor, c)) {
                 Color.clone(c, this._clearColor);
                 gl.clearColor(c.red, c.green, c.blue, c.alpha);
@@ -2238,7 +2017,7 @@ define([
             bitmask |= gl.COLOR_BUFFER_BIT;
         }
 
-        if (typeof d !== 'undefined') {
+        if (defined(d)) {
             if (d !== this._clearDepth) {
                 this._clearDepth = d;
                 gl.clearDepth(d);
@@ -2246,7 +2025,7 @@ define([
             bitmask |= gl.DEPTH_BUFFER_BIT;
         }
 
-        if (typeof s !== 'undefined') {
+        if (defined(s)) {
             if (s !== this._clearStencil) {
                 this._clearStencil = s;
                 gl.clearStencil(s);
@@ -2254,23 +2033,20 @@ define([
             bitmask |= gl.STENCIL_BUFFER_BIT;
         }
 
-        this._applyScissorTest(clearState.scissorTest, passState);
-        this._applyColorMask(clearState.colorMask);
-        this._applyDepthMask(clearState.depthMask);
-        this._applyStencilMask(clearState.stencilMask);
-        this._applyDither(clearState.dither);
+        var rs = defaultValue(clearCommand.renderState, this._defaultRenderState);
+        applyRenderState(this, rs, passState);
 
         // The command's framebuffer takes presidence over the pass' framebuffer, e.g., for off-screen rendering.
         var framebuffer = defaultValue(clearCommand.framebuffer, passState.framebuffer);
 
-        if (typeof framebuffer !== 'undefined') {
+        if (defined(framebuffer)) {
             framebuffer._bind();
             this._validateFramebuffer(framebuffer);
         }
 
         gl.clear(bitmask);
 
-        if (typeof framebuffer !== 'undefined') {
+        if (defined(framebuffer)) {
             framebuffer._unBind();
         }
     };
@@ -2320,7 +2096,7 @@ define([
      * @see Context#createRenderState
      */
     Context.prototype.draw = function(drawCommand, passState) {
-        passState = defaultValue(passState, defaultPassState);
+        passState = defaultValue(passState, this._defaultPassState);
         this.beginDraw(drawCommand, passState);
         this.continueDraw(drawCommand);
         this.endDraw();
@@ -2332,20 +2108,20 @@ define([
      * @memberof Context
      */
     Context.prototype.beginDraw = function(command, passState) {
-        if (typeof command === 'undefined') {
+        if (!defined(command)) {
             throw new DeveloperError('command is required.');
         }
 
-        if (typeof command.shaderProgram === 'undefined') {
+        if (!defined(command.shaderProgram)) {
             throw new DeveloperError('command.shaderProgram is required.');
         }
 
         // The command's framebuffer takes presidence over the pass' framebuffer, e.g., for off-screen rendering.
         var framebuffer = defaultValue(command.framebuffer, passState.framebuffer);
         var sp = command.shaderProgram;
-        var rs = command.renderState || this.createRenderState();
+        var rs = (defined(command.renderState)) ? command.renderState : this._defaultRenderState;
 
-        if ((typeof framebuffer !== 'undefined') && rs.depthTest) {
+        if ((defined(framebuffer)) && rs.depthTest) {
             if (rs.depthTest.enabled && !framebuffer.hasDepthAttachment()) {
                 throw new DeveloperError('The depth test can not be enabled (command.renderState.depthTest.enabled) because the framebuffer (command.framebuffer) does not have a depth or depth-stencil renderbuffer.');
             }
@@ -2353,8 +2129,9 @@ define([
 
         ///////////////////////////////////////////////////////////////////////
 
-        this._applyRenderState(rs, passState);
-        if (typeof framebuffer !== 'undefined') {
+        applyRenderState(this, rs, passState);
+
+        if (defined(framebuffer)) {
             framebuffer._bind();
             this._validateFramebuffer(framebuffer);
         }
@@ -2362,6 +2139,7 @@ define([
 
         this._currentFramebuffer = framebuffer;
         this._currentSp = sp;
+        this._maxFrameTextureUnitIndex = Math.max(this._maxFrameTextureUnitIndex, sp.maximumTextureUnitIndex);
     };
 
     /**
@@ -2371,11 +2149,11 @@ define([
      */
     Context.prototype.continueDraw = function(command) {
         var sp = this._currentSp;
-        if (typeof sp === 'undefined') {
+        if (!defined(sp)) {
             throw new DeveloperError('beginDraw must be called before continueDraw.');
         }
 
-        if (typeof command === 'undefined') {
+        if (!defined(command)) {
             throw new DeveloperError('command is required.');
         }
 
@@ -2384,7 +2162,7 @@ define([
             throw new DeveloperError('command.primitiveType is required and must be valid.');
         }
 
-        if (typeof command.vertexArray === 'undefined') {
+        if (!defined(command.vertexArray)) {
             throw new DeveloperError('command.vertexArray is required.');
         }
 
@@ -2393,8 +2171,9 @@ define([
 
         var offset = command.offset;
         var count = command.count;
+        var hasIndexBuffer = defined(indexBuffer);
 
-        if (indexBuffer) {
+        if (hasIndexBuffer) {
             offset = (offset || 0) * indexBuffer.getBytesPerIndex(); // in bytes
             count = count || indexBuffer.getNumberOfIndices();
         } else {
@@ -2412,10 +2191,10 @@ define([
 
             va._bind();
 
-            if (indexBuffer) {
-                this._gl.drawElements(primitiveType, count, indexBuffer.getIndexDatatype().value, offset);
+            if (hasIndexBuffer) {
+                this._gl.drawElements(primitiveType.value, count, indexBuffer.getIndexDatatype().value, offset);
             } else {
-                this._gl.drawArrays(primitiveType, offset, count);
+                this._gl.drawArrays(primitiveType.value, offset, count);
             }
 
             va._unBind();
@@ -2428,12 +2207,28 @@ define([
      * @memberof Context
      */
     Context.prototype.endDraw = function() {
-        if (typeof this._currentFramebuffer !== 'undefined') {
+        if (defined(this._currentFramebuffer)) {
             this._currentFramebuffer._unBind();
             this._currentFramebuffer = undefined;
         }
-        this._currentSp._unBind();
         this._currentSp = undefined;
+    };
+
+    /**
+     * @private
+     */
+    Context.prototype.endFrame = function() {
+        var gl = this._gl;
+        gl.useProgram(null);
+
+        var length = this._maxFrameTextureUnitIndex;
+        this._maxFrameTextureUnitIndex = 0;
+
+        for (var i = 0; i < length; ++i) {
+            gl.activeTexture(gl.TEXTURE0 + i);
+            gl.bindTexture(gl.TEXTURE_2D, null);
+            gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
+        }
     };
 
     /**
@@ -2445,11 +2240,13 @@ define([
      * @exception {DeveloperError} readState.height must be greater than zero.
      */
     Context.prototype.readPixels = function(readState) {
+        var gl = this._gl;
+
         readState = readState || {};
         var x = Math.max(readState.x || 0, 0);
         var y = Math.max(readState.y || 0, 0);
-        var width = readState.width || this._canvas.clientWidth;
-        var height = readState.height || this._canvas.clientHeight;
+        var width = readState.width || gl.drawingBufferWidth;
+        var height = readState.height || gl.drawingBufferHeight;
         var framebuffer = readState.framebuffer || null;
 
         if (width <= 0) {
@@ -2467,7 +2264,6 @@ define([
             this._validateFramebuffer(framebuffer);
         }
 
-        var gl = this._gl;
         gl.readPixels(x, y, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
 
         if (framebuffer) {
@@ -2479,15 +2275,15 @@ define([
 
     //////////////////////////////////////////////////////////////////////////////////////////
 
-    Context.prototype._interleaveAttributes = function(attributes) {
-        function computeNumberOfVertices(attribute) {
-            return attribute.values.length / attribute.componentsPerAttribute;
-        }
+    function computeNumberOfVertices(attribute) {
+        return attribute.values.length / attribute.componentsPerAttribute;
+    }
 
-        function computeAttributeSizeInBytes(attribute) {
-            return attribute.componentDatatype.sizeInBytes * attribute.componentsPerAttribute;
-        }
+    function computeAttributeSizeInBytes(attribute) {
+        return attribute.componentDatatype.sizeInBytes * attribute.componentsPerAttribute;
+    }
 
+    function interleaveAttributes(attributes) {
         var j;
         var name;
         var attribute;
@@ -2496,8 +2292,15 @@ define([
         var names = [];
         for (name in attributes) {
             // Attribute needs to have per-vertex values; not a constant value for all vertices.
-            if (attributes.hasOwnProperty(name) && attributes[name].values) {
+            if (attributes.hasOwnProperty(name) &&
+                    defined(attributes[name]) &&
+                    defined(attributes[name].values)) {
                 names.push(name);
+
+                if (attributes[name].componentDatatype.value === ComponentDatatype.DOUBLE.value) {
+                    attributes[name].componentDatatype = ComponentDatatype.FLOAT;
+                    attributes[name].values = ComponentDatatype.createTypedArray(ComponentDatatype.FLOAT, attributes[name].values);
+                }
             }
         }
 
@@ -2560,7 +2363,7 @@ define([
                 var sizeInBytes = attributes[name].componentDatatype.sizeInBytes;
 
                 views[name] = {
-                    pointer : attributes[name].componentDatatype.toTypedArray(buffer),
+                    pointer : ComponentDatatype.createTypedArray(attributes[name].componentDatatype, buffer),
                     index : offsetsInBytes[name] / sizeInBytes, // Offset in ComponentType
                     strideInComponentType : vertexSizeInBytes / sizeInBytes
                 };
@@ -2594,33 +2397,95 @@ define([
 
         // No attributes to interleave.
         return undefined;
-    };
+    }
 
-    Context.prototype._createVertexArrayAttributes = function(creationArguments) {
-        var ca = creationArguments || {};
-        var mesh = ca.mesh || {};
-        var attributeIndices = ca.attributeIndices || {};
-        var bufferUsage = ca.bufferUsage || BufferUsage.DYNAMIC_DRAW;
-        var interleave = ca.vertexLayout && (ca.vertexLayout === VertexLayout.INTERLEAVED);
+    /**
+     * Creates a vertex array from a geometry.  A geometry contains vertex attributes and optional index data
+     * in system memory, whereas a vertex array contains vertex buffers and an optional index buffer in WebGL
+     * memory for use with rendering.
+     * <br /><br />
+     * The <code>geometry</code> argument should use the standard layout like the geometry returned by {@link BoxGeometry}.
+     * <br /><br />
+     * <code>creationArguments</code> can have four properties:
+     * <ul>
+     *   <li><code>geometry</code>:  The source geometry containing data used to create the vertex array.</li>
+     *   <li><code>attributeIndices</code>:  An object that maps geometry attribute names to vertex shader attribute indices.</li>
+     *   <li><code>bufferUsage</code>:  The expected usage pattern of the vertex array's buffers.  On some WebGL implementations, this can significantly affect performance.  See {@link BufferUsage}.  Default: <code>BufferUsage.DYNAMIC_DRAW</code>.</li>
+     *   <li><code>vertexLayout</code>:  Determines if all attributes are interleaved in a single vertex buffer or if each attribute is stored in a separate vertex buffer.  Default: <code>VertexLayout.SEPARATE</code>.</li>
+     * </ul>
+     * <br />
+     * If <code>creationArguments</code> is not specified or the <code>geometry</code> contains no data, the returned vertex array is empty.
+     *
+     * @memberof Context
+     *
+     * @param {Object} [creationArguments=undefined] An object defining the geometry, attribute indices, buffer usage, and vertex layout used to create the vertex array.
+     *
+     * @exception {RuntimeError} Each attribute list must have the same number of vertices.
+     * @exception {DeveloperError} The geometry must have zero or one index lists.
+     * @exception {DeveloperError} Index n is used by more than one attribute.
+     *
+     * @see Context#createVertexArray
+     * @see Context#createVertexBuffer
+     * @see Context#createIndexBuffer
+     * @see GeometryPipeline.createAttributeIndices
+     * @see ShaderProgram
+     *
+     * @example
+     * // Example 1. Creates a vertex array for rendering a box.  The default dynamic draw
+     * // usage is used for the created vertex and index buffer.  The attributes are not
+     * // interleaved by default.
+     * var geometry = new BoxGeometry();
+     * var va = context.createVertexArrayFromGeometry({
+     *     geometry             : geometry,
+     *     attributeIndices : GeometryPipeline.createAttributeIndices(geometry),
+     * });
+     *
+     * ////////////////////////////////////////////////////////////////////////////////
+     *
+     * // Example 2. Creates a vertex array with interleaved attributes in a
+     * // single vertex buffer.  The vertex and index buffer have static draw usage.
+     * var va = context.createVertexArrayFromGeometry({
+     *     geometry             : geometry,
+     *     attributeIndices : GeometryPipeline.createAttributeIndices(geometry),
+     *     bufferUsage      : BufferUsage.STATIC_DRAW,
+     *     vertexLayout     : VertexLayout.INTERLEAVED
+     * });
+     *
+     * ////////////////////////////////////////////////////////////////////////////////
+     *
+     * // Example 3.  When the caller destroys the vertex array, it also destroys the
+     * // attached vertex buffer(s) and index buffer.
+     * va = va.destroy();
+     */
+    Context.prototype.createVertexArrayFromGeometry = function(creationArguments) {
+        var ca = defaultValue(creationArguments, defaultValue.EMPTY_OBJECT);
+        var geometry = defaultValue(ca.geometry, defaultValue.EMPTY_OBJECT);
+
+        var bufferUsage = defaultValue(ca.bufferUsage, BufferUsage.DYNAMIC_DRAW);
+
+        var attributeIndices = defaultValue(ca.attributeIndices, defaultValue.EMPTY_OBJECT);
+        var interleave = (defined(ca.vertexLayout)) && (ca.vertexLayout === VertexLayout.INTERLEAVED);
+        var createdVAAttributes = ca.vertexArrayAttributes;
 
         var name;
         var attribute;
-        var vaAttributes = [];
-        var attributes = mesh.attributes;
+        var vertexBuffer;
+        var vaAttributes = (defined(createdVAAttributes)) ? createdVAAttributes : [];
+        var attributes = geometry.attributes;
 
         if (interleave) {
             // Use a single vertex buffer with interleaved vertices.
-            var interleavedAttributes = this._interleaveAttributes(attributes);
-            if (interleavedAttributes) {
-                var vertexBuffer = this.createVertexBuffer(interleavedAttributes.buffer, bufferUsage);
+            var interleavedAttributes = interleaveAttributes(attributes);
+            if (defined(interleavedAttributes)) {
+                vertexBuffer = this.createVertexBuffer(interleavedAttributes.buffer, bufferUsage);
                 var offsetsInBytes = interleavedAttributes.offsetsInBytes;
                 var strideInBytes = interleavedAttributes.vertexSizeInBytes;
 
                 for (name in attributes) {
-                    if (attributes.hasOwnProperty(name)) {
+                    if (attributes.hasOwnProperty(name) && defined(attributes[name])) {
                         attribute = attributes[name];
 
-                        if (attribute.values) {
+                        if (defined(attribute.values)) {
                             // Common case: per-vertex attributes
                             vaAttributes.push({
                                 index : attributeIndices[name],
@@ -2646,13 +2511,24 @@ define([
         } else {
             // One vertex buffer per attribute.
             for (name in attributes) {
-                if (attributes.hasOwnProperty(name)) {
+                if (attributes.hasOwnProperty(name) && defined(attributes[name])) {
                     attribute = attributes[name];
+
+                    var componentDatatype = attribute.componentDatatype;
+                    if (componentDatatype.value === ComponentDatatype.DOUBLE.value) {
+                        componentDatatype = ComponentDatatype.FLOAT;
+                    }
+
+                    vertexBuffer = undefined;
+                    if (defined(attribute.values)) {
+                        vertexBuffer = this.createVertexBuffer(ComponentDatatype.createTypedArray(componentDatatype, attribute.values), bufferUsage);
+                    }
+
                     vaAttributes.push({
                         index : attributeIndices[name],
-                        vertexBuffer : attribute.values ? this.createVertexBuffer(attribute.componentDatatype.toTypedArray(attribute.values), bufferUsage) : undefined,
-                        value : attribute.value ? attribute.value : undefined,
-                        componentDatatype : attribute.componentDatatype,
+                        vertexBuffer : vertexBuffer,
+                        value : attribute.value,
+                        componentDatatype : componentDatatype,
                         componentsPerAttribute : attribute.componentsPerAttribute,
                         normalize : attribute.normalize
                     });
@@ -2660,88 +2536,17 @@ define([
             }
         }
 
-        return this.createVertexArray(vaAttributes);
-    };
-
-    /**
-     * Creates a vertex array from a mesh.  A mesh contains vertex attributes and optional index data
-     * in system memory, whereas a vertex array contains vertex buffers and an optional index buffer in WebGL
-     * memory for use with rendering.
-     * <br /><br />
-     * The <code>mesh</code> argument should use the standard layout like the mesh returned by {@link BoxTessellator}.
-     * <br /><br />
-     * <code>creationArguments</code> can have four properties:
-     * <ul>
-     *   <li><code>mesh</code>:  The source mesh containing data used to create the vertex array.</li>
-     *   <li><code>attributeIndices</code>:  An object that maps mesh attribute names to vertex shader attribute indices.</li>
-     *   <li><code>bufferUsage</code>:  The expected usage pattern of the vertex array's buffers.  On some WebGL implementations, this can significantly affect performance.  See {@link BufferUsage}.  Default: <code>BufferUsage.DYNAMIC_DRAW</code>.</li>
-     *   <li><code>vertexLayout</code>:  Determines if all attributes are interleaved in a single vertex buffer or if each attribute is stored in a separate vertex buffer.  Default: <code>VertexLayout.SEPARATE</code>.</li>
-     * </ul>
-     * <br />
-     * If <code>creationArguments</code> is not specified or the <code>mesh</code> contains no data, the returned vertex array is empty.
-     *
-     * @memberof Context
-     *
-     * @param {Object} [creationArguments=undefined] An object defining the mesh, attribute indices, buffer usage, and vertex layout used to create the vertex array.
-     *
-     * @exception {RuntimeError} Each attribute list must have the same number of vertices.
-     * @exception {DeveloperError} The mesh must have zero or one index lists.
-     * @exception {DeveloperError} Index n is used by more than one attribute.
-     *
-     * @see Context#createVertexArray
-     * @see Context#createVertexBuffer
-     * @see Context#createIndexBuffer
-     * @see MeshFilters.createAttributeIndices
-     * @see ShaderProgram
-     * @see BoxTessellator
-     *
-     * @example
-     * // Example 1. Creates a vertex array for rendering a box.  The default dynamic draw
-     * // usage is used for the created vertex and index buffer.  The attributes are not
-     * // interleaved by default.
-     * var mesh = BoxTessellator.compute();
-     * var va = context.createVertexArrayFromMesh({
-     *     mesh             : mesh,
-     *     attributeIndices : MeshFilters.createAttributeIndices(mesh),
-     * });
-     *
-     * ////////////////////////////////////////////////////////////////////////////////
-     *
-     * // Example 2. Creates a vertex array with interleaved attributes in a
-     * // single vertex buffer.  The vertex and index buffer have static draw usage.
-     * var va = context.createVertexArrayFromMesh({
-     *     mesh             : mesh,
-     *     attributeIndices : MeshFilters.createAttributeIndices(mesh),
-     *     bufferUsage      : BufferUsage.STATIC_DRAW,
-     *     vertexLayout     : VertexLayout.INTERLEAVED
-     * });
-     *
-     * ////////////////////////////////////////////////////////////////////////////////
-     *
-     * // Example 3.  When the caller destroys the vertex array, it also destroys the
-     * // attached vertex buffer(s) and index buffer.
-     * va = va.destroy();
-     */
-    Context.prototype.createVertexArrayFromMesh = function(creationArguments) {
-        var ca = creationArguments || {};
-        var mesh = ca.mesh || {};
-        var bufferUsage = ca.bufferUsage || BufferUsage.DYNAMIC_DRAW;
-        var indexLists;
-
-        if (mesh.indexLists) {
-            indexLists = mesh.indexLists;
-            if (indexLists.length !== 1) {
-                throw new DeveloperError('The mesh must have zero or one index lists.  This mesh has ' + indexLists.length.toString() + ' index lists.');
+        var indexBuffer;
+        var indices = geometry.indices;
+        if (defined(indices)) {
+            if ((Geometry.computeNumberOfVertices(geometry) > CesiumMath.SIXTY_FOUR_KILOBYTES) && this.getElementIndexUint()) {
+                indexBuffer = this.createIndexBuffer(new Uint32Array(indices), bufferUsage, IndexDatatype.UNSIGNED_INT);
+            } else{
+                indexBuffer = this.createIndexBuffer(new Uint16Array(indices), bufferUsage, IndexDatatype.UNSIGNED_SHORT);
             }
         }
 
-        var va = this._createVertexArrayAttributes(creationArguments);
-
-        if (indexLists) {
-            va.setIndexBuffer(this.createIndexBuffer(new Uint16Array(indexLists[0].values), bufferUsage, IndexDatatype.UNSIGNED_SHORT));
-        }
-
-        return va;
+        return this.createVertexArray(vaAttributes, indexBuffer);
     };
 
     /**
@@ -2749,7 +2554,7 @@ define([
      *
      * @memberof Context
      *
-     * @see Context#pick
+     * @see Scene#pick
      */
     Context.prototype.createPickFramebuffer = function() {
         return new PickFramebuffer(this);
@@ -2772,7 +2577,7 @@ define([
      * @see Context#createPickId
      */
     Context.prototype.getObjectByPickColor = function(pickColor) {
-        if (typeof pickColor === 'undefined') {
+        if (!defined(pickColor)) {
             throw new DeveloperError('pickColor is required.');
         }
 
@@ -2807,10 +2612,13 @@ define([
      * @see Context#getObjectByPickColor
      *
      * @example
-     * this._pickId = context.createPickId(this);
+     * this._pickId = context.createPickId({
+     *   primitive : this,
+     *   id : this.id
+     * });
      */
     Context.prototype.createPickId = function(object) {
-        if (typeof object === 'undefined') {
+        if (!defined(object)) {
             throw new DeveloperError('object is required.');
         }
 
@@ -2837,7 +2645,7 @@ define([
         for (var property in cache) {
             if (cache.hasOwnProperty(property)) {
                 var propertyValue = cache[property];
-                if (typeof propertyValue.destroy !== 'undefined') {
+                if (defined(propertyValue.destroy)) {
                     propertyValue.destroy();
                 }
             }

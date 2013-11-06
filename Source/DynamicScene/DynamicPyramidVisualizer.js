@@ -1,22 +1,30 @@
 /*global define*/
 define([
         '../Core/defaultValue',
+        '../Core/defined',
         '../Core/DeveloperError',
         '../Core/destroyObject',
+        '../Core/Cartesian3',
         '../Core/Color',
         '../Core/Matrix3',
         '../Core/Matrix4',
+        '../Core/Quaternion',
         '../Scene/CustomSensorVolume',
-        '../Scene/Material'
+        '../Scene/Material',
+        './MaterialProperty'
        ], function(
          defaultValue,
+         defined,
          DeveloperError,
          destroyObject,
+         Cartesian3,
          Color,
          Matrix3,
          Matrix4,
+         Quaternion,
          CustomSensorVolume,
-         Material) {
+         Material,
+         MaterialProperty) {
     "use strict";
 
     var matrix3Scratch = new Matrix3();
@@ -48,7 +56,7 @@ define([
      *
      */
     var DynamicPyramidVisualizer = function(scene, dynamicObjectCollection) {
-        if (typeof scene === 'undefined') {
+        if (!defined(scene)) {
             throw new DeveloperError('scene is required.');
         }
         this._scene = scene;
@@ -85,13 +93,13 @@ define([
     DynamicPyramidVisualizer.prototype.setDynamicObjectCollection = function(dynamicObjectCollection) {
         var oldCollection = this._dynamicObjectCollection;
         if (oldCollection !== dynamicObjectCollection) {
-            if (typeof oldCollection !== 'undefined') {
-                oldCollection.objectsRemoved.removeEventListener(DynamicPyramidVisualizer.prototype._onObjectsRemoved, this);
+            if (defined(oldCollection)) {
+                oldCollection.collectionChanged.removeEventListener(DynamicPyramidVisualizer.prototype._onObjectsRemoved, this);
                 this.removeAllPrimitives();
             }
             this._dynamicObjectCollection = dynamicObjectCollection;
-            if (typeof dynamicObjectCollection !== 'undefined') {
-                dynamicObjectCollection.objectsRemoved.addEventListener(DynamicPyramidVisualizer.prototype._onObjectsRemoved, this);
+            if (defined(dynamicObjectCollection)) {
+                dynamicObjectCollection.collectionChanged.addEventListener(DynamicPyramidVisualizer.prototype._onObjectsRemoved, this);
             }
         }
     };
@@ -105,13 +113,13 @@ define([
      * @exception {DeveloperError} time is required.
      */
     DynamicPyramidVisualizer.prototype.update = function(time) {
-        if (typeof time === 'undefined') {
+        if (!defined(time)) {
             throw new DeveloperError('time is requied.');
         }
-        if (typeof this._dynamicObjectCollection !== 'undefined') {
+        if (defined(this._dynamicObjectCollection)) {
             var dynamicObjects = this._dynamicObjectCollection.getObjects();
             for ( var i = 0, len = dynamicObjects.length; i < len; i++) {
-                this._updateObject(time, dynamicObjects[i]);
+                updateObject(this, time, dynamicObjects[i]);
             }
         }
     };
@@ -125,7 +133,7 @@ define([
             this._primitives.remove(this._pyramidCollection[i]);
         }
 
-        if (typeof this._dynamicObjectCollection !== 'undefined') {
+        if (defined(this._dynamicObjectCollection)) {
             var dynamicObjects = this._dynamicObjectCollection.getObjects();
             for (i = dynamicObjects.length - 1; i > -1; i--) {
                 dynamicObjects[i]._pyramidVisualizerIndex = undefined;
@@ -144,7 +152,7 @@ define([
      *
      * @memberof DynamicPyramidVisualizer
      *
-     * @return {Boolean} True if this object was destroyed; otherwise, false.
+     * @returns {Boolean} True if this object was destroyed; otherwise, false.
      *
      * @see DynamicPyramidVisualizer#destroy
      */
@@ -162,7 +170,7 @@ define([
      *
      * @memberof DynamicPyramidVisualizer
      *
-     * @return {undefined}
+     * @returns {undefined}
      *
      * @exception {DeveloperError} This object was destroyed, i.e., destroy() was called.
      *
@@ -178,56 +186,55 @@ define([
 
     var position;
     var orientation;
-    DynamicPyramidVisualizer.prototype._updateObject = function(time, dynamicObject) {
-        var context = this._scene.getContext();
-        var dynamicPyramid = dynamicObject.pyramid;
-        if (typeof dynamicPyramid === 'undefined') {
+    function updateObject(dynamicPyramidVisualizer, time, dynamicObject) {
+        var dynamicPyramid = dynamicObject._pyramid;
+        if (!defined(dynamicPyramid)) {
             return;
         }
 
-        var directionsProperty = dynamicPyramid.directions;
-        if (typeof directionsProperty === 'undefined') {
+        var directionsProperty = dynamicPyramid._directions;
+        if (!defined(directionsProperty)) {
             return;
         }
 
-        var positionProperty = dynamicObject.position;
-        if (typeof positionProperty === 'undefined') {
+        var positionProperty = dynamicObject._position;
+        if (!defined(positionProperty)) {
             return;
         }
 
-        var orientationProperty = dynamicObject.orientation;
-        if (typeof orientationProperty === 'undefined') {
+        var orientationProperty = dynamicObject._orientation;
+        if (!defined(orientationProperty)) {
             return;
         }
 
         var pyramid;
-        var showProperty = dynamicPyramid.show;
+        var showProperty = dynamicPyramid._show;
         var pyramidVisualizerIndex = dynamicObject._pyramidVisualizerIndex;
-        var show = dynamicObject.isAvailable(time) && (typeof showProperty === 'undefined' || showProperty.getValue(time));
+        var show = dynamicObject.isAvailable(time) && (!defined(showProperty) || showProperty.getValue(time));
 
         if (!show) {
             //don't bother creating or updating anything else
-            if (typeof pyramidVisualizerIndex !== 'undefined') {
-                pyramid = this._pyramidCollection[pyramidVisualizerIndex];
+            if (defined(pyramidVisualizerIndex)) {
+                pyramid = dynamicPyramidVisualizer._pyramidCollection[pyramidVisualizerIndex];
                 pyramid.show = false;
                 dynamicObject._pyramidVisualizerIndex = undefined;
-                this._unusedIndexes.push(pyramidVisualizerIndex);
+                dynamicPyramidVisualizer._unusedIndexes.push(pyramidVisualizerIndex);
             }
             return;
         }
 
-        if (typeof pyramidVisualizerIndex === 'undefined') {
-            var unusedIndexes = this._unusedIndexes;
+        if (!defined(pyramidVisualizerIndex)) {
+            var unusedIndexes = dynamicPyramidVisualizer._unusedIndexes;
             var length = unusedIndexes.length;
             if (length > 0) {
                 pyramidVisualizerIndex = unusedIndexes.pop();
-                pyramid = this._pyramidCollection[pyramidVisualizerIndex];
+                pyramid = dynamicPyramidVisualizer._pyramidCollection[pyramidVisualizerIndex];
             } else {
-                pyramidVisualizerIndex = this._pyramidCollection.length;
+                pyramidVisualizerIndex = dynamicPyramidVisualizer._pyramidCollection.length;
                 pyramid = new CustomSensorVolume();
 
-                this._pyramidCollection.push(pyramid);
-                this._primitives.add(pyramid);
+                dynamicPyramidVisualizer._pyramidCollection.push(pyramid);
+                dynamicPyramidVisualizer._primitives.add(pyramid);
             }
             dynamicObject._pyramidVisualizerIndex = pyramidVisualizerIndex;
             pyramid.dynamicObject = dynamicObject;
@@ -236,60 +243,66 @@ define([
             pyramid.radius = Number.POSITIVE_INFINITY;
             pyramid.showIntersection = true;
             pyramid.intersectionColor = Color.YELLOW;
-            pyramid.material = Material.fromType(context, Material.ColorType);
+            pyramid.intersectionWidth = 5.0;
+            pyramid.material = Material.fromType(Material.ColorType);
         } else {
-            pyramid = this._pyramidCollection[pyramidVisualizerIndex];
+            pyramid = dynamicPyramidVisualizer._pyramidCollection[pyramidVisualizerIndex];
         }
 
         pyramid.show = true;
 
-        var directions = directionsProperty.getValueSpherical(time);
-        if (typeof directions !== 'undefined' && pyramid._visualizerDirections !== directions) {
+        var directions = directionsProperty.getValue(time);
+        if (defined(directions) && pyramid._visualizerDirections !== directions) {
             pyramid.setDirections(directions);
             pyramid._visualizerDirections = directions;
         }
 
-        position = defaultValue(positionProperty.getValueCartesian(time, position), pyramid._visualizerPosition);
+        position = defaultValue(positionProperty.getValue(time, position), pyramid._visualizerPosition);
         orientation = defaultValue(orientationProperty.getValue(time, orientation), pyramid._visualizerOrientation);
 
-        if (typeof position !== 'undefined' &&
-            typeof orientation !== 'undefined' &&
-            (!position.equals(pyramid._visualizerPosition) ||
-             !orientation.equals(pyramid._visualizerOrientation))) {
+        if (defined(position) &&
+            defined(orientation) &&
+            (!Cartesian3.equals(position, pyramid._visualizerPosition) ||
+             !Quaternion.equals(orientation, pyramid._visualizerOrientation))) {
             Matrix4.fromRotationTranslation(Matrix3.fromQuaternion(orientation, matrix3Scratch), position, pyramid.modelMatrix);
-            position.clone(pyramid._visualizerPosition);
-            orientation.clone(pyramid._visualizerOrientation);
+            Cartesian3.clone(position, pyramid._visualizerPosition);
+            Quaternion.clone(orientation, pyramid._visualizerOrientation);
         }
 
-        var material = dynamicPyramid.material;
-        if (typeof material !== 'undefined') {
-            pyramid.material = material.getValue(time, context, pyramid.material);
-        }
+        pyramid.material = MaterialProperty.getValue(time, dynamicPyramid._material, pyramid.material);
 
-        var property = dynamicPyramid.intersectionColor;
-        if (typeof property !== 'undefined') {
+        var property = dynamicPyramid._intersectionColor;
+        if (defined(property)) {
             var intersectionColor = property.getValue(time, intersectionColor);
-            if (typeof intersectionColor !== 'undefined') {
+            if (defined(intersectionColor)) {
                 pyramid.intersectionColor = intersectionColor;
             }
         }
 
-        property = dynamicPyramid.radius;
-        if (typeof property !== 'undefined') {
+        property = dynamicPyramid._intersectionWidth;
+        if (defined(property)) {
+            var intersectionWidth = property.getValue(time, intersectionWidth);
+            if (defined(intersectionWidth)) {
+                pyramid.intersectionWidth = intersectionWidth;
+            }
+        }
+
+        property = dynamicPyramid._radius;
+        if (defined(property)) {
             var radius = property.getValue(time, radius);
-            if (typeof radius !== 'undefined') {
+            if (defined(radius)) {
                 pyramid.radius = radius;
             }
         }
-    };
+    }
 
-    DynamicPyramidVisualizer.prototype._onObjectsRemoved = function(dynamicObjectCollection, dynamicObjects) {
+    DynamicPyramidVisualizer.prototype._onObjectsRemoved = function(dynamicObjectCollection, added, dynamicObjects) {
         var thisPyramidCollection = this._pyramidCollection;
         var thisUnusedIndexes = this._unusedIndexes;
         for ( var i = dynamicObjects.length - 1; i > -1; i--) {
             var dynamicObject = dynamicObjects[i];
             var pyramidVisualizerIndex = dynamicObject._pyramidVisualizerIndex;
-            if (typeof pyramidVisualizerIndex !== 'undefined') {
+            if (defined(pyramidVisualizerIndex)) {
                 var pyramid = thisPyramidCollection[pyramidVisualizerIndex];
                 pyramid.show = false;
                 thisUnusedIndexes.push(pyramidVisualizerIndex);

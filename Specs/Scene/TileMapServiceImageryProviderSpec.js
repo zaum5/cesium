@@ -1,6 +1,7 @@
 /*global defineSuite*/
 defineSuite([
          'Scene/TileMapServiceImageryProvider',
+         'Core/defined',
          'Core/jsonp',
          'Core/loadImage',
          'Core/loadXML',
@@ -16,6 +17,7 @@ defineSuite([
          'ThirdParty/when'
      ], function(
          TileMapServiceImageryProvider,
+         defined,
          jsonp,
          loadImage,
          loadXML,
@@ -120,8 +122,6 @@ defineSuite([
             expect(provider.getExtent()).toEqual(new WebMercatorTilingScheme().getExtent());
 
             loadImage.createImage = function(url, crossOrigin, deferred) {
-                expect(crossOrigin).toEqual(true);
-
                 // Just return any old image.
                 return loadImage.defaultCreateImage('Data/Images/Red16x16.png', crossOrigin, deferred);
             };
@@ -132,7 +132,7 @@ defineSuite([
         });
 
         waitsFor(function() {
-            return typeof tile000Image !== 'undefined';
+            return defined(tile000Image);
         }, 'requested tile to be loaded');
 
         runs(function() {
@@ -144,7 +144,7 @@ defineSuite([
         var provider = new TileMapServiceImageryProvider({
             url : 'made/up/tms/server'
         });
-        expect(provider.getLogo()).toBeUndefined();
+        expect(provider.getCredit()).toBeUndefined();
     });
 
     it('turns the supplied credit into a logo', function() {
@@ -152,7 +152,7 @@ defineSuite([
             url : 'made/up/gms/server',
             credit : 'Thanks to our awesome made up source of this imagery!'
         });
-        expect(providerWithCredit.getLogo()).toBeDefined();
+        expect(providerWithCredit.getCredit()).toBeDefined();
     });
 
     it('routes requests through a proxy if one is specified', function() {
@@ -172,7 +172,6 @@ defineSuite([
             loadImage.createImage = function(url, crossOrigin, deferred) {
                 expect(url.indexOf(proxy.getURL('made/up/tms/server'))).toEqual(0);
                 expect(provider.getProxy()).toEqual(proxy);
-                expect(crossOrigin).toEqual(true);
 
                 // Just return any old image.
                 return loadImage.defaultCreateImage('Data/Images/Red16x16.png', crossOrigin, deferred);
@@ -184,7 +183,7 @@ defineSuite([
         });
 
         waitsFor(function() {
-            return typeof tile000Image !== 'undefined';
+            return defined(tile000Image);
         }, 'requested tile to be loaded');
 
         runs(function() {
@@ -324,6 +323,74 @@ defineSuite([
             expect(provider.getExtent().south).toBeGreaterThanOrEqualTo(provider.getTilingScheme().getExtent().south);
             expect(provider.getExtent().north).toEqualEpsilon(WebMercatorProjection.MaximumLatitude, CesiumMath.EPSILON14);
             expect(provider.getExtent().north).toBeLessThanOrEqualTo(provider.getTilingScheme().getExtent().north);
+        });
+    });
+
+    it('uses a minimum level if the tilemapresource.xml specifies one and it is reasonable', function() {
+        loadXML.loadXML = function(url, headers, deferred) {
+            var parser = new DOMParser();
+            var xmlString =
+                "<TileMap version='1.0.0' tilemapservice='http://tms.osgeo.org/1.0.0'>" +
+                "  <Title>dnb_land_ocean_ice.2012.54000x27000_geo.tif</Title>" +
+                "  <Abstract/>" +
+                "  <SRS>EPSG:900913</SRS>" +
+                "  <BoundingBox minx='-10.0' miny='5.0' maxx='-9.0' maxy='6.0'/>" +
+                "  <Origin x='-88.0' y='-180.00000000000000'/>" +
+                "  <TileFormat width='256' height='256' mime-type='image/png' extension='png'/>" +
+                "  <TileSets profile='mercator'>" +
+                "    <TileSet href='7' units-per-pixel='1222.99245234375008' order='7'/>" +
+                "    <TileSet href='8' units-per-pixel='611.49622617187504' order='8'/>" +
+                "  </TileSets>" +
+                "</TileMap>";
+            var xml = parser.parseFromString(xmlString, "text/xml");
+            deferred.resolve(xml);
+        };
+
+        var provider = new TileMapServiceImageryProvider({
+            url : 'made/up/tms/server'
+        });
+
+        waitsFor(function() {
+            return provider.isReady();
+        }, 'imagery provider to become ready');
+
+        runs(function() {
+            expect(provider.getMaximumLevel()).toBe(8);
+            expect(provider.getMinimumLevel()).toBe(7);
+        });
+    });
+
+    it('ignores the minimum level in the tilemapresource.xml if it is unreasonable', function() {
+        loadXML.loadXML = function(url, headers, deferred) {
+            var parser = new DOMParser();
+            var xmlString =
+                "<TileMap version='1.0.0' tilemapservice='http://tms.osgeo.org/1.0.0'>" +
+                "  <Title>dnb_land_ocean_ice.2012.54000x27000_geo.tif</Title>" +
+                "  <Abstract/>" +
+                "  <SRS>EPSG:900913</SRS>" +
+                "  <BoundingBox minx='-170.0' miny='-85.0' maxx='170.0' maxy='85.0'/>" +
+                "  <Origin x='-88.0' y='-180.00000000000000'/>" +
+                "  <TileFormat width='256' height='256' mime-type='image/png' extension='png'/>" +
+                "  <TileSets profile='mercator'>" +
+                "    <TileSet href='7' units-per-pixel='1222.99245234375008' order='7'/>" +
+                "    <TileSet href='8' units-per-pixel='611.49622617187504' order='8'/>" +
+                "  </TileSets>" +
+                "</TileMap>";
+            var xml = parser.parseFromString(xmlString, "text/xml");
+            deferred.resolve(xml);
+        };
+
+        var provider = new TileMapServiceImageryProvider({
+            url : 'made/up/tms/server'
+        });
+
+        waitsFor(function() {
+            return provider.isReady();
+        }, 'imagery provider to become ready');
+
+        runs(function() {
+            expect(provider.getMaximumLevel()).toBe(8);
+            expect(provider.getMinimumLevel()).toBe(0);
         });
     });
 });

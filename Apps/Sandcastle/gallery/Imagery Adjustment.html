@@ -5,20 +5,20 @@
     <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">  <!-- Use Chrome Frame in IE -->
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
     <meta name="description" content="Adjust brightness, contrast, hue, saturation, and gamma of an imagery layer.">
+    <meta name="cesium-sandcastle-labels" content="Showcases">
     <title>Cesium Demo</title>
     <script type="text/javascript" src="../Sandcastle-header.js"></script>
     <script type="text/javascript">
     var dojoConfig = {
         baseUrl : '../../../Source',
         packages: [
-            { name: 'dojo', location: '../ThirdParty/dojo-release-1.8.3-src/dojo' },
-            { name: 'dijit', location: '../ThirdParty/dojo-release-1.8.3-src/dijit' },
-            { name: 'dojox', location: '../ThirdParty/dojo-release-1.8.3-src/dojox' }
+            { name: 'dojo', location: '../ThirdParty/dojo-release-1.9.1/dojo' },
+            { name: 'dijit', location: '../ThirdParty/dojo-release-1.9.1/dijit' }
         ]
     };
     </script>
-    <script data-dojo-config="async: 1, tlmSiblingOfDojo: 0" src="../../../ThirdParty/dojo-release-1.8.3-src/dojo/dojo.js"></script>
-    <link rel="stylesheet" href="../../../ThirdParty/dojo-release-1.8.3-src/dijit/themes/claro/claro.css" type="text/css">
+    <script data-dojo-config="async: 1, tlmSiblingOfDojo: 0" src="../../../ThirdParty/dojo-release-1.9.1/dojo/dojo.js"></script>
+    <link rel="stylesheet" href="../../../ThirdParty/dojo-release-1.9.1/dijit/themes/claro/claro.css" type="text/css">
 </head>
 <body class="claro sandcastle-loading" data-sandcastle-bucket="bucket-dojo.html" data-sandcastle-title="Cesium + Dojo">
 <style>
@@ -55,9 +55,9 @@
 </div>
 <script id="cesium_sandcastle_script">
 require([
-    'Cesium', 'dijit/form/HorizontalSlider'
+    'Cesium', 'dijit/form/HorizontalSlider', 'dijit/TitlePane'
 ], function(
-    Cesium, HorizontalSlider)
+    Cesium, HorizontalSlider, TitlePane)
 {
     "use strict";
 
@@ -69,6 +69,13 @@ require([
     var gammaSlider;
 
     function createAdjustmentUserInterface() {
+        var tp = new TitlePane({
+            title: 'Adjust Imagery',
+            id:'title-pane',
+            content: document.getElementById('layerTable'),
+            open: false
+        });
+        document.getElementById('toolbar').appendChild(tp.domNode);
         brightnessSlider = new HorizontalSlider({
             value : imageryLayerCollection.get(0).brightness,
             minimum : 0.0,

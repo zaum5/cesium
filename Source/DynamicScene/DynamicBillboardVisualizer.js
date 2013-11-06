@@ -1,6 +1,7 @@
 /*global define*/
 define([
         '../Core/DeveloperError',
+        '../Core/defined',
         '../Core/destroyObject',
         '../Core/Color',
         '../Core/Cartesian2',
@@ -11,6 +12,7 @@ define([
         '../Renderer/TextureAtlasBuilder'
     ], function(
         DeveloperError,
+        defined,
         destroyObject,
         Color,
         Cartesian2,
@@ -28,7 +30,7 @@ define([
             //gone or have been assigned a different texture.  Look it up again
             //and check.
             var currentIndex = dynamicObject._billboardVisualizerIndex;
-            if (typeof currentIndex !== 'undefined') {
+            if (defined(currentIndex)) {
                 var cbBillboard = billboardCollection.get(currentIndex);
                 if (cbBillboard._visualizerUrl === textureValue) {
                     cbBillboard._visualizerTextureAvailable = true;
@@ -65,7 +67,7 @@ define([
      *
      */
     var DynamicBillboardVisualizer = function(scene, dynamicObjectCollection) {
-        if (typeof scene === 'undefined') {
+        if (!defined(scene)) {
             throw new DeveloperError('scene is required.');
         }
 
@@ -107,13 +109,13 @@ define([
     DynamicBillboardVisualizer.prototype.setDynamicObjectCollection = function(dynamicObjectCollection) {
         var oldCollection = this._dynamicObjectCollection;
         if (oldCollection !== dynamicObjectCollection) {
-            if (typeof oldCollection !== 'undefined') {
-                oldCollection.objectsRemoved.removeEventListener(DynamicBillboardVisualizer.prototype._onObjectsRemoved, this);
+            if (defined(oldCollection)) {
+                oldCollection.collectionChanged.removeEventListener(DynamicBillboardVisualizer.prototype._onObjectsRemoved, this);
                 this.removeAllPrimitives();
             }
             this._dynamicObjectCollection = dynamicObjectCollection;
-            if (typeof dynamicObjectCollection !== 'undefined') {
-                dynamicObjectCollection.objectsRemoved.addEventListener(DynamicBillboardVisualizer.prototype._onObjectsRemoved, this);
+            if (defined(dynamicObjectCollection)) {
+                dynamicObjectCollection.collectionChanged.addEventListener(DynamicBillboardVisualizer.prototype._onObjectsRemoved, this);
             }
         }
     };
@@ -127,13 +129,13 @@ define([
      * @exception {DeveloperError} time is required.
      */
     DynamicBillboardVisualizer.prototype.update = function(time) {
-        if (typeof time === 'undefined') {
+        if (!defined(time)) {
             throw new DeveloperError('time is requied.');
         }
-        if (typeof this._dynamicObjectCollection !== 'undefined') {
+        if (defined(this._dynamicObjectCollection)) {
             var dynamicObjects = this._dynamicObjectCollection.getObjects();
             for ( var i = 0, len = dynamicObjects.length; i < len; i++) {
-                this._updateObject(time, dynamicObjects[i]);
+                updateObject(this, time, dynamicObjects[i]);
             }
         }
     };
@@ -142,7 +144,7 @@ define([
      * Removes all primitives from the scene.
      */
     DynamicBillboardVisualizer.prototype.removeAllPrimitives = function() {
-        if (typeof this._dynamicObjectCollection !== 'undefined') {
+        if (defined(this._dynamicObjectCollection)) {
             this._unusedIndexes = [];
             this._billboardCollection.removeAll();
             var dynamicObjects = this._dynamicObjectCollection.getObjects();
@@ -160,7 +162,7 @@ define([
      *
      * @memberof DynamicBillboardVisualizer
      *
-     * @return {Boolean} True if this object was destroyed; otherwise, false.
+     * @returns {Boolean} True if this object was destroyed; otherwise, false.
      *
      * @see DynamicBillboardVisualizer#destroy
      */
@@ -178,7 +180,7 @@ define([
      *
      * @memberof DynamicBillboardVisualizer
      *
-     * @return {undefined}
+     * @returns {undefined}
      *
      * @exception {DeveloperError} This object was destroyed, i.e., destroy() was called.
      *
@@ -197,50 +199,50 @@ define([
     var color;
     var eyeOffset;
     var pixelOffset;
-    DynamicBillboardVisualizer.prototype._updateObject = function(time, dynamicObject) {
-        var dynamicBillboard = dynamicObject.billboard;
-        if (typeof dynamicBillboard === 'undefined') {
+    function updateObject(dynamicBillboardVisualizer, time, dynamicObject) {
+        var dynamicBillboard = dynamicObject._billboard;
+        if (!defined(dynamicBillboard)) {
             return;
         }
 
-        var positionProperty = dynamicObject.position;
-        if (typeof positionProperty === 'undefined') {
+        var positionProperty = dynamicObject._position;
+        if (!defined(positionProperty)) {
             return;
         }
 
-        var textureProperty = dynamicBillboard.image;
-        if (typeof textureProperty === 'undefined') {
+        var textureProperty = dynamicBillboard._image;
+        if (!defined(textureProperty)) {
             return;
         }
 
         var billboard;
-        var showProperty = dynamicBillboard.show;
+        var showProperty = dynamicBillboard._show;
         var billboardVisualizerIndex = dynamicObject._billboardVisualizerIndex;
-        var show = dynamicObject.isAvailable(time) && (typeof showProperty === 'undefined' || showProperty.getValue(time));
+        var show = dynamicObject.isAvailable(time) && (!defined(showProperty) || showProperty.getValue(time));
 
         if (!show) {
             //don't bother creating or updating anything else
-            if (typeof billboardVisualizerIndex !== 'undefined') {
-                billboard = this._billboardCollection.get(billboardVisualizerIndex);
+            if (defined(billboardVisualizerIndex)) {
+                billboard = dynamicBillboardVisualizer._billboardCollection.get(billboardVisualizerIndex);
                 billboard.setShow(false);
                 billboard.setImageIndex(-1);
                 billboard._visualizerUrl = undefined;
                 billboard._visualizerTextureAvailable = false;
                 dynamicObject._billboardVisualizerIndex = undefined;
-                this._unusedIndexes.push(billboardVisualizerIndex);
+                dynamicBillboardVisualizer._unusedIndexes.push(billboardVisualizerIndex);
             }
             return;
         }
 
-        if (typeof billboardVisualizerIndex === 'undefined') {
-            var unusedIndexes = this._unusedIndexes;
+        if (!defined(billboardVisualizerIndex)) {
+            var unusedIndexes = dynamicBillboardVisualizer._unusedIndexes;
             var length = unusedIndexes.length;
             if (length > 0) {
                 billboardVisualizerIndex = unusedIndexes.pop();
-                billboard = this._billboardCollection.get(billboardVisualizerIndex);
+                billboard = dynamicBillboardVisualizer._billboardCollection.get(billboardVisualizerIndex);
             } else {
-                billboardVisualizerIndex = this._billboardCollection.getLength();
-                billboard = this._billboardCollection.add();
+                billboardVisualizerIndex = dynamicBillboardVisualizer._billboardCollection.getLength();
+                billboard = dynamicBillboardVisualizer._billboardCollection.add();
             }
             dynamicObject._billboardVisualizerIndex = billboardVisualizerIndex;
             billboard.dynamicObject = dynamicObject;
@@ -255,14 +257,14 @@ define([
             billboard.setHorizontalOrigin(HorizontalOrigin.CENTER);
             billboard.setVerticalOrigin(VerticalOrigin.CENTER);
         } else {
-            billboard = this._billboardCollection.get(billboardVisualizerIndex);
+            billboard = dynamicBillboardVisualizer._billboardCollection.get(billboardVisualizerIndex);
         }
 
         var textureValue = textureProperty.getValue(time);
         if (textureValue !== billboard._visualizerUrl) {
             billboard._visualizerUrl = textureValue;
             billboard._visualizerTextureAvailable = false;
-            this._textureAtlasBuilder.addTextureFromUrl(textureValue, textureReady(dynamicObject, this._billboardCollection, textureValue));
+            dynamicBillboardVisualizer._textureAtlasBuilder.addTextureFromUrl(textureValue, textureReady(dynamicObject, dynamicBillboardVisualizer._billboardCollection, textureValue));
         }
 
         billboard.setShow(billboard._visualizerTextureAvailable);
@@ -270,68 +272,104 @@ define([
             return;
         }
 
-        position = positionProperty.getValueCartesian(time, position);
-        if (typeof position !== 'undefined') {
+        position = positionProperty.getValue(time, position);
+        if (defined(position)) {
             billboard.setPosition(position);
         }
 
-        var property = dynamicBillboard.color;
+        var property = dynamicBillboard._color;
 
-        if (typeof property !== 'undefined') {
+        if (defined(property)) {
             color = property.getValue(time, color);
-            if (typeof color !== 'undefined') {
+            if (defined(color)) {
                 billboard.setColor(color);
             }
         }
 
-        property = dynamicBillboard.eyeOffset;
-        if (typeof property !== 'undefined') {
+        property = dynamicBillboard._eyeOffset;
+        if (defined(property)) {
             eyeOffset = property.getValue(time, eyeOffset);
-            if (typeof eyeOffset !== 'undefined') {
+            if (defined(eyeOffset)) {
                 billboard.setEyeOffset(eyeOffset);
             }
         }
 
-        property = dynamicBillboard.pixelOffset;
-        if (typeof property !== 'undefined') {
+        property = dynamicBillboard._pixelOffset;
+        if (defined(property)) {
             pixelOffset = property.getValue(time, pixelOffset);
-            if (typeof pixelOffset !== 'undefined') {
+            if (defined(pixelOffset)) {
                 billboard.setPixelOffset(pixelOffset);
             }
         }
 
-        property = dynamicBillboard.scale;
-        if (typeof property !== 'undefined') {
+        property = dynamicBillboard._scale;
+        if (defined(property)) {
             var scale = property.getValue(time);
-            if (typeof scale !== 'undefined') {
+            if (defined(scale)) {
                 billboard.setScale(scale);
             }
         }
 
-        property = dynamicBillboard.horizontalOrigin;
-        if (typeof property !== 'undefined') {
+        property = dynamicBillboard._rotation;
+        if (defined(property)) {
+            var rotation = property.getValue(time);
+            if (defined(rotation)) {
+                billboard.setRotation(rotation);
+            }
+        }
+
+        property = dynamicBillboard._alignedAxis;
+        if (defined(property)) {
+            var alignedAxis = property.getValue(time);
+            if (defined(alignedAxis)) {
+                billboard.setAlignedAxis(alignedAxis);
+            }
+        }
+
+        property = dynamicBillboard._horizontalOrigin;
+        if (defined(property)) {
             var horizontalOrigin = property.getValue(time);
-            if (typeof horizontalOrigin !== 'undefined') {
+            if (defined(horizontalOrigin)) {
                 billboard.setHorizontalOrigin(horizontalOrigin);
             }
         }
 
-        property = dynamicBillboard.verticalOrigin;
-        if (typeof property !== 'undefined') {
+        property = dynamicBillboard._verticalOrigin;
+        if (defined(property)) {
             var verticalOrigin = property.getValue(time);
-            if (typeof verticalOrigin !== 'undefined') {
+            if (defined(verticalOrigin)) {
                 billboard.setVerticalOrigin(verticalOrigin);
             }
         }
-    };
 
-    DynamicBillboardVisualizer.prototype._onObjectsRemoved = function(dynamicObjectCollection, dynamicObjects) {
+        property = dynamicBillboard._width;
+        if (defined(property)) {
+            billboard.setWidth(property.getValue(time));
+        }
+
+        property = dynamicBillboard._height;
+        if (defined(property)) {
+            billboard.setHeight(property.getValue(time));
+        }
+
+        property = dynamicBillboard._scaleByDistance;
+        if (defined(property)) {
+            billboard.setScaleByDistance(property.getValue(time));
+        }
+
+        property = dynamicBillboard._translucencyByDistance;
+        if (defined(property)) {
+            billboard.setTranslucencyByDistance(property.getValue(time));
+        }
+    }
+
+    DynamicBillboardVisualizer.prototype._onObjectsRemoved = function(dynamicObjectCollection, added, dynamicObjects) {
         var thisBillboardCollection = this._billboardCollection;
         var thisUnusedIndexes = this._unusedIndexes;
         for ( var i = dynamicObjects.length - 1; i > -1; i--) {
             var dynamicObject = dynamicObjects[i];
             var billboardVisualizerIndex = dynamicObject._billboardVisualizerIndex;
-            if (typeof billboardVisualizerIndex !== 'undefined') {
+            if (defined(billboardVisualizerIndex)) {
                 var billboard = thisBillboardCollection.get(billboardVisualizerIndex);
                 billboard.setShow(false);
                 billboard.setImageIndex(-1);

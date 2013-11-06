@@ -1,25 +1,15 @@
 /*global define*/
 define([
-        '../Core/defaultValue',
+        '../Core/defined',
         '../Core/destroyObject',
-        '../Core/BoundingSphere',
-        '../Core/Cartesian3',
-        '../Core/Cartesian4',
         '../Core/DeveloperError',
-        '../Core/Intersect',
-        '../Core/Matrix4',
         './CustomSensorVolume',
         './RectangularPyramidSensorVolume',
         './SceneMode'
     ], function(
-        defaultValue,
+        defined,
         destroyObject,
-        BoundingSphere,
-        Cartesian3,
-        Cartesian4,
         DeveloperError,
-        Intersect,
-        Matrix4,
         CustomSensorVolume,
         RectangularPyramidSensorVolume,
         SceneMode) {
@@ -45,8 +35,8 @@ define([
      * @see SensorVolumeCollection#addCustom
      * @see SensorVolumeCollection#addComplexConic
      */
-    SensorVolumeCollection.prototype.addRectangularPyramid = function(template) {
-        var sensor = new RectangularPyramidSensorVolume(template);
+    SensorVolumeCollection.prototype.addRectangularPyramid = function(options) {
+        var sensor = new RectangularPyramidSensorVolume(options);
         this._sensors.push(sensor);
         return sensor;
     };
@@ -59,8 +49,8 @@ define([
      * @see SensorVolumeCollection#addRectangularPyramid
      * @see SensorVolumeCollection#addComplexConic
      */
-    SensorVolumeCollection.prototype.addCustom = function(template) {
-        var sensor = new CustomSensorVolume(template);
+    SensorVolumeCollection.prototype.addCustom = function(options) {
+        var sensor = new CustomSensorVolume(options);
         this._sensors.push(sensor);
         return sensor;
     };
@@ -123,7 +113,7 @@ define([
      * @see SensorVolumeCollection#getLength
      */
     SensorVolumeCollection.prototype.get = function(index) {
-        if (typeof index === 'undefined') {
+        if (!defined(index)) {
             throw new DeveloperError('index is required.');
         }
 

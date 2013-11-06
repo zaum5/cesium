@@ -3,6 +3,7 @@ define([
         '../Core/BoundingSphere',
         '../Core/Cartesian3',
         '../Core/Cartesian4',
+        '../Core/defined',
         '../Core/DeveloperError',
         './ImageryState',
         './TerrainState',
@@ -17,6 +18,7 @@ define([
         BoundingSphere,
         Cartesian3,
         Cartesian4,
+        defined,
         DeveloperError,
         ImageryState,
         TerrainState,
@@ -49,102 +51,95 @@ define([
      * @exception {DeveloperError} description.level is required.
      */
     var Tile = function(description) {
-        if (typeof description === 'undefined') {
+        if (!defined(description)) {
             throw new DeveloperError('description is required.');
         }
 
-        if (typeof description.x === 'undefined' || typeof description.y === 'undefined') {
-            if (typeof description.extent === 'undefined') {
+        if (!defined(description.x) || !defined(description.y)) {
+            if (!defined(description.extent)) {
                 throw new DeveloperError('Either description.extent is required or description.x and description.y are required.');
             }
         } else if (description.x < 0 || description.y < 0) {
             throw new DeveloperError('description.x and description.y must be greater than or equal to zero.');
         }
 
-        if (typeof description.level === 'undefined' || description.zoom < 0) {
+        if (!defined(description.level) || description.zoom < 0) {
             throw new DeveloperError('description.level is required and must be greater than or equal to zero.');
         }
 
-        if (typeof description.tilingScheme === 'undefined') {
+        if (!defined(description.tilingScheme)) {
             throw new DeveloperError('description.tilingScheme is required.');
         }
 
         /**
          * The tiling scheme used to tile the surface.
-         * @type TilingScheme
+         * @type {TilingScheme}
          */
         this.tilingScheme = description.tilingScheme;
 
         /**
          * The x coordinate.
-         * @type Number
+         * @type {Number}
          */
         this.x = description.x;
 
         /**
          * The y coordinate.
-         * @type Number
+         * @type {Number}
          */
         this.y = description.y;
 
         /**
          * The level-of-detail, where zero is the coarsest, least-detailed.
-         * @type Number
+         * @type {Number}
          */
         this.level = description.level;
 
         /**
          * The parent of this tile in a tiling scheme.
-         * @type Tile
+         * @type {Tile}
          */
         this.parent = description.parent;
 
         /**
          * The children of this tile in a tiling scheme.
-         * @type Array
+         * @type {Array}
+         * @default undefined
          */
         this.children = undefined;
 
         /**
          * The cartographic extent of the tile, with north, south, east and
          * west properties in radians.
-         * @type Extent
+         * @type {Extent}
          */
         this.extent = this.tilingScheme.tileXYToExtent(this.x, this.y, this.level);
 
         /**
          * The current state of the tile in the tile load pipeline.
-         * @type TileState
+         * @type {TileState}
+         * @default {@link TileState.START}
          */
         this.state = TileState.START;
 
         /**
-         * The previous tile in the {@link TileLoadQueue}.
-         * @type Tile
-         */
-        this.loadPrevious = undefined;
-
-        /**
-         * The next tile in the {@link TileLoadQueue}.
-         * @type Tile
-         */
-        this.loadNext = undefined;
-
-        /**
          * The previous tile in the {@link TileReplacementQueue}.
-         * @type Tile
+         * @type {Tile}
+         * @default undefined
          */
         this.replacementPrevious = undefined;
 
         /**
          * The next tile in the {@link TileReplacementQueue}.
-         * @type Tile
+         * @type {Tile}
+         * @default undefined
          */
         this.replacementNext = undefined;
 
         /**
          * The {@link TileImagery} attached to this tile.
-         * @type Array
+         * @type {Array}
+         * @default []
          */
         this.imagery = [];
 
@@ -152,21 +147,24 @@ define([
          * The distance from the camera to this tile, updated when the tile is selected
          * for rendering.  We can get rid of this if we have a better way to sort by
          * distance - for example, by using the natural ordering of a quadtree.
-         * @type Number
+         * @type {Number}
+         * @default 0.0
          */
         this.distance = 0.0;
 
         /**
          * The world coordinates of the southwest corner of the tile's extent.
          *
-         * @type Cartesian3
+         * @type {Cartesian3}
+         * @default Cartesian3()
          */
         this.southwestCornerCartesian = new Cartesian3();
 
         /**
          * The world coordinates of the northeast corner of the tile's extent.
          *
-         * @type Cartesian3
+         * @type {Cartesian3}
+         * @default Cartesian3()
          */
         this.northeastCornerCartesian = new Cartesian3();
 
@@ -174,7 +172,8 @@ define([
          * A normal that, along with southwestCornerCartesian, defines a plane at the western edge of
          * the tile.  Any position above (in the direction of the normal) this plane is outside the tile.
          *
-         * @type Cartesian3
+         * @type {Cartesian3}
+         * @default Cartesian3()
          */
         this.westNormal = new Cartesian3();
 
@@ -184,7 +183,8 @@ define([
          * Because points of constant latitude do not necessary lie in a plane, positions below this
          * plane are not necessarily inside the tile, but they are close.
          *
-         * @type Cartesian3
+         * @type {Cartesian3}
+         * @default Cartesian3()
          */
         this.southNormal = new Cartesian3();
 
@@ -192,7 +192,8 @@ define([
          * A normal that, along with northeastCornerCartesian, defines a plane at the eastern edge of
          * the tile.  Any position above (in the direction of the normal) this plane is outside the tile.
          *
-         * @type Cartesian3
+         * @type {Cartesian3}
+         * @default Cartesian3()
          */
         this.eastNormal = new Cartesian3();
 
@@ -202,7 +203,8 @@ define([
          * Because points of constant latitude do not necessary lie in a plane, positions below this
          * plane are not necessarily inside the tile, but they are close.
          *
-         * @type Cartesian3
+         * @type {Cartesian3}
+         * @default Cartesian3()
          */
         this.northNormal = new Cartesian3();
 
@@ -230,10 +232,10 @@ define([
      *
      * @memberof Tile
      *
-     * @return {Array} The list of child tiles.
+     * @returns {Array} The list of child tiles.
      */
     Tile.prototype.getChildren = function() {
-        if (typeof this.children === 'undefined') {
+        if (!defined(this.children)) {
             var tilingScheme = this.tilingScheme;
             var level = this.level + 1;
             var x = this.x * 2;
@@ -269,7 +271,7 @@ define([
     };
 
     Tile.prototype.freeResources = function() {
-        if (typeof this.waterMaskTexture !== 'undefined') {
+        if (defined(this.waterMaskTexture)) {
             --this.waterMaskTexture.referenceCount;
             if (this.waterMaskTexture.referenceCount === 0) {
                 this.waterMaskTexture.destroy();
@@ -281,12 +283,12 @@ define([
         this.isRenderable = false;
         this.terrainData = undefined;
 
-        if (typeof this.loadedTerrain !== 'undefined') {
+        if (defined(this.loadedTerrain)) {
             this.loadedTerrain.freeResources();
             this.loadedTerrain = undefined;
         }
 
-        if (typeof this.upsampledTerrain !== 'undefined') {
+        if (defined(this.upsampledTerrain)) {
             this.upsampledTerrain.freeResources();
             this.upsampledTerrain = undefined;
         }
@@ -299,7 +301,7 @@ define([
         }
         this.imagery.length = 0;
 
-        if (typeof this.children !== 'undefined') {
+        if (defined(this.children)) {
             for (i = 0, len = this.children.length; i < len; ++i) {
                 this.children[i].freeResources();
             }
@@ -310,11 +312,27 @@ define([
     };
 
     Tile.prototype.freeVertexArray = function() {
-        if (typeof this.vertexArray !== 'undefined') {
-            var indexBuffer = this.vertexArray.getIndexBuffer();
+        var indexBuffer;
+
+        if (defined(this.vertexArray)) {
+            indexBuffer = this.vertexArray.getIndexBuffer();
 
             this.vertexArray.destroy();
             this.vertexArray = undefined;
+
+            if (!indexBuffer.isDestroyed() && defined(indexBuffer.referenceCount)) {
+                --indexBuffer.referenceCount;
+                if (indexBuffer.referenceCount === 0) {
+                    indexBuffer.destroy();
+                }
+            }
+        }
+
+        if (typeof this.wireframeVertexArray !== 'undefined') {
+            indexBuffer = this.wireframeVertexArray.getIndexBuffer();
+
+            this.wireframeVertexArray.destroy();
+            this.wireframeVertexArray = undefined;
 
             if (!indexBuffer.isDestroyed() && typeof indexBuffer.referenceCount !== 'undefined') {
                 --indexBuffer.referenceCount;
@@ -335,17 +353,22 @@ define([
             processTerrainStateMachine(this, context, terrainProvider);
         }
 
-        var isRenderable = typeof this.vertexArray !== 'undefined';
-        var isDoneLoading = typeof this.loadedTerrain === 'undefined' && typeof this.upsampledTerrain === 'undefined';
+        // The terrain is renderable as soon as we have a valid vertex array.
+        var isRenderable = defined(this.vertexArray);
+
+        // But it's not done loading until our two state machines are terminated.
+        var isDoneLoading = !defined(this.loadedTerrain) && !defined(this.upsampledTerrain);
 
         // Transition imagery states
         var tileImageryCollection = this.imagery;
         for (var i = 0, len = tileImageryCollection.length; i < len; ++i) {
             var tileImagery = tileImageryCollection[i];
-            var imagery = tileImagery.imagery;
-            var imageryLayer = imagery.imageryLayer;
+            if (!defined(tileImagery.loadingImagery)) {
+                continue;
+            }
 
-            if (imagery.state === ImageryState.PLACEHOLDER) {
+            if (tileImagery.loadingImagery.state === ImageryState.PLACEHOLDER) {
+                var imageryLayer = tileImagery.loadingImagery.imageryLayer;
                 if (imageryLayer.getImageryProvider().isReady()) {
                     // Remove the placeholder and add the actual skeletons (if any)
                     // at the same position.  Then continue the loop at the same index.
@@ -354,62 +377,22 @@ define([
                     imageryLayer._createTileImagerySkeletons(this, terrainProvider, i);
                     --i;
                     len = tileImageryCollection.length;
-                }
-            }
-
-            if (imagery.state === ImageryState.UNLOADED) {
-                imagery.state = ImageryState.TRANSITIONING;
-                imageryLayer._requestImagery(imagery);
-            }
-
-            if (imagery.state === ImageryState.RECEIVED) {
-                imagery.state = ImageryState.TRANSITIONING;
-                imageryLayer._createTexture(context, imagery);
-            }
-
-            if (imagery.state === ImageryState.TEXTURE_LOADED) {
-                imagery.state = ImageryState.TRANSITIONING;
-                imageryLayer._reprojectTexture(context, imagery);
-            }
-
-            if (imagery.state === ImageryState.FAILED || imagery.state === ImageryState.INVALID) {
-                // re-associate TileImagery with a parent Imagery that is not failed or invalid.
-                var parent = imagery.parent;
-                while (typeof parent !== 'undefined' && (parent.state === ImageryState.FAILED || parent.state === ImageryState.INVALID)) {
-                    parent = parent.parent;
-                }
-
-                // If there's no valid parent, remove this TileImagery from the tile.
-                if (typeof parent === 'undefined') {
-                    tileImagery.freeResources();
-                    tileImageryCollection.splice(i, 1);
-                    --i;
-                    len = tileImageryCollection.length;
                     continue;
                 }
-
-                // use that parent imagery instead, storing the original imagery
-                // in originalImagery to keep it alive
-                tileImagery.originalImagery = imagery;
-
-                parent.addReference();
-                tileImagery.imagery = parent;
-                imagery = parent;
             }
 
-            var imageryDoneLoading = imagery.state === ImageryState.READY;
+            var thisTileDoneLoading = tileImagery.processStateMachine(this, context);
+            isDoneLoading = isDoneLoading && thisTileDoneLoading;
 
-            if (imageryDoneLoading && typeof tileImagery.textureTranslationAndScale === 'undefined') {
-                tileImagery.textureTranslationAndScale = imageryLayer._calculateTextureTranslationAndScale(this, tileImagery);
-            }
-
-            isRenderable = isRenderable && (imageryDoneLoading || imageryLayer.alpha === 0.0);
-            isDoneLoading = isDoneLoading && imageryDoneLoading;
+            // The imagery is renderable as soon as we have any renderable imagery for this region.
+            isRenderable = isRenderable && (thisTileDoneLoading || defined(tileImagery.readyImagery));
         }
 
         // The tile becomes renderable when the terrain and all imagery data are loaded.
-        if (i === len && isRenderable) {
-            this.isRenderable = true;
+        if (i === len) {
+            if (isRenderable) {
+                this.isRenderable = true;
+            }
 
             if (isDoneLoading) {
                 this.state = TileState.READY;
@@ -424,7 +407,7 @@ define([
 
     function prepareNewTile(tile, terrainProvider, imageryLayerCollection) {
         var upsampleTileDetails = getUpsampleTileDetails(tile);
-        if (typeof upsampleTileDetails !== 'undefined') {
+        if (defined(upsampleTileDetails)) {
             tile.upsampledTerrain = new TileTerrain(upsampleTileDetails);
         }
 
@@ -449,10 +432,23 @@ define([
         ellipsoid.cartographicToCartesian(extent.getNortheast(), tile.northeastCornerCartesian);
         var northwestCornerCartesian = ellipsoid.cartographicToCartesian(extent.getNorthwest(), northwestScratch);
 
-        Cartesian3.UNIT_Z.cross(tile.southwestCornerCartesian.negate(cartesian3Scratch), cartesian3Scratch).normalize(tile.westNormal);
-        tile.northeastCornerCartesian.negate(cartesian3Scratch).cross(Cartesian3.UNIT_Z, cartesian3Scratch).normalize(tile.eastNormal);
-        ellipsoid.geodeticSurfaceNormal(southeastCornerCartesian, cartesian3Scratch).cross(tile.southwestCornerCartesian.subtract(southeastCornerCartesian, cartesian3Scratch2), cartesian3Scratch).normalize(tile.southNormal);
-        ellipsoid.geodeticSurfaceNormal(northwestCornerCartesian, cartesian3Scratch).cross(tile.northeastCornerCartesian.subtract(northwestCornerCartesian, cartesian3Scratch2), cartesian3Scratch).normalize(tile.northNormal);
+        Cartesian3.negate(tile.southwestCornerCartesian, cartesian3Scratch);
+        Cartesian3.cross(Cartesian3.UNIT_Z, cartesian3Scratch, cartesian3Scratch);
+        Cartesian3.normalize(cartesian3Scratch, tile.westNormal);
+
+        Cartesian3.negate(tile.northeastCornerCartesian, cartesian3Scratch);
+        Cartesian3.cross(cartesian3Scratch, Cartesian3.UNIT_Z, cartesian3Scratch);
+        Cartesian3.normalize(cartesian3Scratch, tile.eastNormal);
+
+        ellipsoid.geodeticSurfaceNormal(southeastCornerCartesian, cartesian3Scratch2);
+        Cartesian3.subtract(tile.southwestCornerCartesian, southeastCornerCartesian, cartesian3Scratch);
+        Cartesian3.cross(cartesian3Scratch2, cartesian3Scratch, cartesian3Scratch);
+        Cartesian3.normalize(cartesian3Scratch, tile.southNormal);
+
+        ellipsoid.geodeticSurfaceNormal(northwestCornerCartesian, cartesian3Scratch2);
+        Cartesian3.subtract(tile.northeastCornerCartesian, northwestCornerCartesian, cartesian3Scratch);
+        Cartesian3.cross(cartesian3Scratch2, cartesian3Scratch, cartesian3Scratch);
+        Cartesian3.normalize(cartesian3Scratch, tile.northNormal);
     }
 
     function processTerrainStateMachine(tile, context, terrainProvider) {
@@ -460,7 +456,7 @@ define([
         var upsampled = tile.upsampledTerrain;
         var suspendUpsampling = false;
 
-        if (typeof loaded !== 'undefined') {
+        if (defined(loaded)) {
             loaded.processLoadStateMachine(context, terrainProvider, tile.x, tile.y, tile.level);
 
             // Publish the terrain data on the tile as soon as it is available.
@@ -472,8 +468,8 @@ define([
                     // If there's a water mask included in the terrain data, create a
                     // texture for it.
                     var waterMask = tile.terrainData.getWaterMask();
-                    if (typeof waterMask !== 'undefined') {
-                        if (typeof tile.waterMaskTexture !== 'undefined') {
+                    if (defined(waterMask)) {
+                        if (defined(tile.waterMaskTexture)) {
                             --tile.waterMaskTexture.referenceCount;
                             if (tile.waterMaskTexture.referenceCount === 0) {
                                 tile.waterMaskTexture.destroy();
@@ -505,7 +501,7 @@ define([
             }
         }
 
-        if (!suspendUpsampling && typeof upsampled !== 'undefined') {
+        if (!suspendUpsampling && defined(upsampled)) {
             upsampled.processUpsampleStateMachine(context, terrainProvider, tile.x, tile.y, tile.level);
 
             // Publish the terrain data on the tile as soon as it is available.
@@ -542,11 +538,11 @@ define([
     function getUpsampleTileDetails(tile) {
         // Find the nearest ancestor with loaded terrain.
         var sourceTile = tile.parent;
-        while (typeof sourceTile !== 'undefined' && typeof sourceTile.terrainData === 'undefined') {
+        while (defined(sourceTile) && !defined(sourceTile.terrainData)) {
             sourceTile = sourceTile.parent;
         }
 
-        if (typeof sourceTile === 'undefined') {
+        if (!defined(sourceTile)) {
             // No ancestors have loaded terrain - try again later.
             return undefined;
         }
@@ -567,11 +563,11 @@ define([
         // of its ancestors receives new (better) data and we want to re-upsample from the
         // new data.
 
-        if (typeof tile.children !== 'undefined') {
+        if (defined(tile.children)) {
             for (var childIndex = 0; childIndex < 4; ++childIndex) {
                 var childTile = tile.children[childIndex];
                 if (childTile.state !== TileState.START) {
-                    if (typeof childTile.terrainData !== 'undefined' && !childTile.terrainData.wasCreatedByUpsampling()) {
+                    if (defined(childTile.terrainData) && !childTile.terrainData.wasCreatedByUpsampling()) {
                         // Data for the child tile has already been loaded.
                         continue;
                     }
@@ -579,7 +575,7 @@ define([
                     // Restart the upsampling process, no matter its current state.
                     // We create a new instance rather than just restarting the existing one
                     // because there could be an asynchronous operation pending on the existing one.
-                    if (typeof childTile.upsampledTerrain !== 'undefined') {
+                    if (defined(childTile.upsampledTerrain)) {
                         childTile.upsampledTerrain.freeResources();
                     }
                     childTile.upsampledTerrain = new TileTerrain({
@@ -600,11 +596,11 @@ define([
         //  - child tiles that were previously upsampled need to be re-upsampled based on the new data.
         //  - child tiles that were previously deemed unavailable may now be available.
 
-        if (typeof tile.children !== 'undefined') {
+        if (defined(tile.children)) {
             for (var childIndex = 0; childIndex < 4; ++childIndex) {
                 var childTile = tile.children[childIndex];
                 if (childTile.state !== TileState.START) {
-                    if (typeof childTile.terrainData !== 'undefined' && !childTile.terrainData.wasCreatedByUpsampling()) {
+                    if (defined(childTile.terrainData) && !childTile.terrainData.wasCreatedByUpsampling()) {
                         // Data for the child tile has already been loaded.
                         continue;
                     }
@@ -612,7 +608,7 @@ define([
                     // Restart the upsampling process, no matter its current state.
                     // We create a new instance rather than just restarting the existing one
                     // because there could be an asynchronous operation pending on the existing one.
-                    if (typeof childTile.upsampledTerrain !== 'undefined') {
+                    if (defined(childTile.upsampledTerrain)) {
                         childTile.upsampledTerrain.freeResources();
                     }
                     childTile.upsampledTerrain = new TileTerrain({
@@ -624,7 +620,7 @@ define([
 
                     if (tile.terrainData.isChildAvailable(tile.x, tile.y, childTile.x, childTile.y)) {
                         // Data is available for the child now.  It might have been before, too.
-                        if (typeof childTile.loadedTerrain === 'undefined') {
+                        if (!defined(childTile.loadedTerrain)) {
                             // No load process is in progress, so start one.
                             childTile.loadedTerrain = new TileTerrain();
                         }
@@ -638,12 +634,12 @@ define([
 
     function isDataAvailable(tile) {
         var parent = tile.parent;
-        if (typeof parent === 'undefined') {
+        if (!defined(parent)) {
             // Data is assumed to be available for root tiles.
             return true;
         }
 
-        if (typeof parent.terrainData === 'undefined') {
+        if (!defined(parent.terrainData)) {
             // Parent tile data is not yet received or upsampled, so assume (for now) that this
             // child tile is not available.
             return false;
@@ -656,16 +652,16 @@ define([
         var result;
 
         var waterMaskData = context.cache.tile_waterMaskData;
-        if (typeof waterMaskData === 'undefined') {
+        if (!defined(waterMaskData)) {
             waterMaskData = context.cache.tile_waterMaskData = {
                     allWaterTexture : undefined,
                     allLandTexture : undefined,
                     sampler : undefined,
                     destroy : function() {
-                        if (typeof this.allWaterTexture !== 'undefined') {
+                        if (defined(this.allWaterTexture)) {
                             this.allWaterTexture.destroy();
                         }
-                        if (typeof this.allLandTexture !== 'undefined') {
+                        if (defined(this.allLandTexture)) {
                             this.allLandTexture.destroy();
                         }
                     }
@@ -675,7 +671,7 @@ define([
         var waterMaskSize = Math.sqrt(waterMask.length);
         if (waterMaskSize === 1 && (waterMask[0] === 0 || waterMask[0] === 255)) {
             // Tile is entirely land or entirely water.
-            if (typeof waterMaskData.allWaterTexture === 'undefined') {
+            if (!defined(waterMaskData.allWaterTexture)) {
                 waterMaskData.allWaterTexture = context.createTexture2D({
                     pixelFormat : PixelFormat.LUMINANCE,
                     pixelDatatype : PixelDatatype.UNSIGNED_BYTE,
@@ -713,10 +709,10 @@ define([
 
             result.referenceCount = 0;
 
-            if (typeof waterMaskData.sampler === 'undefined') {
+            if (!defined(waterMaskData.sampler)) {
                 waterMaskData.sampler = context.createSampler({
-                    wrapS : TextureWrap.CLAMP,
-                    wrapT : TextureWrap.CLAMP,
+                    wrapS : TextureWrap.CLAMP_TO_EDGE,
+                    wrapT : TextureWrap.CLAMP_TO_EDGE,
                     minificationFilter : TextureMinificationFilter.LINEAR,
                     magnificationFilter : TextureMagnificationFilter.LINEAR
                 });
@@ -732,11 +728,11 @@ define([
     function upsampleWaterMask(tile, context) {
         // Find the nearest ancestor with loaded terrain.
         var sourceTile = tile.parent;
-        while (typeof sourceTile !== 'undefined' && (typeof sourceTile.terrainData === 'undefined' || sourceTile.terrainData.wasCreatedByUpsampling())) {
+        while (defined(sourceTile) && !defined(sourceTile.terrainData) || sourceTile.terrainData.wasCreatedByUpsampling()) {
             sourceTile = sourceTile.parent;
         }
 
-        if (typeof sourceTile === 'undefined' || typeof sourceTile.waterMaskTexture === 'undefined') {
+        if (!defined(sourceTile) || !defined(sourceTile.waterMaskTexture)) {
             // No ancestors have a water mask texture - try again later.
             return;
         }

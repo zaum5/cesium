@@ -2,18 +2,19 @@
 define([
         './buildModuleUrl',
         './defaultValue',
-        './loadJson',
+        './defined',
         './Iau2006XysSample',
         './JulianDate',
+        './loadJson',
         './TimeStandard',
         '../ThirdParty/when'
-    ],
-    function(
+    ], function(
         buildModuleUrl,
         defaultValue,
-        loadJson,
+        defined,
         Iau2006XysSample,
         JulianDate,
+        loadJson,
         TimeStandard,
         when) {
     "use strict";
@@ -35,9 +36,9 @@ define([
      * @param {Number} [description.totalSamples=27426] The total number of samples in all XYS files.
      */
     var Iau2006XysData = function Iau2006XysData(description) {
-        description = description || {};
+        description = defaultValue(description, defaultValue.EMPTY_OBJECT);
 
-        this._xysFileUrlTemplate = defaultValue(description.xysFileUrlTemplate, buildModuleUrl('Assets/IAU2006_XYS/IAU2006_XYS_{0}.json'));
+        this._xysFileUrlTemplate = description.xysFileUrlTemplate;
         this._interpolationOrder = defaultValue(description.interpolationOrder, 9);
         this._sampleZeroJulianEphemerisDate = defaultValue(description.sampleZeroJulianEphemerisDate, 2442396.5);
         this._sampleZeroDateTT = new JulianDate(this._sampleZeroJulianEphemerisDate, 0.0, TimeStandard.TAI);
@@ -173,12 +174,12 @@ define([
         // We can assume so if the first and last are present
         var isDataMissing = false;
         var samples = this._samples;
-        if (typeof samples[firstIndex * 3] === 'undefined') {
+        if (!defined(samples[firstIndex * 3])) {
             requestXysChunk(this, (firstIndex / this._samplesPerXysFile) | 0);
             isDataMissing = true;
         }
 
-        if (typeof samples[lastIndex * 3] === 'undefined') {
+        if (!defined(samples[lastIndex * 3])) {
             requestXysChunk(this, (lastIndex / this._samplesPerXysFile) | 0);
             isDataMissing = true;
         }
@@ -187,7 +188,7 @@ define([
             return undefined;
         }
 
-        if (typeof result === 'undefined') {
+        if (!defined(result)) {
             result = new Iau2006XysSample(0.0, 0.0, 0.0);
         } else {
             result.x = 0.0;
@@ -237,7 +238,14 @@ define([
 
         xysData._chunkDownloadsInProgress[chunkIndex] = deferred;
 
-        var chunkUrl = xysData._xysFileUrlTemplate.replace('{0}', chunkIndex);
+        var chunkUrl;
+        var xysFileUrlTemplate = xysData._xysFileUrlTemplate;
+        if (defined(xysFileUrlTemplate)) {
+            chunkUrl = xysFileUrlTemplate.replace('{0}', chunkIndex);
+        } else {
+            chunkUrl = buildModuleUrl('Assets/IAU2006_XYS/IAU2006_XYS_' + chunkIndex + '.json');
+        }
+
         when(loadJson(chunkUrl), function(chunk) {
             xysData._chunkDownloadsInProgress[chunkIndex] = false;
 

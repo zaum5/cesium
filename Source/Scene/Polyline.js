@@ -1,20 +1,18 @@
 /*global define*/
 define([
         '../Core/defaultValue',
+        '../Core/defined',
         '../Core/DeveloperError',
-        '../Core/destroyObject',
         '../Core/BoundingSphere',
-        '../Core/Cartesian3',
         '../Core/Color',
         '../Core/PolylinePipeline',
         '../Core/Matrix4',
         './Material'
     ], function(
         defaultValue,
+        defined,
         DeveloperError,
-        destroyObject,
         BoundingSphere,
-        Cartesian3,
         Color,
         PolylinePipeline,
         Matrix4,
@@ -31,27 +29,29 @@ define([
      *
      * @demo <a href="http://cesium.agi.com/Cesium/Apps/Sandcastle/index.html?src=Polylines.html">Cesium Sandcastle Polyline Demo</a>
      */
-    var Polyline = function(description, polylineCollection) {
-        description = defaultValue(description, EMPTY_OBJECT);
+    var Polyline = function(options, polylineCollection) {
+        options = defaultValue(options, EMPTY_OBJECT);
 
-        this._show = defaultValue(description.show, true);
-        this._width = defaultValue(description.width, 1.0);
+        this._show = defaultValue(options.show, true);
+        this._width = defaultValue(options.width, 1.0);
 
-        this._material = description.material;
-        if (typeof this._material === 'undefined') {
-            this._material = Material.fromType(undefined, Material.ColorType);
+        this._material = options.material;
+        if (!defined(this._material)) {
+            this._material = Material.fromType(Material.ColorType);
             this._material.uniforms.color = new Color(1.0, 1.0, 1.0, 1.0);
         }
 
-        var positions = description.positions;
-        if (typeof positions === 'undefined') {
+        var positions = options.positions;
+        if (!defined(positions)) {
             positions = [];
         }
 
         this._positions = positions;
+        this._length = positions.length;
+        this._id = options.id;
 
         var modelMatrix;
-        if (typeof this._polylineCollection !== 'undefined') {
+        if (defined(this._polylineCollection)) {
             modelMatrix = Matrix4.clone(this._polylineCollection.modelMatrix);
         }
 
@@ -64,7 +64,7 @@ define([
         this._polylineCollection = polylineCollection;
         this._dirty = false;
         this._pickId = undefined;
-        this._pickIdThis = description._pickIdThis;
+        this._pickIdThis = options._pickIdThis;
         this._boundingVolume = BoundingSphere.fromPoints(this._positions);
         this._boundingVolume2D = new BoundingSphere(); // modified in PolylineCollection
     };
@@ -79,7 +79,7 @@ define([
     function makeDirty(polyline, propertyChanged) {
         ++polyline._propertiesChanged[propertyChanged];
         var polylineCollection = polyline._polylineCollection;
-        if (typeof polylineCollection !== 'undefined') {
+        if (defined(polylineCollection)) {
             polylineCollection._updatePolyline(polyline, propertyChanged);
             polyline._dirty = true;
         }
@@ -91,7 +91,7 @@ define([
      *
      * @memberof Polyline
      *
-     * @return {Boolean} <code>true</code> if this polyline will be shown; otherwise, <code>false</code>.
+     * @returns {Boolean} <code>true</code> if this polyline will be shown; otherwise, <code>false</code>.
      *
      * @see Polyline#setShow
      */
@@ -112,7 +112,7 @@ define([
      * @see Polyline#getShow
      */
     Polyline.prototype.setShow = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -127,7 +127,7 @@ define([
      *
      * @memberof Polyline
      *
-     * @return {Array} The polyline's positions.
+     * @returns {Array} The polyline's positions.
      *
      * @see Polyline#setPositions
      */
@@ -156,15 +156,16 @@ define([
      * );
      */
     Polyline.prototype.setPositions = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
-        if (this._positions.length !== value.length) {
+        if (this._positions.length !== value.length || this._positions.length !== this._length) {
             makeDirty(this, POSITION_SIZE_INDEX);
         }
 
         this._positions = value;
+        this._length = value.length;
         this._boundingVolume = BoundingSphere.fromPoints(this._positions, this._boundingVolume);
         makeDirty(this, POSITION_INDEX);
 
@@ -176,7 +177,7 @@ define([
      */
     Polyline.prototype.update = function() {
         var modelMatrix = Matrix4.IDENTITY;
-        if (typeof this._polylineCollection !== 'undefined') {
+        if (defined(this._polylineCollection)) {
             modelMatrix = this._polylineCollection.modelMatrix;
         }
 
@@ -184,7 +185,7 @@ define([
         var segmentLengths = this._segments.lengths;
 
         var positionsChanged = this._propertiesChanged[POSITION_INDEX] > 0 || this._propertiesChanged[POSITION_SIZE_INDEX] > 0;
-        if (!modelMatrix.equals(this._modelMatrix) || positionsChanged) {
+        if (!Matrix4.equals(modelMatrix, this._modelMatrix) || positionsChanged) {
             this._segments = PolylinePipeline.wrapLongitude(this._positions, modelMatrix);
         }
 
@@ -230,12 +231,13 @@ define([
      * @see Polyline#getMaterial
      */
     Polyline.prototype.setMaterial = function(material) {
-        if (typeof material === 'undefined') {
+        if (!defined(material)) {
             throw new DeveloperError('material is required.');
         }
-
-        this._material = material;
-        makeDirty(this, MATERIAL_INDEX);
+        if (this._material !== material) {
+            this._material = material;
+            makeDirty(this, MATERIAL_INDEX);
+        }
     };
 
     /**
@@ -243,7 +245,7 @@ define([
      *
      * @memberof Polyline
      *
-     * @return {Number} The width of the polyline.
+     * @returns {Number} The width of the polyline.
      *
      * @see Polyline#setWidth
      *
@@ -271,7 +273,7 @@ define([
      * var width = polyline.getWidth(); // 5.0
      */
     Polyline.prototype.setWidth = function(value) {
-        if (typeof value === 'undefined') {
+        if (!defined(value)) {
             throw new DeveloperError('value is required.');
         }
 
@@ -282,8 +284,27 @@ define([
         }
     };
 
+    /**
+     * Returns the user-defined object returned when the polyline is picked.
+     *
+     * @memberof Polyline
+     *
+     * @returns {Object} The user-defined object returned when the polyline is picked.
+     */
+    Polyline.prototype.getId = function() {
+        return this._id;
+    };
+
+    /**
+     * @private
+     */
     Polyline.prototype.getPickId = function(context) {
-        this._pickId = this._pickId || context.createPickId(this._pickIdThis || this);
+        if (!defined(this._pickId)) {
+            this._pickId = context.createPickId({
+                primitive : defaultValue(this._pickIdThis, this),
+                id : this._id
+            });
+        }
         return this._pickId;
     };
 

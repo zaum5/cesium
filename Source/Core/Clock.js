@@ -1,5 +1,6 @@
 /*global define*/
 define([
+        './defined',
         './DeveloperError',
         './JulianDate',
         './ClockStep',
@@ -7,6 +8,7 @@ define([
         './Event',
         './defaultValue'
        ], function(
+         defined,
          DeveloperError,
          JulianDate,
          ClockStep,
@@ -46,36 +48,36 @@ define([
      * });
      */
     var Clock = function(description) {
-        description = defaultValue(description, {});
+        description = defaultValue(description, defaultValue.EMPTY_OBJECT);
 
         var startTime = description.startTime;
-        var startTimeUndefined = typeof startTime === 'undefined';
+        var startTimeUndefined = !defined(startTime);
 
         var stopTime = description.stopTime;
-        var stopTimeUndefined = typeof stopTime === 'undefined';
+        var stopTimeUndefined = !defined(stopTime);
 
         var currentTime = description.currentTime;
-        var currentTimeUndefined = typeof currentTime === 'undefined';
+        var currentTimeUndefined = !defined(currentTime);
 
         if (startTimeUndefined && stopTimeUndefined && currentTimeUndefined) {
             currentTime = new JulianDate();
-            startTime = currentTime.clone();
+            startTime = JulianDate.clone(currentTime);
             stopTime = currentTime.addDays(1.0);
         } else if (startTimeUndefined && stopTimeUndefined) {
-            startTime = currentTime.clone();
+            startTime = JulianDate.clone(currentTime);
             stopTime = currentTime.addDays(1.0);
         } else if (startTimeUndefined && currentTimeUndefined) {
             startTime = stopTime.addDays(-1.0);
-            currentTime = startTime.clone();
+            currentTime = JulianDate.clone(startTime);
         } else if (currentTimeUndefined && stopTimeUndefined) {
-            currentTime = startTime.clone();
+            currentTime = JulianDate.clone(startTime);
             stopTime = startTime.addDays(1.0);
         } else if (currentTimeUndefined) {
-            currentTime = startTime.clone();
+            currentTime = JulianDate.clone(startTime);
         } else if (stopTimeUndefined) {
             stopTime = currentTime.addDays(1.0);
         } else if (startTimeUndefined) {
-            startTime = currentTime.clone();
+            startTime = JulianDate.clone(currentTime);
         }
 
         if (startTime.greaterThan(stopTime)) {
@@ -84,19 +86,19 @@ define([
 
         /**
          * The start time of the clock.
-         * @type JulianDate
+         * @type {JulianDate}
          */
         this.startTime = startTime;
 
         /**
          * The stop time of the clock.
-         * @type JulianDate
+         * @type {JulianDate}
          */
         this.stopTime = stopTime;
 
         /**
          * The current time.
-         * @type JulianDate
+         * @type {JulianDate}
          */
         this.currentTime = currentTime;
 
@@ -105,25 +107,29 @@ define([
          * If <code>clockStep</code> is set to ClockStep.TICK_DEPENDENT this is the number of seconds to advance.
          * If <code>clockStep</code> is set to ClockStep.SYSTEM_CLOCK_MULTIPLIER this value is multiplied by the
          * elapsed system time since the last call to tick.
-         * @type Number
+         * @type {Number}
+         * @default 1.0
          */
         this.multiplier = defaultValue(description.multiplier, 1.0);
 
         /**
          * Determines if calls to <code>tick</code> are frame dependent or system clock dependent.
          * @type ClockStep
+         * @default {@link ClockStep.SYSTEM_CLOCK_MULTIPLIER}
          */
         this.clockStep = defaultValue(description.clockStep, ClockStep.SYSTEM_CLOCK_MULTIPLIER);
 
         /**
          * Determines how the clock should behave when <code>startTime</code> or <code>stopTime</code> is reached.
-         * @type ClockRange
+         * @type {ClockRange}
+         * @default {@link ClockRange.UNBOUNDED}
          */
         this.clockRange = defaultValue(description.clockRange, ClockRange.UNBOUNDED);
 
         /**
          * Determines if tick should actually advance time.
-         * @type Boolean
+         * @type {Boolean}
+         * @default true
          */
         this.shouldAnimate = defaultValue(description.shouldAnimate, true);
 
@@ -141,46 +147,39 @@ define([
      * or not.  To control animation, use the <code>shouldAnimate</code> property.
      * @memberof Clock
      *
-     * @param {Number} [secondsToTick] optional parameter to force the clock to tick the provided number of seconds,
-     * regardless of other settings.
      * @returns {JulianDate} The new value of the <code>currentTime</code> property.
      */
-    Clock.prototype.tick = function(secondsToTick) {
+    Clock.prototype.tick = function() {
         var currentSystemTime = Date.now();
+        var currentTime = this.currentTime;
+        var startTime = this.startTime;
+        var stopTime = this.stopTime;
+        var multiplier = this.multiplier;
 
-        var currentTime;
-        if (this.clockStep === ClockStep.SYSTEM_CLOCK) {
-            currentTime = new JulianDate();
-        } else {
-            var startTime = this.startTime;
-            var stopTime = this.stopTime;
-            var multiplier = this.multiplier;
-            var shouldAnimate = this.shouldAnimate;
-            currentTime = this.currentTime;
-
-            if (typeof secondsToTick !== 'undefined') {
-                currentTime = currentTime.addSeconds(secondsToTick);
-            } else if (shouldAnimate) {
+        if (this.shouldAnimate) {
+            if (this.clockStep === ClockStep.SYSTEM_CLOCK) {
+                currentTime = new JulianDate();
+            } else {
                 if (this.clockStep === ClockStep.TICK_DEPENDENT) {
                     currentTime = currentTime.addSeconds(multiplier);
                 } else {
                     var milliseconds = currentSystemTime - this._lastSystemTime;
                     currentTime = currentTime.addSeconds(multiplier * (milliseconds / 1000.0));
                 }
-            }
 
-            if (this.clockRange === ClockRange.CLAMPED) {
-                if (currentTime.lessThan(startTime)) {
-                    currentTime = startTime;
-                } else if (currentTime.greaterThan(stopTime)) {
-                    currentTime = stopTime;
-                }
-            } else if (this.clockRange === ClockRange.LOOP_STOP) {
-                if (currentTime.lessThan(startTime)) {
-                    currentTime = startTime.clone();
-                }
-                while (currentTime.greaterThan(stopTime)) {
-                    currentTime = startTime.addSeconds(stopTime.getSecondsDifference(currentTime));
+                if (this.clockRange === ClockRange.CLAMPED) {
+                    if (currentTime.lessThan(startTime)) {
+                        currentTime = startTime;
+                    } else if (currentTime.greaterThan(stopTime)) {
+                        currentTime = stopTime;
+                    }
+                } else if (this.clockRange === ClockRange.LOOP_STOP) {
+                    if (currentTime.lessThan(startTime)) {
+                        currentTime = JulianDate.clone(startTime);
+                    }
+                    while (currentTime.greaterThan(stopTime)) {
+                        currentTime = startTime.addSeconds(stopTime.getSecondsDifference(currentTime));
+                    }
                 }
             }
         }

@@ -1,11 +1,12 @@
 /*global define*/
 define([
+        '../Core/defaultValue',
+        '../Core/defined',
         '../Core/DeveloperError',
         '../Core/Color',
         '../Core/combine',
         '../Core/destroyObject',
         '../Core/FAR',
-        '../Core/Math',
         '../Core/Cartesian3',
         '../Core/Matrix4',
         '../Core/ComponentDatatype',
@@ -15,19 +16,21 @@ define([
         '../Renderer/BlendingState',
         '../Renderer/CommandLists',
         '../Renderer/DrawCommand',
-        '../Renderer/createPickFragmentShaderSource',
+        '../Renderer/createShaderSource',
+        '../Renderer/CullFace',
         './Material',
         '../Shaders/SensorVolume',
         '../Shaders/CustomSensorVolumeVS',
         '../Shaders/CustomSensorVolumeFS',
         './SceneMode'
     ], function(
+        defaultValue,
+        defined,
         DeveloperError,
         Color,
         combine,
         destroyObject,
         FAR,
-        CesiumMath,
         Cartesian3,
         Matrix4,
         ComponentDatatype,
@@ -37,7 +40,8 @@ define([
         BlendingState,
         CommandLists,
         DrawCommand,
-        createPickFragmentShaderSource,
+        createShaderSource,
+        CullFace,
         Material,
         ShadersSensorVolume,
         CustomSensorVolumeVS,
@@ -58,47 +62,59 @@ define([
      *
      * @see SensorVolumeCollection#addCustom
      */
-    var CustomSensorVolume = function(template) {
-        var t = template || {};
+    var CustomSensorVolume = function(options) {
+        options = defaultValue(options, defaultValue.EMPTY_OBJECT);
 
         this._pickId = undefined;
-        this._pickIdThis = t._pickIdThis || this;
+        this._pickIdThis = defaultValue(options._pickIdThis, this);
 
-        this._colorCommand = new DrawCommand();
+        this._frontFaceColorCommand = new DrawCommand();
+        this._backFaceColorCommand = new DrawCommand();
         this._pickCommand = new DrawCommand();
         this._commandLists = new CommandLists();
 
-        this._colorCommand.primitiveType = this._pickCommand.primitiveType = PrimitiveType.TRIANGLES;
-        this._colorCommand.boundingVolume = this._pickCommand.boundingVolume = new BoundingSphere();
+        this._frontFaceColorCommand.primitiveType = PrimitiveType.TRIANGLES;
+        this._frontFaceColorCommand.boundingVolume = new BoundingSphere();
+        this._frontFaceColorCommand.owner = this;
+
+        this._backFaceColorCommand.primitiveType = this._frontFaceColorCommand.primitiveType;
+        this._backFaceColorCommand.boundingVolume = this._frontFaceColorCommand.boundingVolume;
+        this._backFaceColorCommand.owner = this;
+
+        this._pickCommand.primitiveType = this._frontFaceColorCommand.primitiveType;
+        this._pickCommand.boundingVolume = this._frontFaceColorCommand.boundingVolume;
+        this._pickCommand.owner = this;
 
         /**
          * <code>true</code> if this sensor will be shown; otherwise, <code>false</code>
          *
-         * @type Boolean
+         * @type {Boolean}
+         * @default true
          */
-        this.show = (typeof t.show === 'undefined') ? true : t.show;
+        this.show = defaultValue(options.show, true);
 
         /**
-         * When <code>true</code>, a polyline is shown where the sensor outline intersections the central body.  The default is <code>true</code>.
+         * When <code>true</code>, a polyline is shown where the sensor outline intersections the central body.
          *
-         * @type Boolean
+         * @type {Boolean}
+         *
+         * @default true
          *
          * @see CustomSensorVolume#intersectionColor
          */
-        this.showIntersection = (typeof t.showIntersection === 'undefined') ? true : t.showIntersection;
+        this.showIntersection = defaultValue(options.showIntersection, true);
 
         /**
          * <p>
          * Determines if a sensor intersecting the ellipsoid is drawn through the ellipsoid and potentially out
          * to the other side, or if the part of the sensor intersecting the ellipsoid stops at the ellipsoid.
          * </p>
-         * <p>
-         * The default is <code>false</code>, meaning the sensor will not go through the ellipsoid.
-         * </p>
          *
-         * @type Boolean
+         * @type {Boolean}
+         * @default false
          */
-        this.showThroughEllipsoid = (typeof t.showThroughEllipsoid === 'undefined') ? false : t.showThroughEllipsoid;
+        this.showThroughEllipsoid = defaultValue(options.showThroughEllipsoid, false);
+        this._showThroughEllipsoid = this.showThroughEllipsoid;
 
         /**
          * The 4x4 transformation matrix that transforms this sensor from model to world coordinates.  In it's model
@@ -113,7 +129,8 @@ define([
          * Model coordinate system for a custom sensor
          * </div>
          *
-         * @type Matrix4
+         * @type {Matrix4}
+         * @default {@link Matrix4.IDENTITY}
          *
          * @see czm_model
          *
@@ -123,26 +140,28 @@ define([
          * var center = ellipsoid.cartographicToCartesian(Cartographic.fromDegrees(-75.59777, 40.03883));
          * sensor.modelMatrix = Transforms.eastNorthUpToFixedFrame(center);
          */
-        this.modelMatrix = t.modelMatrix || Matrix4.IDENTITY.clone();
+        this.modelMatrix = Matrix4.clone(defaultValue(options.modelMatrix, Matrix4.IDENTITY));
 
         /**
          * DOC_TBA
          *
-         * @type BufferUsage
+         * @type {BufferUsage}
+         * @default {@link BufferUsage.STATIC_DRAW}
          */
-        this.bufferUsage = t.bufferUsage || BufferUsage.STATIC_DRAW;
-        this._bufferUsage = t.bufferUsage || BufferUsage.STATIC_DRAW;
+        this.bufferUsage = defaultValue(options.bufferUsage, BufferUsage.STATIC_DRAW);
+        this._bufferUsage = this.bufferUsage;
 
         /**
          * DOC_TBA
          *
-         * @type Number
+         * @type {Number}
+         * @default {@link Number.POSITIVE_INFINITY}
          */
-        this.radius = (typeof t.radius === 'undefined') ? Number.POSITIVE_INFINITY : t.radius;
+        this.radius = defaultValue(options.radius, Number.POSITIVE_INFINITY);
 
         this._directions = undefined;
         this._directionsDirty = false;
-        this.setDirections(t.directions);
+        this.setDirections(options.directions);
 
         /**
          * The surface appearance of the sensor.  This can be one of several built-in {@link Material} objects or a custom material, scripted with
@@ -151,28 +170,53 @@ define([
          * The default material is <code>Material.ColorType</code>.
          * </p>
          *
-         * @type Material
+         * @type {Material}
+         * @default Material.fromType(Material.ColorType)
          *
          * @example
          * // 1. Change the color of the default material to yellow
          * sensor.material.uniforms.color = new Color(1.0, 1.0, 0.0, 1.0);
          *
          * // 2. Change material to horizontal stripes
-         * sensor.material = Material.fromType(scene.getContext(), Material.StripeType);
+         * sensor.material = Material.fromType(Material.StripeType);
          *
          * @see <a href='https://github.com/AnalyticalGraphicsInc/cesium/wiki/Fabric'>Fabric</a>
          */
-        this.material = (typeof t.material !== 'undefined') ? t.material : Material.fromType(undefined, Material.ColorType);
+        this.material = defined(options.material) ? options.material : Material.fromType(Material.ColorType);
         this._material = undefined;
+        this._translucent = undefined;
 
         /**
          * The color of the polyline where the sensor outline intersects the central body.  The default is {@link Color.WHITE}.
          *
-         * @type Color
+         * @type {Color}
+         * @default {@link Color.WHITE}
          *
          * @see CustomSensorVolume#showIntersection
          */
-        this.intersectionColor = (typeof t.intersectionColor !== 'undefined') ? Color.clone(t.intersectionColor) : Color.clone(Color.WHITE);
+        this.intersectionColor = Color.clone(defaultValue(options.intersectionColor, Color.WHITE));
+
+        /**
+         * The approximate pixel width of the polyline where the sensor outline intersects the central body.  The default is 5.0.
+         *
+         * @type {Number}
+         * @default 5.0
+         *
+         * @see CustomSensorVolume#showIntersection
+         */
+        this.intersectionWidth = defaultValue(options.intersectionWidth, 5.0);
+
+        /**
+         * User-defined object returned when the sensors is picked.
+         *
+         * @type Object
+         *
+         * @default undefined
+         *
+         * @see Scene#pick
+         */
+        this.id = options.id;
+        this._id = undefined;
 
         var that = this;
         this._uniforms = {
@@ -187,6 +231,12 @@ define([
             },
             u_intersectionColor : function() {
                 return that.intersectionColor;
+            },
+            u_intersectionWidth : function() {
+                return that.intersectionWidth;
+            },
+            u_normalDirection : function() {
+                return 1.0;
             }
         };
 
@@ -216,11 +266,11 @@ define([
         return this._directions;
     };
 
-    CustomSensorVolume.prototype._computePositions = function() {
-        var directions = this._directions;
+    function computePositions(customSensorVolume) {
+        var directions = customSensorVolume._directions;
         var length = directions.length;
         var positions = new Float32Array(3 * length);
-        var r = isFinite(this.radius) ? this.radius : FAR;
+        var r = isFinite(customSensorVolume.radius) ? customSensorVolume.radius : FAR;
 
         var boundingVolumePositions = [Cartesian3.ZERO];
 
@@ -233,31 +283,31 @@ define([
             // Extend position so the volume encompasses the sensor's radius.
             var theta = Math.max(Cartesian3.angleBetween(n0, n1), Cartesian3.angleBetween(n1, n2));
             var distance = r / Math.cos(theta * 0.5);
-            var p = n1.multiplyByScalar(distance);
+            var p = Cartesian3.multiplyByScalar(n1, distance);
 
-            positions[(j * 3) + 0] = p.x;
+            positions[(j * 3)] = p.x;
             positions[(j * 3) + 1] = p.y;
             positions[(j * 3) + 2] = p.z;
 
             boundingVolumePositions.push(p);
         }
 
-        BoundingSphere.fromPoints(boundingVolumePositions, this._colorCommand.boundingVolume);
+        BoundingSphere.fromPoints(boundingVolumePositions, customSensorVolume._frontFaceColorCommand.boundingVolume);
 
         return positions;
-    };
+    }
 
-    CustomSensorVolume.prototype._createVertexArray = function(context) {
-        var positions = this._computePositions();
+    function createVertexArray(customSensorVolume, context) {
+        var positions = computePositions(customSensorVolume);
 
-        var length = this._directions.length;
+        var length = customSensorVolume._directions.length;
         var vertices = new Float32Array(2 * 3 * 3 * length);
 
         var k = 0;
         for ( var i = length - 1, j = 0; j < length; i = j++) {
-            var p0 = new Cartesian3(positions[(i * 3) + 0], positions[(i * 3) + 1], positions[(i * 3) + 2]);
-            var p1 = new Cartesian3(positions[(j * 3) + 0], positions[(j * 3) + 1], positions[(j * 3) + 2]);
-            var n = p1.cross(p0).normalize(); // Per-face normals
+            var p0 = new Cartesian3(positions[(i * 3)], positions[(i * 3) + 1], positions[(i * 3) + 2]);
+            var p1 = new Cartesian3(positions[(j * 3)], positions[(j * 3) + 1], positions[(j * 3) + 2]);
+            var n = Cartesian3.normalize(Cartesian3.cross(p1, p0)); // Per-face normals
 
             vertices[k++] = 0.0; // Sensor vertex
             vertices[k++] = 0.0;
@@ -281,7 +331,7 @@ define([
             vertices[k++] = n.z;
         }
 
-        var vertexBuffer = context.createVertexBuffer(new Float32Array(vertices), this.bufferUsage);
+        var vertexBuffer = context.createVertexBuffer(new Float32Array(vertices), customSensorVolume.bufferUsage);
         var stride = 2 * 3 * Float32Array.BYTES_PER_ELEMENT;
 
         var attributes = [{
@@ -301,7 +351,7 @@ define([
         }];
 
         return context.createVertexArray(attributes);
-    };
+    }
 
     /**
      * DOC_TBA
@@ -321,27 +371,80 @@ define([
             throw new DeveloperError('this.radius must be greater than or equal to zero.');
         }
 
-        if (typeof this.material === 'undefined') {
+        if (!defined(this.material)) {
             throw new DeveloperError('this.material must be defined.');
         }
 
-        // Initial render state creation
-        if (typeof this._colorCommand.renderState === 'undefined') {
-            var rs = context.createRenderState({
-                depthTest : {
-                    enabled : true
-                },
-                depthMask : false,
-                blending : BlendingState.ALPHA_BLEND
-            });
+        var translucent = this.material.isTranslucent();
 
-            this._colorCommand.renderState = rs;
-            this._pickCommand.renderState = rs;
+        // Initial render state creation
+        if ((this._showThroughEllipsoid !== this.showThroughEllipsoid) ||
+                (!defined(this._frontFaceColorCommand.renderState)) ||
+                (this._translucent !== translucent)) {
+
+            this._showThroughEllipsoid = this.showThroughEllipsoid;
+            this._translucent = translucent;
+
+            var rs;
+
+            if (translucent) {
+                rs = context.createRenderState({
+                    depthTest : {
+                        // This would be better served by depth testing with a depth buffer that does not
+                        // include the ellipsoid depth - or a g-buffer containing an ellipsoid mask
+                        // so we can selectively depth test.
+                        enabled : !this.showThroughEllipsoid
+                    },
+                    depthMask : false,
+                    blending : BlendingState.ALPHA_BLEND,
+                    cull : {
+                        enabled : true,
+                        face : CullFace.BACK
+                    }
+                });
+
+                this._frontFaceColorCommand.renderState = rs;
+
+                rs = context.createRenderState({
+                    depthTest : {
+                        enabled : !this.showThroughEllipsoid
+                    },
+                    depthMask : false,
+                    blending : BlendingState.ALPHA_BLEND,
+                    cull : {
+                        enabled : true,
+                        face : CullFace.FRONT
+                    }
+                });
+
+                this._backFaceColorCommand.renderState = rs;
+
+                rs = context.createRenderState({
+                    depthTest : {
+                        enabled : !this.showThroughEllipsoid
+                    },
+                    depthMask : false,
+                    blending : BlendingState.ALPHA_BLEND
+                });
+                this._pickCommand.renderState = rs;
+            } else {
+                rs = context.createRenderState({
+                    depthTest : {
+                        enabled : true
+                    },
+                    depthMask : true
+                });
+                this._frontFaceColorCommand.renderState = rs;
+
+                rs = context.createRenderState({
+                    depthTest : {
+                        enabled : true
+                    },
+                    depthMask : true
+                });
+                this._pickCommand.renderState = rs;
+            }
         }
-        // This would be better served by depth testing with a depth buffer that does not
-        // include the ellipsoid depth - or a g-buffer containing an ellipsoid mask
-        // so we can selectively depth test.
-        this._colorCommand.renderState.depthTest.enabled = !this.showThroughEllipsoid;
 
         // Recreate vertex buffer when directions change
         if ((this._directionsDirty) || (this._bufferUsage !== this.bufferUsage)) {
@@ -351,58 +454,72 @@ define([
 
             var directions = this._directions;
             if (directions && (directions.length >= 3)) {
-                this._colorCommand.vertexArray = this._pickCommand.vertexArray = this._createVertexArray(context);
+                this._frontFaceColorCommand.vertexArray = createVertexArray(this, context);
+                this._backFaceColorCommand.vertexArray = this._frontFaceColorCommand.vertexArray;
+                this._pickCommand.vertexArray = this._frontFaceColorCommand.vertexArray;
             }
         }
 
-        if (typeof this._colorCommand.vertexArray === 'undefined') {
+        if (!defined(this._frontFaceColorCommand.vertexArray)) {
             return;
         }
 
         var pass = frameState.passes;
-        this._colorCommand.modelMatrix = this._pickCommand.modelMatrix = this.modelMatrix;
         this._commandLists.removeAll();
+
+        this._frontFaceColorCommand.modelMatrix = this.modelMatrix;
+        this._backFaceColorCommand.modelMatrix = this._frontFaceColorCommand.modelMatrix;
+        this._pickCommand.modelMatrix = this._frontFaceColorCommand.modelMatrix;
 
         var materialChanged = this._material !== this.material;
         this._material = this.material;
+        this._material.update(context);
 
         if (pass.color) {
-            var colorCommand = this._colorCommand;
+            var frontFaceColorCommand = this._frontFaceColorCommand;
+            var backFaceColorCommand = this._backFaceColorCommand;
 
             // Recompile shader when material changes
-            if (materialChanged || typeof colorCommand.shaderProgram === 'undefined') {
-                var fsSource =
-                    '#line 0\n' +
-                    ShadersSensorVolume +
-                    '#line 0\n' +
-                    this._material.shaderSource +
-                    '#line 0\n' +
-                    CustomSensorVolumeFS;
+            if (materialChanged || !defined(frontFaceColorCommand.shaderProgram)) {
+                var fsSource = createShaderSource({ sources : [ShadersSensorVolume, this._material.shaderSource, CustomSensorVolumeFS] });
 
-                colorCommand.shaderProgram = context.getShaderCache().replaceShaderProgram(
-                    colorCommand.shaderProgram, CustomSensorVolumeVS, fsSource, attributeIndices);
-                colorCommand.uniformMap = combine([this._uniforms, this._material._uniforms], false, false);
+                frontFaceColorCommand.shaderProgram = context.getShaderCache().replaceShaderProgram(
+                        frontFaceColorCommand.shaderProgram, CustomSensorVolumeVS, fsSource, attributeIndices);
+                frontFaceColorCommand.uniformMap = combine([this._uniforms, this._material._uniforms], false, false);
+
+                backFaceColorCommand.shaderProgram = frontFaceColorCommand.shaderProgram;
+                backFaceColorCommand.uniformMap = combine([this._uniforms, this._material._uniforms], false, false);
+                backFaceColorCommand.uniformMap.u_normalDirection = function() {
+                    return -1.0;
+                };
             }
 
-            this._commandLists.colorList.push(colorCommand);
+            if (translucent) {
+                this._commandLists.translucentList.push(this._backFaceColorCommand);
+                this._commandLists.translucentList.push(this._frontFaceColorCommand);
+            } else {
+                this._commandLists.opaqueList.push(this._frontFaceColorCommand);
+            }
         }
 
         if (pass.pick) {
             var pickCommand = this._pickCommand;
 
-            if (typeof this._pickId === 'undefined') {
-                this._pickId = context.createPickId(this._pickIdThis);
+            if (!defined(this._pickId) || (this._id !== this.id)) {
+                this._id = this.id;
+                this._pickId = this._pickId && this._pickId.destroy();
+                this._pickId = context.createPickId({
+                    primitive : this._pickIdThis,
+                    id : this.id
+                });
             }
 
             // Recompile shader when material changes
-            if (materialChanged || typeof pickCommand.shaderProgram === 'undefined') {
-                var pickFS = createPickFragmentShaderSource(
-                    '#line 0\n' +
-                    ShadersSensorVolume +
-                    '#line 0\n' +
-                    this._material.shaderSource +
-                    '#line 0\n' +
-                    CustomSensorVolumeFS, 'uniform');
+            if (materialChanged || !defined(pickCommand.shaderProgram)) {
+                var pickFS = createShaderSource({
+                    sources : [ShadersSensorVolume, this._material.shaderSource, CustomSensorVolumeFS],
+                    pickColorQualifier : 'uniform'
+                });
 
                 pickCommand.shaderProgram = context.getShaderCache().replaceShaderProgram(
                     pickCommand.shaderProgram, CustomSensorVolumeVS, pickFS, attributeIndices);
@@ -415,7 +532,11 @@ define([
                 }], false, false);
             }
 
-            this._commandLists.pickList.push(pickCommand);
+            if (translucent) {
+                this._commandLists.pickList.translucentList.push(pickCommand);
+            } else {
+                this._commandLists.pickList.opaqueList.push(pickCommand);
+            }
         }
 
         if (!this._commandLists.empty()) {
@@ -436,8 +557,8 @@ define([
      * @memberof CustomSensorVolume
      */
     CustomSensorVolume.prototype.destroy = function() {
-        this._colorCommand.vertexArray = this._colorCommand.vertexArray && this._colorCommand.vertexArray.destroy();
-        this._colorCommand.shaderProgram = this._colorCommand.shaderProgram && this._colorCommand.shaderProgram.release();
+        this._frontFaceColorCommand.vertexArray = this._frontFaceColorCommand.vertexArray && this._frontFaceColorCommand.vertexArray.destroy();
+        this._frontFaceColorCommand.shaderProgram = this._frontFaceColorCommand.shaderProgram && this._frontFaceColorCommand.shaderProgram.release();
         this._pickCommand.shaderProgram = this._pickCommand.shaderProgram && this._pickCommand.shaderProgram.release();
         this._pickId = this._pickId && this._pickId.destroy();
         return destroyObject(this);

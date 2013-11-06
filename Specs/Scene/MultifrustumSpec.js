@@ -2,15 +2,17 @@
 defineSuite([
          'Specs/createScene',
          'Specs/destroyScene',
+         'Core/defined',
          'Core/destroyObject',
          'Core/BoundingSphere',
-         'Core/BoxTessellator',
+         'Core/BoxGeometry',
          'Core/Cartesian2',
          'Core/Cartesian3',
          'Core/Color',
+         'Core/defaultValue',
          'Core/Math',
          'Core/Matrix4',
-         'Core/MeshFilters',
+         'Core/GeometryPipeline',
          'Core/PrimitiveType',
          'Renderer/BlendingState',
          'Renderer/BufferUsage',
@@ -18,20 +20,21 @@ defineSuite([
          'Renderer/DrawCommand',
          'Renderer/TextureMinificationFilter',
          'Renderer/TextureMagnificationFilter',
-         'Scene/BillboardCollection',
-         'Scene/EllipsoidPrimitive'
+         'Scene/BillboardCollection'
      ], 'Scene/Multifrustum', function(
          createScene,
          destroyScene,
+         defined,
          destroyObject,
          BoundingSphere,
-         BoxTessellator,
+         BoxGeometry,
          Cartesian2,
          Cartesian3,
          Color,
+         defaultValue,
          CesiumMath,
          Matrix4,
-         MeshFilters,
+         GeometryPipeline,
          PrimitiveType,
          BlendingState,
          BufferUsage,
@@ -39,8 +42,7 @@ defineSuite([
          DrawCommand,
          TextureMinificationFilter,
          TextureMagnificationFilter,
-         BillboardCollection,
-         EllipsoidPrimitive) {
+         BillboardCollection) {
     "use strict";
     /*global jasmine,describe,xdescribe,it,xit,expect,beforeEach,afterEach,beforeAll,afterAll,spyOn,runs,waits,waitsFor*/
 
@@ -55,7 +57,7 @@ defineSuite([
 
         var camera = scene.getCamera();
         camera.position = Cartesian3.ZERO;
-        camera.direction = Cartesian3.UNIT_Z.negate();
+        camera.direction = Cartesian3.negate(Cartesian3.UNIT_Z);
         camera.up = Cartesian3.UNIT_Y;
         camera.right = Cartesian3.UNIT_X;
 
@@ -93,7 +95,11 @@ defineSuite([
     var billboard2;
 
     function createBillboards() {
-        var atlas = context.createTextureAtlas({images : [greenImage, blueImage, whiteImage], borderWidthInPixels : 1, initialSize : new Cartesian2(3, 3)});
+        var atlas = context.createTextureAtlas({
+            images : [greenImage, blueImage, whiteImage],
+            borderWidthInPixels : 1,
+            initialSize : new Cartesian2(3, 3)
+        });
 
         // ANGLE Workaround
         atlas.getTexture().setSampler(context.createSampler({
@@ -133,11 +139,19 @@ defineSuite([
 
         scene.initializeFrame();
         scene.render();
-        expect(context.readPixels()).toEqual([0, 255, 0, 255]);
+        var pixels = context.readPixels();
+        expect(pixels[0]).toEqual(0);
+        expect(pixels[1]).not.toEqual(0);
+        expect(pixels[2]).toEqual(0);
+        expect(pixels[3]).toEqual(255);
 
         scene.initializeFrame();
         scene.render();
-        expect(context.readPixels()).toEqual([0, 255, 0, 255]);
+        pixels = context.readPixels();
+        expect(pixels[0]).toEqual(0);
+        expect(pixels[1]).not.toEqual(0);
+        expect(pixels[2]).toEqual(0);
+        expect(pixels[3]).toEqual(255);
     });
 
     it('renders primitive in middle frustum', function() {
@@ -168,9 +182,23 @@ defineSuite([
         expect(context.readPixels()).toEqual([255, 255, 255, 255]);
     });
 
+    it('renders primitive in last frustum with debugShowFrustums', function() {
+        createBillboards();
+        var color = new Color(1.0, 1.0, 1.0, 0.0);
+        billboard0.setColor(color);
+        billboard1.setColor(color);
+
+        scene.debugShowFrustums = true;
+        scene.initializeFrame();
+        scene.render();
+        expect(context.readPixels()).toEqual([0, 0, 255, 255]);
+        expect(scene.debugFrustumStatistics.totalCommands).toEqual(3);
+        expect(scene.debugFrustumStatistics.commandsInFrustums).toEqual({ 1 : 1, 2 : 1, 4 : 1});
+    });
+
     function createPrimitive(bounded, closestFrustum) {
-        bounded = (typeof bounded === 'undefined') ? true : bounded;
-        closestFrustum = (typeof closestFrustum === 'undefined') ? false : closestFrustum;
+        bounded = defaultValue(bounded, true);
+        closestFrustum = defaultValue(closestFrustum, false);
 
         var Primitive = function() {
             this._va = undefined;
@@ -182,17 +210,17 @@ defineSuite([
 
             var that = this;
             this._um = {
-                    u_color : function() {
-                        return that.color;
-                    },
-                    u_model : function() {
-                        return that._modelMatrix;
-                    }
+                u_color : function() {
+                    return that.color;
+                },
+                u_model : function() {
+                    return that._modelMatrix;
+                }
             };
         };
 
         Primitive.prototype.update = function(context, frameState, commandLists) {
-            if (typeof this._sp === 'undefined') {
+            if (!defined(this._sp)) {
                 var vs = '';
                 vs += 'attribute vec4 position;';
                 vs += 'void main()';
@@ -208,15 +236,15 @@ defineSuite([
                 fs += '}';
 
                 var dimensions = new Cartesian3(500000.0, 500000.0, 500000.0);
-                var maximumCorner = dimensions.multiplyByScalar(0.5);
-                var minimumCorner = maximumCorner.negate();
-                var mesh = BoxTessellator.compute({
+                var maximumCorner = Cartesian3.multiplyByScalar(dimensions, 0.5);
+                var minimumCorner = Cartesian3.negate(maximumCorner);
+                var geometry = BoxGeometry.createGeometry(new BoxGeometry({
                     minimumCorner: minimumCorner,
                     maximumCorner: maximumCorner
-                });
-                var attributeIndices = MeshFilters.createAttributeIndices(mesh);
-                this._va = context.createVertexArrayFromMesh({
-                    mesh: mesh,
+                }));
+                var attributeIndices = GeometryPipeline.createAttributeIndices(geometry);
+                this._va = context.createVertexArrayFromGeometry({
+                    geometry: geometry,
                     attributeIndices: attributeIndices,
                     bufferUsage: BufferUsage.STATIC_DRAW
                 });
@@ -235,10 +263,10 @@ defineSuite([
             command.uniformMap = this._um;
             command.modelMatrix = this._modelMatrix;
             command.executeInClosestFrustum = closestFrustum;
-            command.boundingVolume = bounded ? new BoundingSphere(Cartesian3.ZERO.clone(), 500000.0) : undefined;
+            command.boundingVolume = bounded ? new BoundingSphere(Cartesian3.clone(Cartesian3.ZERO), 500000.0) : undefined;
 
             var commandList = new CommandLists();
-            commandList.colorList.push(command);
+            commandList.opaqueList.push(command);
             commandLists.push(commandList);
         };
 
@@ -277,13 +305,19 @@ defineSuite([
 
         scene.initializeFrame();
         scene.render();
-        // Epsilon of 1 because AMD and Intel HD 4000 gives 128
-        expect(context.readPixels()).toEqualEpsilon([127, 127, 0, 255], 1);
+        var pixels = context.readPixels();
+        expect(pixels[0]).not.toEqual(0);
+        expect(pixels[1]).not.toEqual(0);
+        expect(pixels[2]).toEqual(0);
+        expect(pixels[3]).toEqual(255);
 
         scene.initializeFrame();
         scene.render();
-        // Epsilon of 1 because AMD and Intel HD 4000 gives 128
-        expect(context.readPixels()).toEqualEpsilon([127, 127, 0, 255], 1);
+        pixels = context.readPixels();
+        expect(pixels[0]).not.toEqual(0);
+        expect(pixels[1]).not.toEqual(0);
+        expect(pixels[2]).toEqual(0);
+        expect(pixels[3]).toEqual(255);
     });
 
     it('render without a central body or any primitives', function() {

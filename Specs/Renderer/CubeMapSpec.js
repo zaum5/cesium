@@ -92,6 +92,12 @@ defineSuite([
         });
 
         expect(cubeMap.getPixelDatatype()).toEqual(PixelDatatype.UNSIGNED_BYTE);
+        expect(cubeMap.getPositiveX().getPixelDatatype()).toEqual(PixelDatatype.UNSIGNED_BYTE);
+        expect(cubeMap.getNegativeX().getPixelDatatype()).toEqual(PixelDatatype.UNSIGNED_BYTE);
+        expect(cubeMap.getPositiveY().getPixelDatatype()).toEqual(PixelDatatype.UNSIGNED_BYTE);
+        expect(cubeMap.getNegativeY().getPixelDatatype()).toEqual(PixelDatatype.UNSIGNED_BYTE);
+        expect(cubeMap.getPositiveZ().getPixelDatatype()).toEqual(PixelDatatype.UNSIGNED_BYTE);
+        expect(cubeMap.getNegativeZ().getPixelDatatype()).toEqual(PixelDatatype.UNSIGNED_BYTE);
     });
 
     it('gets the default sampler', function() {
@@ -101,10 +107,28 @@ defineSuite([
         });
 
         var sampler = cubeMap.getSampler();
-        expect(sampler.wrapS).toEqual(TextureWrap.CLAMP);
-        expect(sampler.wrapT).toEqual(TextureWrap.CLAMP);
+        expect(sampler.wrapS).toEqual(TextureWrap.CLAMP_TO_EDGE);
+        expect(sampler.wrapT).toEqual(TextureWrap.CLAMP_TO_EDGE);
         expect(sampler.minificationFilter).toEqual(TextureMinificationFilter.LINEAR);
         expect(sampler.magnificationFilter).toEqual(TextureMagnificationFilter.LINEAR);
+        expect(sampler.maximumAnisotropy).toEqual(1.0);
+    });
+
+    it('gets the default valid sampler when data type is FLOAT ', function() {
+        if (context.getFloatingPointTexture()) {
+            cubeMap = context.createCubeMap({
+                width : 16,
+                height : 16,
+                pixelDatatype : PixelDatatype.FLOAT
+            });
+
+            var sampler = cubeMap.getSampler();
+            expect(sampler.wrapS).toEqual(TextureWrap.CLAMP_TO_EDGE);
+            expect(sampler.wrapT).toEqual(TextureWrap.CLAMP_TO_EDGE);
+            expect(sampler.minificationFilter).toEqual(TextureMinificationFilter.NEAREST);
+            expect(sampler.magnificationFilter).toEqual(TextureMagnificationFilter.NEAREST);
+            expect(sampler.maximumAnisotropy).toEqual(1.0);
+        }
     });
 
     it('sets a sampler', function() {
@@ -170,11 +194,10 @@ defineSuite([
         });
         sp.getAllUniforms().u_texture.value = cubeMap;
 
-        va = context.createVertexArray();
-        va.addAttribute({
+        va = context.createVertexArray([{
             vertexBuffer : context.createVertexBuffer(new Float32Array([0, 0, 0, 1]), BufferUsage.STATIC_DRAW),
             componentsPerAttribute : 4
-        });
+        }]);
 
         var da = {
             primitiveType : PrimitiveType.POINTS,
@@ -237,11 +260,10 @@ defineSuite([
         });
         sp.getAllUniforms().u_texture.value = cubeMap;
 
-        va = context.createVertexArray();
-        va.addAttribute({
+        va = context.createVertexArray([{
             vertexBuffer : context.createVertexBuffer(new Float32Array([0, 0, 0, 1]), BufferUsage.STATIC_DRAW),
             componentsPerAttribute : 4
-        });
+        }]);
 
         var da = {
             primitiveType : PrimitiveType.POINTS,
@@ -291,11 +313,10 @@ defineSuite([
         });
         sp.getAllUniforms().u_texture.value = context.getDefaultCubeMap();
 
-        va = context.createVertexArray();
-        va.addAttribute({
+        va = context.createVertexArray([{
             vertexBuffer : context.createVertexBuffer(new Float32Array([0, 0, 0, 1]), BufferUsage.STATIC_DRAW),
             componentsPerAttribute : 4
-        });
+        }]);
 
         var da = {
             primitiveType : PrimitiveType.POINTS,
@@ -374,11 +395,10 @@ defineSuite([
         });
         sp.getAllUniforms().u_texture.value = cubeMap;
 
-        va = context.createVertexArray();
-        va.addAttribute({
+        va = context.createVertexArray([{
             vertexBuffer : context.createVertexBuffer(new Float32Array([0, 0, 0, 1]), BufferUsage.STATIC_DRAW),
             componentsPerAttribute : 4
-        });
+        }]);
 
         var da = {
             primitiveType : PrimitiveType.POINTS,
@@ -409,6 +429,98 @@ defineSuite([
         sp.getAllUniforms().u_direction.value = new Cartesian3(0, 0, -1);
         context.draw(da);
         expect(context.readPixels()).toEqual([255, 255, 0, 0]);
+    });
+
+    it('creates a cube map with floating-point textures', function() {
+        if (context.getFloatingPointTexture()) {
+            var positiveXColor = new Color(0.0, 0.0, 0.0, 1.0);
+            var negativeXColor = new Color(0.0, 0.0, 1.0, 0.0);
+            var positiveYColor = new Color(0.0, 1.0, 0.0, 0.0);
+            var negativeYColor = new Color(1.0, 0.0, 0.0, 0.0);
+            var positiveZColor = new Color(0.0, 0.0, 1.0, 1.0);
+            var negativeZColor = new Color(1.0, 1.0, 0.0, 0.0);
+
+            cubeMap = context.createCubeMap({
+                source : {
+                    positiveX : {
+                        width : 1,
+                        height : 1,
+                        arrayBufferView : new Float32Array([positiveXColor.red, positiveXColor.green, positiveXColor.blue, positiveXColor.alpha])
+                    },
+                    negativeX : {
+                        width : 1,
+                        height : 1,
+                        arrayBufferView : new Float32Array([negativeXColor.red, negativeXColor.green, negativeXColor.blue, negativeXColor.alpha])
+                    },
+                    positiveY : {
+                        width : 1,
+                        height : 1,
+                        arrayBufferView : new Float32Array([positiveYColor.red, positiveYColor.green, positiveYColor.blue, positiveYColor.alpha])
+                    },
+                    negativeY : {
+                        width : 1,
+                        height : 1,
+                        arrayBufferView : new Float32Array([negativeYColor.red, negativeYColor.green, negativeYColor.blue, negativeYColor.alpha])
+                    },
+                    positiveZ : {
+                        width : 1,
+                        height : 1,
+                        arrayBufferView : new Float32Array([positiveZColor.red, positiveZColor.green, positiveZColor.blue, positiveZColor.alpha])
+                    },
+                    negativeZ : {
+                        width : 1,
+                        height : 1,
+                        arrayBufferView : new Float32Array([negativeZColor.red, negativeZColor.green, negativeZColor.blue, negativeZColor.alpha])
+                    }
+                },
+                pixelDatatype : PixelDatatype.FLOAT
+            });
+
+            var vs = 'attribute vec4 position; void main() { gl_PointSize = 1.0; gl_Position = position; }';
+            var fs =
+                'uniform samplerCube u_texture;' +
+                'uniform mediump vec3 u_direction;' +
+                'void main() { gl_FragColor = textureCube(u_texture, u_direction); }';
+            sp = context.createShaderProgram(vs, fs, {
+                position : 0
+            });
+            sp.getAllUniforms().u_texture.value = cubeMap;
+
+            va = context.createVertexArray([{
+                vertexBuffer : context.createVertexBuffer(new Float32Array([0, 0, 0, 1]), BufferUsage.STATIC_DRAW),
+                componentsPerAttribute : 4
+            }]);
+
+            var da = {
+                primitiveType : PrimitiveType.POINTS,
+                shaderProgram : sp,
+                vertexArray : va
+            };
+
+            sp.getAllUniforms().u_direction.value = new Cartesian3(1, 0, 0);
+            context.draw(da);
+            expect(context.readPixels()).toEqual(positiveXColor.toBytes());
+
+            sp.getAllUniforms().u_direction.value = new Cartesian3(-1, 0, 0);
+            context.draw(da);
+            expect(context.readPixels()).toEqual(negativeXColor.toBytes());
+
+            sp.getAllUniforms().u_direction.value = new Cartesian3(0, 1, 0);
+            context.draw(da);
+            expect(context.readPixels()).toEqual(positiveYColor.toBytes());
+
+            sp.getAllUniforms().u_direction.value = new Cartesian3(0, -1, 0);
+            context.draw(da);
+            expect(context.readPixels()).toEqual(negativeYColor.toBytes());
+
+            sp.getAllUniforms().u_direction.value = new Cartesian3(0, 0, 1);
+            context.draw(da);
+            expect(context.readPixels()).toEqual(positiveZColor.toBytes());
+
+            sp.getAllUniforms().u_direction.value = new Cartesian3(0, 0, -1);
+            context.draw(da);
+            expect(context.readPixels()).toEqual(negativeZColor.toBytes());
+        }
     });
 
     it('creates a cube map with typed arrays and images', function() {
@@ -449,11 +561,10 @@ defineSuite([
         });
         sp.getAllUniforms().u_texture.value = cubeMap;
 
-        va = context.createVertexArray();
-        va.addAttribute({
+        va = context.createVertexArray([{
             vertexBuffer : context.createVertexBuffer(new Float32Array([0, 0, 0, 1]), BufferUsage.STATIC_DRAW),
             componentsPerAttribute : 4
-        });
+        }]);
 
         var da = {
             primitiveType : PrimitiveType.POINTS,
@@ -508,11 +619,10 @@ defineSuite([
         });
         sp.getAllUniforms().u_cubeMap.value = cubeMap;
 
-        va = context.createVertexArray();
-        va.addAttribute({
+        va = context.createVertexArray([{
             vertexBuffer : context.createVertexBuffer(new Float32Array([0, 0, 0, 1]), BufferUsage.STATIC_DRAW),
             componentsPerAttribute : 4
-        });
+        }]);
 
         var da = {
             primitiveType : PrimitiveType.POINTS,
@@ -597,11 +707,10 @@ defineSuite([
         });
         sp.getAllUniforms().u_cubeMap.value = cubeMap;
 
-        va = context.createVertexArray();
-        va.addAttribute({
+        va = context.createVertexArray([{
             vertexBuffer : context.createVertexBuffer(new Float32Array([0, 0, 0, 1]), BufferUsage.STATIC_DRAW),
             componentsPerAttribute : 4
-        });
+        }]);
 
         var da = {
             primitiveType : PrimitiveType.POINTS,
@@ -650,11 +759,10 @@ defineSuite([
         });
         sp.getAllUniforms().u_cubeMap.value = cubeMap;
 
-        va = context.createVertexArray();
-        va.addAttribute({
+        va = context.createVertexArray([{
             vertexBuffer : context.createVertexBuffer(new Float32Array([0, 0, 0, 1]), BufferUsage.STATIC_DRAW),
             componentsPerAttribute : 4
-        });
+        }]);
 
         var da = {
             primitiveType : PrimitiveType.POINTS,
@@ -667,13 +775,14 @@ defineSuite([
         expect(context.readPixels()).toEqual([0, 0, 255, 255]);
 
         // Clear framebuffer to red and copy to +X face
-        context.clear(new ClearCommand(context.createClearState({
-            color : new Color (1.0, 0.0, 0.0, 1.0)
-        })));
+        var command = new ClearCommand();
+        command.color = new Color (1.0, 0.0, 0.0, 1.0);
+
+        command.execute(context);
         expect(context.readPixels()).toEqual([255, 0, 0, 255]);
         cubeMap.getPositiveX().copyFromFramebuffer();
 
-        context.clear();
+        ClearCommand.ALL.execute(context);
         expect(context.readPixels()).toEqual([0, 0, 0, 0]);
 
         // +X is red now
@@ -708,11 +817,10 @@ defineSuite([
         sp.getAllUniforms().u_cubeMap.value = cubeMap;
         sp.getAllUniforms().u_texture.value = texture;
 
-        va = context.createVertexArray();
-        va.addAttribute({
+        va = context.createVertexArray([{
             vertexBuffer : context.createVertexBuffer(new Float32Array([0, 0, 0, 1]), BufferUsage.STATIC_DRAW),
             componentsPerAttribute : 4
-        });
+        }]);
 
         context.draw({
             primitiveType : PrimitiveType.POINTS,
@@ -750,11 +858,10 @@ defineSuite([
         });
         sp.getAllUniforms().u_cubeMap.value = cubeMap;
 
-        va = context.createVertexArray();
-        va.addAttribute({
+        va = context.createVertexArray([{
             vertexBuffer : context.createVertexBuffer(new Float32Array([0, 0, 0, 1]), BufferUsage.STATIC_DRAW),
             componentsPerAttribute : 4
-        });
+        }]);
 
         context.draw({
             primitiveType : PrimitiveType.POINTS,
@@ -840,6 +947,18 @@ defineSuite([
                 pixelFormat : PixelFormat.DEPTH_COMPONENT
             });
         }).toThrow();
+    });
+
+    it('throws during creation if pixelDatatype is FLOAT, and OES_texture_float is not supported', function() {
+        if (!context.getFloatingPointTexture()) {
+            expect(function() {
+                cubeMap = context.createCubeMap({
+                    width : 16,
+                    height : 16,
+                    pixelDatatype : PixelDatatype.FLOAT
+                });
+            }).toThrow();
+        }
     });
 
     it('fails to create (pixelDatatype)', function() {
@@ -937,6 +1056,20 @@ defineSuite([
         }).toThrow();
     });
 
+    it('fails to copy from the frame buffer (invalid data type)', function() {
+        if (context.getFloatingPointTexture()) {
+            cubeMap = context.createCubeMap({
+                width : 1,
+                height : 1,
+                pixelDatatype : PixelDatatype.FLOAT
+            });
+
+            expect(function() {
+                cubeMap.getPositiveX().copyFromFramebuffer();
+            }).toThrow();
+        }
+    });
+
     it('fails to copy from the frame buffer (xOffset)', function() {
         cubeMap = context.createCubeMap({
             width : 1,
@@ -1023,6 +1156,38 @@ defineSuite([
         expect(function() {
             cubeMap.generateMipmap('invalid hint');
         }).toThrow();
+    });
+
+    it('throws when data type is FLOAT and minification filter is not NEAREST or NEAREST_MIPMAP_NEAREST', function() {
+        if (context.getFloatingPointTexture()) {
+            cubeMap = context.createCubeMap({
+                width : 16,
+                height : 16,
+                pixelDatatype : PixelDatatype.FLOAT
+            });
+
+            expect(function() {
+                cubeMap.setSampler(context.createSample({
+                    minificationFilter : TextureMinificationFilter.LINEAR
+                }));
+            }).toThrow();
+        }
+    });
+
+    it('throws when data type is FLOAT and magnification filter is not NEAREST', function() {
+        if (context.getFloatingPointTexture()) {
+            cubeMap = context.createCubeMap({
+                width : 16,
+                height : 16,
+                pixelDatatype : PixelDatatype.FLOAT
+            });
+
+            expect(function() {
+                cubeMap.setSampler(context.createSample({
+                    magnificationFilter : TextureMagnificationFilter.LINEAR
+                }));
+            }).toThrow();
+        }
     });
 
     it('fails to destroy', function() {

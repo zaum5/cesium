@@ -214,27 +214,9 @@ function(JulianDate,
         }).toThrow();
     });
 
-    it('Fail to construct from a null JavaScript Date', function() {
-        expect(function() {
-            return JulianDate.fromDate(null);
-        }).toThrow();
-    });
-
     it('Fail to construct from an invalid JavaScript Date', function() {
         expect(function() {
             return JulianDate.fromDate(new Date(Date.parse('garbage')));
-        }).toThrow();
-    });
-
-    it('Fail to construct from a non-date JavaScript Date', function() {
-        expect(function() {
-            return JulianDate.fromDate(0);
-        }).toThrow();
-    });
-
-    it('Fail to construct from a JavaScript Date with null time standard', function() {
-        expect(function() {
-            return JulianDate.fromDate(new Date(), null);
         }).toThrow();
     });
 
@@ -541,6 +523,30 @@ function(JulianDate,
     it('Construct from an ISO8601 local calendar date with UTC offset that crosses into previous year', function() {
         var expectedDate = JulianDate.fromDate(new Date(Date.UTC(2009, 0, 1, 1, 0, 0)));
         var julianDate = JulianDate.fromIso8601('2008-12-31T23:00:00-02');
+        expect(julianDate).toEqual(expectedDate);
+    });
+
+    it('Construct from an ISO8601 local calendar date with UTC offset', function() {
+        var expectedDate = JulianDate.fromDate(new Date(Date.UTC(2008, 10, 10, 12, 0, 0)));
+        var julianDate = JulianDate.fromIso8601('2008-11-10T14:00:00+02');
+        expect(julianDate).toEqual(expectedDate);
+    });
+
+    it('Construct from an ISO8601 local calendar date with UTC offset in extended format', function() {
+        var expectedDate = JulianDate.fromDate(new Date(Date.UTC(2008, 10, 10, 11, 30, 0)));
+        var julianDate = JulianDate.fromIso8601('2008-11-10T14:00:00+02:30');
+        expect(julianDate).toEqual(expectedDate);
+    });
+
+    it('Construct from an ISO8601 local calendar date with zero UTC offset in extended format', function() {
+        var expectedDate = JulianDate.fromDate(new Date(Date.UTC(2008, 10, 10, 14, 0, 0)));
+        var julianDate = JulianDate.fromIso8601('2008-11-10T14:00:00+00:00');
+        expect(julianDate).toEqual(expectedDate);
+    });
+
+    it('Construct from an ISO8601 local calendar date with zero UTC offset in extended format', function() {
+        var expectedDate = JulianDate.fromDate(new Date(Date.UTC(2008, 10, 10, 14, 0, 0)));
+        var julianDate = JulianDate.fromIso8601('2008-11-10T14:00:00+00');
         expect(julianDate).toEqual(expectedDate);
     });
 

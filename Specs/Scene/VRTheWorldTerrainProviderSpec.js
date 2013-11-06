@@ -1,21 +1,21 @@
 /*global defineSuite*/
 defineSuite([
          'Scene/VRTheWorldTerrainProvider',
+         'Core/defined',
          'Core/loadImage',
          'Core/loadXML',
          'Core/DefaultProxy',
-         'Core/Ellipsoid',
          'Core/Math',
          'Scene/GeographicTilingScheme',
          'Scene/HeightmapTerrainData',
          'Scene/TerrainProvider',
          'ThirdParty/when'
      ], function(
-          VRTheWorldTerrainProvider,
+         VRTheWorldTerrainProvider,
+         defined,
          loadImage,
          loadXML,
          DefaultProxy,
-         Ellipsoid,
          CesiumMath,
          GeographicTilingScheme,
          HeightmapTerrainData,
@@ -122,7 +122,7 @@ defineSuite([
         var provider = new VRTheWorldTerrainProvider({
             url : 'made/up/url'
         });
-        expect(provider.getLogo()).toBeUndefined();
+        expect(provider.getCredit()).toBeUndefined();
     });
 
     it('logo is defined if credit is provided', function() {
@@ -130,7 +130,7 @@ defineSuite([
             url : 'made/up/url',
             credit : 'thanks to our awesome made up contributors!'
         });
-        expect(provider.getLogo()).toBeDefined();
+        expect(provider.getCredit()).toBeDefined();
     });
 
     it('does not have a water mask', function() {
@@ -208,7 +208,6 @@ defineSuite([
             loadImage.createImage = function(url, crossOrigin, deferred) {
                 expect(url.indexOf('/proxy/?')).toBe(0);
                 expect(url.indexOf(encodeURIComponent('.tif?cesium=true'))).toBeGreaterThanOrEqualTo(0);
-                expect(crossOrigin).toEqual(true);
 
                 // Just return any old image.
                 return loadImage.defaultCreateImage('Data/Images/Red16x16.png', crossOrigin, deferred);
@@ -242,7 +241,6 @@ defineSuite([
 
             loadImage.createImage = function(url, crossOrigin, deferred) {
                 expect(url.indexOf('.tif?cesium=true')).toBeGreaterThanOrEqualTo(0);
-                expect(crossOrigin).toEqual(true);
 
                 // Just return any old image.
                 return loadImage.defaultCreateImage('Data/Images/Red16x16.png', crossOrigin, deferred);
@@ -268,7 +266,7 @@ defineSuite([
             });
 
             waitsFor(function() {
-                return typeof loadedData !== 'undefined';
+                return defined(loadedData);
             }, 'request to complete');
 
             runs(function() {

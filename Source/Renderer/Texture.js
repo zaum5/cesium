@@ -2,10 +2,12 @@
 define([
         '../Core/Cartesian2',
         '../Core/defaultValue',
+        '../Core/defined',
         '../Core/destroyObject',
         '../Core/DeveloperError',
         '../Core/Math',
         './MipmapHint',
+        './PixelDatatype',
         './PixelFormat',
         './TextureMagnificationFilter',
         './TextureMinificationFilter',
@@ -13,10 +15,12 @@ define([
     ], function(
         Cartesian2,
         defaultValue,
+        defined,
         destroyObject,
         DeveloperError,
         CesiumMath,
         MipmapHint,
+        PixelDatatype,
         PixelFormat,
         TextureMagnificationFilter,
         TextureMinificationFilter,
@@ -76,7 +80,7 @@ define([
      * });
      */
     Texture.prototype.copyFrom = function(source, xOffset, yOffset) {
-        if (typeof source === 'undefined') {
+        if (!defined(source)) {
             throw new DeveloperError('source is required.');
         }
 
@@ -138,6 +142,7 @@ define([
      * @param {Number} [height=getHeight()] optional
      *
      * @exception {DeveloperError} Cannot call copyFromFramebuffer when the texture pixel format is DEPTH_COMPONENT or DEPTH_STENCIL.
+     * @exception {DeveloperError} Cannot call copyFromFramebuffer when the texture pixel data type is FLOAT.
      * @exception {DeveloperError} This texture was destroyed, i.e., destroy() was called.
      * @exception {DeveloperError} xOffset must be greater than or equal to zero.
      * @exception {DeveloperError} yOffset must be greater than or equal to zero.
@@ -149,6 +154,10 @@ define([
     Texture.prototype.copyFromFramebuffer = function(xOffset, yOffset, framebufferXOffset, framebufferYOffset, width, height) {
         if (PixelFormat.isDepthFormat(this._pixelFormat)) {
             throw new DeveloperError('Cannot call copyFromFramebuffer when the texture pixel format is DEPTH_COMPONENT or DEPTH_STENCIL.');
+        }
+
+        if (this._pixelDatatype === PixelDatatype.FLOAT) {
+            throw new DeveloperError('Cannot call copyFromFramebuffer when the texture pixel data type is FLOAT.');
         }
 
         xOffset = defaultValue(xOffset, 0);
@@ -257,14 +266,32 @@ define([
     * @see Context#createSampler
     */
     Texture.prototype.setSampler = function(sampler) {
-        if (typeof sampler === 'undefined') {
+        if (!defined(sampler)) {
+            var minFilter = TextureMinificationFilter.LINEAR;
+            var magFilter = TextureMagnificationFilter.LINEAR;
+            if (this._pixelDatatype === PixelDatatype.FLOAT) {
+                minFilter = TextureMinificationFilter.NEAREST;
+                magFilter = TextureMagnificationFilter.NEAREST;
+            }
+
             sampler = {
-                wrapS : TextureWrap.CLAMP,
-                wrapT : TextureWrap.CLAMP,
-                minificationFilter : TextureMinificationFilter.LINEAR,
-                magnificationFilter : TextureMagnificationFilter.LINEAR,
+                wrapS : TextureWrap.CLAMP_TO_EDGE,
+                wrapT : TextureWrap.CLAMP_TO_EDGE,
+                minificationFilter : minFilter,
+                magnificationFilter : magFilter,
                 maximumAnisotropy : 1.0
             };
+        }
+
+        if (this._pixelDatatype === PixelDatatype.FLOAT) {
+            if (sampler.minificationFilter !== TextureMinificationFilter.NEAREST &&
+                    sampler.minificationFilter !== TextureMinificationFilter.NEAREST_MIPMAP_NEAREST) {
+                throw new DeveloperError('Only NEAREST and NEAREST_MIPMAP_NEAREST minification filters are supported for floating point textures.');
+            }
+
+            if (sampler.magnificationFilter !== TextureMagnificationFilter.NEAREST) {
+                throw new DeveloperError('Only the NEAREST magnification filter is supported for floating point textures.');
+            }
         }
 
         var gl = this._gl;
@@ -313,7 +340,7 @@ define([
      *
      * @memberof Texture
      *
-     * @return {Cartesian2} The dimensions of this texture.
+     * @returns {Cartesian2} The dimensions of this texture.
      *
      * @exception {DeveloperError} This texture was destroyed, i.e., destroy() was called.
      */
@@ -336,7 +363,7 @@ define([
      *
      * @memberof Texture
      *
-     * @return {Boolean} True if the source pixels are flipped vertically; otherwise, false.
+     * @returns {Boolean} True if the source pixels are flipped vertically; otherwise, false.
      *
      * @exception {DeveloperError} This texture was destroyed, i.e., destroy() was called.
      */
@@ -380,7 +407,7 @@ define([
      *
      * @memberof Texture
      *
-     * @return {Boolean} True if this object was destroyed; otherwise, false.
+     * @returns {Boolean} True if this object was destroyed; otherwise, false.
      *
      * @see Texture#destroy
      */
@@ -398,7 +425,7 @@ define([
      *
      * @memberof Texture
      *
-     * @return {undefined}
+     * @returns {undefined}
      *
      * @exception {DeveloperError} This texture was destroyed, i.e., destroy() was called.
      *

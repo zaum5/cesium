@@ -11,9 +11,10 @@ defineSuite([
          'Specs/render',
          'Core/Cartesian3',
          'Core/Cartographic',
+         'Core/defaultValue',
          'Core/Ellipsoid',
          'Core/Math',
-         'Scene/Camera',
+         'Renderer/ClearCommand',
          'Scene/CentralBody',
          'Scene/LabelCollection',
          'Scene/HorizontalOrigin',
@@ -31,9 +32,10 @@ defineSuite([
          render,
          Cartesian3,
          Cartographic,
+         defaultValue,
          Ellipsoid,
          CesiumMath,
-         Camera,
+         ClearCommand,
          CentralBody,
          LabelCollection,
          HorizontalOrigin,
@@ -61,10 +63,10 @@ defineSuite([
         camera = createCamera(context);
         camera.position = new Cartesian3(1.02, 0.0, 0.0);
         camera.up = Cartesian3.UNIT_Z;
-        camera.direction = camera.position.normalize().negate();
+        camera.direction = Cartesian3.negate(Cartesian3.normalize(camera.position));
 
         us = context.getUniformState();
-        us.update(createFrameState(camera));
+        us.update(context, createFrameState(camera));
     });
 
     afterEach(function() {
@@ -73,7 +75,11 @@ defineSuite([
     });
 
     function createLabels(position) {
-        position = position || { x : -1.0, y : 0.0, z : 0.0 };
+        position = defaultValue(position, {
+            x : -1.0,
+            y : 0.0,
+            z : 0.0
+        });
         var labels = new LabelCollection();
         labels.add({
             position : position,
@@ -85,8 +91,8 @@ defineSuite([
     }
 
     function createPolygon(degree, ellipsoid) {
-        degree = (typeof degree !== 'undefined') ? degree : 50.0;
-        ellipsoid = ellipsoid || Ellipsoid.UNIT_SPHERE;
+        degree = defaultValue(degree, 50.0);
+        ellipsoid = defaultValue(ellipsoid, Ellipsoid.UNIT_SPHERE);
         var polygon = new Polygon();
         polygon.ellipsoid = ellipsoid;
         polygon.granularity = CesiumMath.toRadians(20.0);
@@ -96,6 +102,7 @@ defineSuite([
                               ellipsoid.cartographicToCartesian(Cartographic.fromDegrees( degree,  degree, 0.0)),
                               ellipsoid.cartographicToCartesian(Cartographic.fromDegrees(-degree,  degree, 0.0))
                              ]);
+        polygon.asynchronous = false;
         return polygon;
     }
 
@@ -114,7 +121,8 @@ defineSuite([
     });
 
     it('adds a primitive with add()', function() {
-        primitives.add(createLabels());
+        var p = createLabels();
+        expect(primitives.add(p)).toBe(p);
         expect(primitives.getLength()).toEqual(1);
     });
 
@@ -247,7 +255,7 @@ defineSuite([
     });
 
     it('renders a primitive added with add()', function() {
-        context.clear();
+        ClearCommand.ALL.execute(context);
         expect(context.readPixels()).toEqual([0, 0, 0, 0]);
 
         primitives.add(createLabels());
@@ -256,7 +264,7 @@ defineSuite([
     });
 
     it('does not render', function() {
-        context.clear();
+        ClearCommand.ALL.execute(context);
         expect(context.readPixels()).toEqual([0, 0, 0, 0]);
 
         primitives.show = false;
@@ -268,7 +276,7 @@ defineSuite([
     it('renders a primitive in more than one composite', function() {
         var otherPrimitives = new CompositePrimitive(context);
 
-        context.clear();
+        ClearCommand.ALL.execute(context);
         expect(context.readPixels()).toEqual([0, 0, 0, 0]);
 
         var p = createLabels();
@@ -280,7 +288,7 @@ defineSuite([
         expect(context.readPixels()).not.toEqual([0, 0, 0, 0]);
 
         // Render using other composite
-        context.clear();
+        ClearCommand.ALL.execute(context);
         expect(context.readPixels()).toEqual([0, 0, 0, 0]);
 
         render(context, frameState, otherPrimitives);
@@ -290,7 +298,7 @@ defineSuite([
     });
 
     it('renders child composites', function() {
-        context.clear();
+        ClearCommand.ALL.execute(context);
         expect(context.readPixels()).toEqual([0, 0, 0, 0]);
 
         var children = new CompositePrimitive();
@@ -308,7 +316,7 @@ defineSuite([
         primitives.add(labels);
 
         var pickedObject = pick(context, frameState, primitives, 0, 0);
-        expect(pickedObject).toEqual(l);
+        expect(pickedObject.primitive).toEqual(l);
     });
 
     it('does not pick', function() {
@@ -330,7 +338,7 @@ defineSuite([
         primitives.add(children);
 
         var pickedObject = pick(context, frameState, primitives, 0, 0);
-        expect(pickedObject).toEqual(l);
+        expect(pickedObject.primitive).toEqual(l);
     });
 
     it('picks a primitive added with render order (0)', function() {
@@ -341,7 +349,7 @@ defineSuite([
         primitives.add(p1);
 
         var pickedObject = pick(context, frameState, primitives, 0, 0);
-        expect(pickedObject).toEqual(p1);
+        expect(pickedObject.primitive).toEqual(p1);
     });
 
     it('picks a primitive added with render order (1)', function() {
@@ -352,7 +360,7 @@ defineSuite([
         primitives.add(p0);
 
         var pickedObject = pick(context, frameState, primitives, 0, 0);
-        expect(pickedObject).toEqual(p0);
+        expect(pickedObject.primitive).toEqual(p0);
     });
 
     it('picks a primitive added with raise (0)', function() {
@@ -364,7 +372,7 @@ defineSuite([
         primitives.raise(p1); // Already on top
 
         var pickedObject = pick(context, frameState, primitives, 0, 0);
-        expect(pickedObject).toEqual(p1);
+        expect(pickedObject.primitive).toEqual(p1);
     });
 
     it('picks a primitive added with raise (1)', function() {
@@ -376,7 +384,7 @@ defineSuite([
         primitives.raise(p0); // Moved to top
 
         var pickedObject = pick(context, frameState, primitives, 0, 0);
-        expect(pickedObject).toEqual(p0);
+        expect(pickedObject.primitive).toEqual(p0);
     });
 
     it('picks a primitive added with raiseToTop (0)', function() {
@@ -388,7 +396,7 @@ defineSuite([
         primitives.raiseToTop(p1); // Already on top
 
         var pickedObject = pick(context, frameState, primitives, 0, 0);
-        expect(pickedObject).toEqual(p1);
+        expect(pickedObject.primitive).toEqual(p1);
     });
 
     it('picks a primitive added with raiseToTop (1)', function() {
@@ -400,7 +408,7 @@ defineSuite([
         primitives.raiseToTop(p0); // Moved to top
 
         var pickedObject = pick(context, frameState, primitives, 0, 0);
-        expect(pickedObject).toEqual(p0);
+        expect(pickedObject.primitive).toEqual(p0);
     });
 
     it('picks a primitive added with lower (0)', function() {
@@ -412,7 +420,7 @@ defineSuite([
         primitives.lower(p1); // Moved back
 
         var pickedObject = pick(context, frameState, primitives, 0, 0);
-        expect(pickedObject).toEqual(p0);
+        expect(pickedObject.primitive).toEqual(p0);
     });
 
     it('picks a primitive added with lower (1)', function() {
@@ -424,7 +432,7 @@ defineSuite([
         primitives.lower(p0); // Already on bottom
 
         var pickedObject = pick(context, frameState, primitives, 0, 0);
-        expect(pickedObject).toEqual(p1);
+        expect(pickedObject.primitive).toEqual(p1);
     });
 
     it('picks a primitive added with lowerToBottom (0)', function() {
@@ -436,7 +444,7 @@ defineSuite([
         primitives.lowerToBottom(p1); // Moved back
 
         var pickedObject = pick(context, frameState, primitives, 0, 0);
-        expect(pickedObject).toEqual(p0);
+        expect(pickedObject.primitive).toEqual(p0);
     });
 
     it('picks a primitive added with lowerToBottom (1)', function() {
@@ -448,14 +456,14 @@ defineSuite([
         primitives.lowerToBottom(p0); // Already on bottom
 
         var pickedObject = pick(context, frameState, primitives, 0, 0);
-        expect(pickedObject).toEqual(p1);
+        expect(pickedObject.primitive).toEqual(p1);
     });
 
     it('renders a central body', function() {
         var savedCamera;
 
         runs(function() {
-            context.clear();
+            ClearCommand.ALL.execute(context);
             expect(context.readPixels()).toEqual([0, 0, 0, 0]);
 
             var cb = new CentralBody(Ellipsoid.UNIT_SPHERE);

@@ -6,6 +6,7 @@ defineSuite([
          'Core/PrimitiveType',
          'Core/Cartesian2',
          'Renderer/BufferUsage',
+         'Renderer/ClearCommand',
          'Renderer/PixelFormat'
      ], function(
          TextureAtlas,
@@ -14,6 +15,7 @@ defineSuite([
          PrimitiveType,
          Cartesian2,
          BufferUsage,
+         ClearCommand,
          PixelFormat) {
     "use strict";
     /*global jasmine,describe,xdescribe,it,xit,expect,beforeEach,afterEach,beforeAll,afterAll,spyOn,runs,waits,waitsFor*/
@@ -77,14 +79,13 @@ defineSuite([
         });
         sp.getAllUniforms().u_texture.value = texture;
 
-        var va = context.createVertexArray();
-        va.addAttribute({
+        var va = context.createVertexArray([{
             index : sp.getVertexAttributes().position.index,
             vertexBuffer : context.createVertexBuffer(new Float32Array([0, 0, 0, 1]), BufferUsage.STATIC_DRAW),
             componentsPerAttribute : 4
-        });
+        }]);
 
-        context.clear();
+        ClearCommand.ALL.execute(context);
         expect(context.readPixels()).toEqual([0, 0, 0, 0]);
 
         context.draw({

@@ -1,10 +1,14 @@
 /*global define*/
 define([
+        '../Core/defined',
         '../Core/loadImage',
+        '../Core/loadImageViaBlob',
         '../Core/DeveloperError',
         '../Core/throttleRequestByServer'
     ], function(
+        defined,
         loadImage,
+        loadImageViaBlob,
         DeveloperError,
         throttleRequestByServer) {
     "use strict";
@@ -19,6 +23,7 @@ define([
      * @see ArcGisMapServerImageryProvider
      * @see SingleTileImageryProvider
      * @see BingMapsImageryProvider
+     * @see GoogleEarthImageryProvider
      * @see OpenStreetMapImageryProvider
      * @see WebMapServiceImageryProvider
      *
@@ -26,6 +31,91 @@ define([
      * @demo <a href="http://cesium.agi.com/Cesium/Apps/Sandcastle/index.html?src=Imagery%20Layers%20Manipulation.html">Cesium Sandcastle Imagery Manipulation Demo</a>
      */
     var ImageryProvider = function ImageryProvider() {
+        /**
+         * The default alpha blending value of this provider, usually from 0.0 to 1.0.
+         * This can either be a simple number or a function with the signature
+         * <code>function(frameState, layer, x, y, level)</code>.  The function is passed the
+         * current {@link FrameState}, the layer, and the x, y, and level coordinates of the
+         * imagery tile for which the alpha is required, and it is expected to return
+         * the alpha value to use for the tile.  The function is executed for every
+         * frame and for every tile, so it must be fast.
+         *
+         * @type {Number}
+         * @default undefined
+         */
+        this.defaultAlpha = undefined;
+
+        /**
+         * The default brightness of this provider.  1.0 uses the unmodified imagery color.  Less than 1.0
+         * makes the imagery darker while greater than 1.0 makes it brighter.
+         * This can either be a simple number or a function with the signature
+         * <code>function(frameState, layer, x, y, level)</code>.  The function is passed the
+         * current {@link FrameState}, the layer, and the x, y, and level coordinates of the
+         * imagery tile for which the brightness is required, and it is expected to return
+         * the brightness value to use for the tile.  The function is executed for every
+         * frame and for every tile, so it must be fast.
+         *
+         * @type {Number}
+         * @default undefined
+         */
+        this.defaultBrightness = undefined;
+
+        /**
+         * The default contrast of this provider.  1.0 uses the unmodified imagery color.  Less than 1.0 reduces
+         * the contrast while greater than 1.0 increases it.
+         * This can either be a simple number or a function with the signature
+         * <code>function(frameState, layer, x, y, level)</code>.  The function is passed the
+         * current {@link FrameState}, the layer, and the x, y, and level coordinates of the
+         * imagery tile for which the contrast is required, and it is expected to return
+         * the contrast value to use for the tile.  The function is executed for every
+         * frame and for every tile, so it must be fast.
+         *
+         * @type {Number}
+         * @default undefined
+         */
+        this.defaultContrast = undefined;
+
+        /**
+         * The default hue of this provider in radians. 0.0 uses the unmodified imagery color. This can either be a
+         * simple number or a function with the signature <code>function(frameState, layer, x, y, level)</code>.
+         * The function is passed the current {@link FrameState}, the layer, and the x, y, and level
+         * coordinates of the imagery tile for which the hue is required, and it is expected to return
+         * the hue value to use for the tile.  The function is executed for every
+         * frame and for every tile, so it must be fast.
+         *
+         * @type {Number}
+         * @default undefined
+         */
+        this.defaultHue = undefined;
+
+        /**
+         * The default saturation of this provider. 1.0 uses the unmodified imagery color. Less than 1.0 reduces the
+         * saturation while greater than 1.0 increases it. This can either be a simple number or a function
+         * with the signature <code>function(frameState, layer, x, y, level)</code>.  The function is passed the
+         * current {@link FrameState}, the layer, and the x, y, and level coordinates of the
+         * imagery tile for which the saturation is required, and it is expected to return
+         * the saturation value to use for the tile.  The function is executed for every
+         * frame and for every tile, so it must be fast.
+         *
+         * @type {Number}
+         * @default undefined
+         */
+        this.defaultSaturation = undefined;
+
+        /**
+         * The default gamma correction to apply to this provider.  1.0 uses the unmodified imagery color.
+         * This can either be a simple number or a function with the signature
+         * <code>function(frameState, layer, x, y, level)</code>.  The function is passed the
+         * current {@link FrameState}, the layer, and the x, y, and level coordinates of the
+         * imagery tile for which the gamma is required, and it is expected to return
+         * the gamma value to use for the tile.  The function is executed for every
+         * frame and for every tile, so it must be fast.
+         *
+         * @type {Number}
+         * @default undefined
+         */
+        this.defaultGamma = undefined;
+
         throw new DeveloperError('This type should not be instantiated directly.');
     };
 
@@ -87,6 +177,22 @@ define([
     };
 
     /**
+     * Gets the minimum level-of-detail that can be requested.  This function should
+     * not be called before {@link ImageryProvider#isReady} returns true.  Generally,
+     * a minimum level should only be used when the extent of the imagery is small
+     * enough that the number of tiles at the minimum level is small.  An imagery
+     * provider with more than a few tiles at the minimum level will lead to
+     * rendering problems.
+     *
+     * @returns {Number} The minimum level, or undefined if there is no minimum level.
+     *
+     * @exception {DeveloperError} <code>getMinimumLevel</code> must not be called before the imagery provider is ready.
+     */
+    ImageryProvider.prototype.getMinimumLevel = function() {
+        throw new DeveloperError('This type should not be instantiated directly.');
+    };
+
+    /**
      * Gets the tiling scheme used by this provider.  This function should
      * not be called before {@link ImageryProvider#isReady} returns true.
      *
@@ -133,16 +239,14 @@ define([
     };
 
     /**
-     * Gets the logo to display when this imagery provider is active.  Typically this is used to credit
+     * Gets the credit to display when this imagery provider is active.  Typically this is used to credit
      * the source of the imagery.  This function should not be called before {@link ImageryProvider#isReady} returns true.
      *
      * @memberof ImageryProvider
      *
-     * @returns {Image|Canvas} A canvas or image containing the log to display, or undefined if there is no logo.
-     *
-     * @exception {DeveloperError} <code>getLogo</code> must not be called before the imagery provider is ready.
+     * @returns {Credit} The credit, or undefined if no credit exists
      */
-    ImageryProvider.prototype.getLogo = function() {
+    ImageryProvider.prototype.getCredit = function() {
         throw new DeveloperError('This type should not be instantiated directly.');
     };
 
@@ -193,7 +297,10 @@ define([
      *          should be retried later.  The resolved image may be either an
      *          Image or a Canvas DOM object.
      */
-    ImageryProvider.loadImage = function(url) {
+    ImageryProvider.loadImage = function(imageryProvider, url) {
+        if (defined(imageryProvider.getTileDiscardPolicy())) {
+            return throttleRequestByServer(url, loadImageViaBlob);
+        }
         return throttleRequestByServer(url, loadImage);
     };
 

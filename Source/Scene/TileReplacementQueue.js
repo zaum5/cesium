@@ -1,8 +1,10 @@
 /*global define*/
 define([
+        '../Core/defined',
         './ImageryState',
         './TerrainState'
     ], function(
+        defined,
         ImageryState,
         TerrainState) {
     "use strict";
@@ -42,9 +44,9 @@ define([
         var tileToTrim = this.tail;
         var keepTrimming = true;
         while (keepTrimming &&
-               typeof this._lastBeforeStartOfFrame !== 'undefined' &&
+               defined(this._lastBeforeStartOfFrame) &&
                this.count > maximumTiles &&
-               typeof tileToTrim !== 'undefined') {
+               defined(tileToTrim)) {
             // Stop trimming after we process the last tile not used in the
             // current frame.
             keepTrimming = tileToTrim !== this._lastBeforeStartOfFrame;
@@ -54,11 +56,11 @@ define([
             // Do not remove tiles that are transitioning or that have
             // imagery that is transitioning.
             var loadedTerrain = tileToTrim.loadedTerrain;
-            var loadingIsTransitioning = typeof loadedTerrain !== 'undefined' &&
+            var loadingIsTransitioning = defined(loadedTerrain) &&
                                          (loadedTerrain.state === TerrainState.RECEIVING || loadedTerrain.state === TerrainState.TRANSFORMING);
 
             var upsampledTerrain = tileToTrim.upsampledTerrain;
-            var upsamplingIsTransitioning = typeof upsampledTerrain !== 'undefined' &&
+            var upsamplingIsTransitioning = defined(upsampledTerrain) &&
                                             (upsampledTerrain.state === TerrainState.RECEIVING || upsampledTerrain.state === TerrainState.TRANSFORMING);
 
             var shouldRemoveTile = !loadingIsTransitioning && !upsamplingIsTransitioning;
@@ -66,34 +68,34 @@ define([
             var imagery = tileToTrim.imagery;
             for (var i = 0, len = imagery.length; shouldRemoveTile && i < len; ++i) {
                 var tileImagery = imagery[i];
-                shouldRemoveTile = tileImagery.imagery.state !== ImageryState.TRANSITIONING;
+                shouldRemoveTile = !defined(tileImagery.loadingImagery) || tileImagery.loadingImagery.state !== ImageryState.TRANSITIONING;
             }
 
             if (shouldRemoveTile) {
                 tileToTrim.freeResources();
-                this._remove(tileToTrim);
+                remove(this, tileToTrim);
             }
 
             tileToTrim = previous;
         }
     };
 
-    TileReplacementQueue.prototype._remove = function(item) {
+    function remove(tileReplacementQueue, item) {
         var previous = item.replacementPrevious;
         var next = item.replacementNext;
 
-        if (item === this._lastBeforeStartOfFrame) {
-            this._lastBeforeStartOfFrame = next;
+        if (item === tileReplacementQueue._lastBeforeStartOfFrame) {
+            tileReplacementQueue._lastBeforeStartOfFrame = next;
         }
 
-        if (item === this.head) {
-            this.head = next;
+        if (item === tileReplacementQueue.head) {
+            tileReplacementQueue.head = next;
         } else {
             previous.replacementNext = next;
         }
 
-        if (item === this.tail) {
-            this.tail = previous;
+        if (item === tileReplacementQueue.tail) {
+            tileReplacementQueue.tail = previous;
         } else {
             next.replacementPrevious = previous;
         }
@@ -101,8 +103,8 @@ define([
         item.replacementPrevious = undefined;
         item.replacementNext = undefined;
 
-        --this.count;
-    };
+        --tileReplacementQueue.count;
+    }
 
     /**
      * Marks a tile as rendered this frame and moves it before the first tile that was not rendered
@@ -123,7 +125,7 @@ define([
 
         ++this.count;
 
-        if (typeof head === 'undefined') {
+        if (!defined(head)) {
             // no other tiles in the list
             item.replacementPrevious = undefined;
             item.replacementNext = undefined;
@@ -132,9 +134,9 @@ define([
             return;
         }
 
-        if (typeof item.replacementPrevious !== 'undefined' || typeof item.replacementNext !== 'undefined') {
+        if (defined(item.replacementPrevious) || defined(item.replacementNext)) {
             // tile already in the list, remove from its current location
-            this._remove(item);
+            remove(this, item);
         }
 
         item.replacementPrevious = undefined;

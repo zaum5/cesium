@@ -1,12 +1,12 @@
 /*global define*/
 define([
-        '../Core/DeveloperError',
-        '../Core/destroyObject',
-        './CzmlDefaults'
-       ], function(
-         DeveloperError,
-         destroyObject,
-         CzmlDefaults) {
+        '../Core/defaultValue',
+        '../Core/defined',
+        '../Core/destroyObject'
+    ], function(
+        defaultValue,
+        defined,
+        destroyObject) {
     "use strict";
 
     /**
@@ -17,35 +17,11 @@ define([
      *
      * @param {Object} The array of visualizers to use.
      * @param {DynamicObjectCollection} The objects to be visualized.
-     *
-     * @see CzmlDefaults#createVisualizers
      */
     var VisualizerCollection = function(visualizers, dynamicObjectCollection) {
-        if (typeof visualizers === 'undefined') {
-            visualizers = [];
-        }
-        this._visualizers = visualizers;
+        this._visualizers = defined(visualizers) ? visualizers : [];
         this._dynamicObjectCollection = undefined;
         this.setDynamicObjectCollection(dynamicObjectCollection);
-    };
-
-    /**
-     * Creates a new VisualizerCollection which includes all standard visualizers.
-     *
-     * @memberof VisualizerCollection
-     *
-     * @param {Scene} The scene where visualization will take place.
-     * @param {DynamicObjectCollection} The objects to be visualized.
-     *
-     * @exception {DeveloperError} scene is required.
-     *
-     * @see CzmlDefaults#createVisualizers
-     */
-    VisualizerCollection.createCzmlStandardCollection = function(scene, dynamicObjectCollection) {
-        if (typeof scene === 'undefined') {
-            throw new DeveloperError('scene is required.');
-        }
-        return new VisualizerCollection(CzmlDefaults.createVisualizers(scene), dynamicObjectCollection);
     };
 
     /**
@@ -63,7 +39,7 @@ define([
      * @param {Boolean} destroyOldVisualizers If true, visualizers no longer in the collection will be destroyed.
      */
     VisualizerCollection.prototype.setVisualizers = function(visualizers, destroyOldVisualizers) {
-        destroyOldVisualizers = (typeof destroyOldVisualizers !== 'undefined') ? destroyOldVisualizers : true;
+        destroyOldVisualizers = defaultValue(destroyOldVisualizers, true);
 
         var i;
         var thisVisualizers = this._visualizers;
@@ -76,7 +52,7 @@ define([
             }
         }
 
-        if (typeof visualizers === 'undefined') {
+        if (!defined(visualizers)) {
             visualizers = [];
         }
         this._visualizers = visualizers;
@@ -138,7 +114,7 @@ define([
      *
      * @memberof VisualizerCollection
      *
-     * @return {Boolean} True if this object was destroyed; otherwise, false.
+     * @returns {Boolean} True if this object was destroyed; otherwise, false.
      *
      * @see VisualizerCollection#destroy
      */
@@ -156,7 +132,7 @@ define([
      *
      * @memberof VisualizerCollection
      *
-     * @return {undefined}
+     * @returns {undefined}
      *
      * @exception {DeveloperError} This object was destroyed, i.e., destroy() was called.
      *
@@ -166,7 +142,7 @@ define([
      * visualizerCollection = visualizerCollection && visualizerCollection.destroy();
      */
     VisualizerCollection.prototype.destroy = function(destroyVisualizers) {
-        destroyVisualizers = (typeof destroyVisualizers !== 'undefined') ? destroyVisualizers : true;
+        destroyVisualizers = defaultValue(destroyVisualizers, true);
         this.removeAllPrimitives();
         if (destroyVisualizers) {
             var visualizers = this._visualizers;

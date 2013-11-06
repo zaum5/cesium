@@ -1,5 +1,12 @@
 /*global define*/
-define(['./DeveloperError'], function(DeveloperError) {
+define([
+        './defaultValue',
+        './defined',
+        './DeveloperError'
+    ], function(
+        defaultValue,
+        defined,
+        DeveloperError) {
     "use strict";
 
     /**
@@ -20,7 +27,7 @@ define(['./DeveloperError'], function(DeveloperError) {
      * Calculates the average cache miss ratio (ACMR) for a given set of indices.
      *
      * @param {Array} description.indices Lists triads of numbers corresponding to the indices of the vertices
-     *                        in the vertex buffer that define the mesh's triangles.
+     *                        in the vertex buffer that define the geometry's triangles.
      * @param {Number} [description.maximumIndex] The maximum value of the elements in <code>args.indices</code>.
      *                                     If not supplied, this value will be computed.
      * @param {Number} [description.cacheSize=24] The number of vertices that can be stored in the cache at any one time.
@@ -29,27 +36,27 @@ define(['./DeveloperError'], function(DeveloperError) {
      * @exception {DeveloperError} indices length must be a multiple of three.
      * @exception {DeveloperError} cacheSize must be greater than two.
      *
-     * @return {Number} The average cache miss ratio (ACMR).
+     * @returns {Number} The average cache miss ratio (ACMR).
      *
      * @example
      * var indices = [0, 1, 2, 3, 4, 5];
      * var maxIndex = 5;
      * var cacheSize = 3;
-     * var acmr = Tipsify.calculateACMR(indices, maxIndex, cacheSize);
+     * var acmr = Tipsify.calculateACMR({indices : indices, maxIndex : maxIndex, cacheSize : cacheSize});
      */
     Tipsify.calculateACMR = function(description) {
-        description = description || {};
+        description = defaultValue(description, defaultValue.EMPTY_OBJECT);
         var indices = description.indices;
         var maximumIndex = description.maximumIndex;
-        var cacheSize = description.cacheSize || 24;
+        var cacheSize = defaultValue(description.cacheSize, 24);
 
-        if (!indices) {
+        if (!defined(indices)) {
             throw new DeveloperError('indices is required.');
         }
 
         var numIndices = indices.length;
 
-        if ((numIndices < 3) || (numIndices % 3 !== 0)) {
+        if (numIndices < 3 || numIndices % 3 !== 0) {
             throw new DeveloperError('indices length must be a multiple of three.');
         }
         if (maximumIndex <= 0) {
@@ -60,7 +67,7 @@ define(['./DeveloperError'], function(DeveloperError) {
         }
 
         // Compute the maximumIndex if not given
-        if(!maximumIndex) {
+        if (!defined(maximumIndex)) {
             maximumIndex = 0;
             var currentIndex = 0;
             var intoIndices = indices[currentIndex];
@@ -95,7 +102,7 @@ define(['./DeveloperError'], function(DeveloperError) {
      * Optimizes triangles for the post-vertex shader cache.
      *
      * @param {Array} description.indices Lists triads of numbers corresponding to the indices of the vertices
-     *                        in the vertex buffer that define the mesh's triangles.
+     *                        in the vertex buffer that define the geometry's triangles.
      * @param {Number} [description.maximumIndex] The maximum value of the elements in <code>args.indices</code>.
      *                                     If not supplied, this value will be computed.
      * @param {Number} [description.cacheSize=24] The number of vertices that can be stored in the cache at any one time.
@@ -104,19 +111,19 @@ define(['./DeveloperError'], function(DeveloperError) {
      * @exception {DeveloperError} indices length must be a multiple of three.
      * @exception {DeveloperError} cacheSize must be greater than two.
      *
-     * @return {Array} A list of the input indices in an optimized order.
+     * @returns {Array} A list of the input indices in an optimized order.
      *
      * @example
      * var indices = [0, 1, 2, 3, 4, 5];
      * var maxIndex = 5;
      * var cacheSize = 3;
-     * var reorderedIndices = Tipsify.tipsify(indices, maxIndex, cacheSize);
+     * var reorderedIndices = Tipsify.tipsify({indices : indices, maxIndex : maxIndex, cacheSize : cacheSize});
      */
     Tipsify.tipsify = function(description) {
-        description = description || {};
+        description = defaultValue(description, defaultValue.EMPTY_OBJECT);
         var indices = description.indices;
         var maximumIndex = description.maximumIndex;
-        var cacheSize = description.cacheSize || 24;
+        var cacheSize = defaultValue(description.cacheSize, 24);
 
         var cursor;
 
@@ -166,12 +173,12 @@ define(['./DeveloperError'], function(DeveloperError) {
             return n;
         }
 
-        if (!indices) {
+        if (!defined(indices)) {
             throw new DeveloperError('indices is required.');
         }
         var numIndices = indices.length;
 
-        if ((numIndices < 3) || (numIndices % 3 !== 0)) {
+        if (numIndices < 3 || numIndices % 3 !== 0) {
             throw new DeveloperError('indices length must be a multiple of three.');
         }
         if (maximumIndex <= 0) {
@@ -186,7 +193,7 @@ define(['./DeveloperError'], function(DeveloperError) {
         var currentIndex = 0;
         var intoIndices = indices[currentIndex];
         var endIndex = numIndices;
-        if (maximumIndex) {
+        if (defined(maximumIndex)) {
             maximumIndexPlusOne = maximumIndex + 1;
         } else {
             while (currentIndex < endIndex) {
@@ -214,11 +221,11 @@ define(['./DeveloperError'], function(DeveloperError) {
         currentIndex = 0;
         var triangle = 0;
         while (currentIndex < endIndex) {
-            (vertices[indices[currentIndex]]).vertexTriangles.push(triangle);
+            vertices[indices[currentIndex]].vertexTriangles.push(triangle);
             ++(vertices[indices[currentIndex]]).numLiveTriangles;
-            (vertices[indices[currentIndex + 1]]).vertexTriangles.push(triangle);
+            vertices[indices[currentIndex + 1]].vertexTriangles.push(triangle);
             ++(vertices[indices[currentIndex + 1]]).numLiveTriangles;
-            (vertices[indices[currentIndex + 2]]).vertexTriangles.push(triangle);
+            vertices[indices[currentIndex + 2]].vertexTriangles.push(triangle);
             ++(vertices[indices[currentIndex + 2]]).numLiveTriangles;
             ++triangle;
             currentIndex += 3;

@@ -1,5 +1,5 @@
 /*global define*/
-define(function() {
+define(['./defined'], function(defined) {
     "use strict";
 
     /**
@@ -22,17 +22,19 @@ define(function() {
     var Enumeration = function(value, name, properties) {
         /**
          * The numeric value of the enumeration.
-         * @type Number
+         * @type {Number}
+         * @default undefined
          */
         this.value = value;
 
         /**
          * The name of the enumeration for debugging purposes.
-         * @type String
+         * @type {String}
+         * @default undefined
          */
         this.name = name;
 
-        if (typeof properties !== 'undefined') {
+        if (defined(properties)) {
             for ( var propertyName in properties) {
                 if (properties.hasOwnProperty(propertyName)) {
                     this[propertyName] = properties[propertyName];
@@ -46,7 +48,7 @@ define(function() {
      *
      * @memberof Enumeration
      *
-     * @return {Number} The numeric value of the enumeration.
+     * @returns {Number} The numeric value of the enumeration.
      */
     Enumeration.prototype.valueOf = function() {
         return this.value;
@@ -57,7 +59,7 @@ define(function() {
      *
      * @memberof Enumeration
      *
-     * @return {String} The name of the enumeration for debugging purposes.
+     * @returns {String} The name of the enumeration for debugging purposes.
      */
     Enumeration.prototype.toString = function() {
         return this.name;

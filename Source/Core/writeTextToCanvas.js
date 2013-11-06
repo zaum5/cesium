@@ -1,17 +1,17 @@
 /*global define*/
 define([
         './defaultValue',
+        './defined',
         './DeveloperError',
         './Color',
         '../ThirdParty/measureText'
     ], function(
         defaultValue,
+        defined,
         DeveloperError,
         Color,
         measureText) {
     "use strict";
-
-    var EMPTY_OBJECT = {};
 
     /**
      * Writes the given text into a new canvas.  The canvas will be sized to fit the text.
@@ -31,7 +31,7 @@ define([
      *                   blank, returns undefined.
      */
     var writeTextToCanvas = function(text, description) {
-        if (typeof text === 'undefined') {
+        if (!defined(text)) {
             throw new DeveloperError('text is required.');
         }
 
@@ -39,7 +39,7 @@ define([
             return undefined;
         }
 
-        description = defaultValue(description, EMPTY_OBJECT);
+        description = defaultValue(description, defaultValue.EMPTY_OBJECT);
         var font = defaultValue(description.font, '10px sans-serif');
 
         var canvas = document.createElement('canvas');
@@ -89,7 +89,6 @@ define([
             context2D.fillStyle = fillColor.toCssColorString();
             context2D.fillText(text, 0, y);
         }
-
 
         return canvas;
     };

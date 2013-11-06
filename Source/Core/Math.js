@@ -1,10 +1,14 @@
 /*global define*/
 define([
         './defaultValue',
-        './DeveloperError'
+        './defined',
+        './DeveloperError',
+        '../ThirdParty/mersenne-twister'
        ], function(
          defaultValue,
-         DeveloperError) {
+         defined,
+         DeveloperError,
+         MersenneTwister) {
     "use strict";
 
     /**
@@ -15,150 +19,173 @@ define([
 
     /**
      * 0.1
+     * @type {Number}
      * @constant
-     * @type Number
      */
     CesiumMath.EPSILON1 = 0.1;
 
     /**
      * 0.01
+     * @type {Number}
      * @constant
-     * @type Number
      */
     CesiumMath.EPSILON2 = 0.01;
 
     /**
      * 0.001
+     * @type {Number}
      * @constant
-     * @type Number
      */
     CesiumMath.EPSILON3 = 0.001;
 
     /**
      * 0.0001
+     * @type {Number}
      * @constant
-     * @type Number
      */
     CesiumMath.EPSILON4 = 0.0001;
 
     /**
      * 0.00001
+     * @type {Number}
      * @constant
-     * @type Number
      */
     CesiumMath.EPSILON5 = 0.00001;
 
     /**
      * 0.000001
+     * @type {Number}
      * @constant
-     * @type Number
      */
     CesiumMath.EPSILON6 = 0.000001;
 
     /**
      * 0.0000001
+     * @type {Number}
      * @constant
-     * @type Number
      */
     CesiumMath.EPSILON7 = 0.0000001;
 
     /**
      * 0.00000001
+     * @type {Number}
      * @constant
-     * @type Number
      */
     CesiumMath.EPSILON8 = 0.00000001;
 
     /**
      * 0.000000001
+     * @type {Number}
      * @constant
-     * @type Number
      */
     CesiumMath.EPSILON9 = 0.000000001;
 
     /**
      * 0.0000000001
+     * @type {Number}
      * @constant
-     * @type Number
      */
     CesiumMath.EPSILON10 = 0.0000000001;
 
     /**
      * 0.00000000001
+     * @type {Number}
      * @constant
-     * @type Number
      */
     CesiumMath.EPSILON11 = 0.00000000001;
 
     /**
      * 0.000000000001
+     * @type {Number}
      * @constant
-     * @type Number
      */
     CesiumMath.EPSILON12 = 0.000000000001;
 
     /**
      * 0.0000000000001
+     * @type {Number}
      * @constant
-     * @type Number
      */
     CesiumMath.EPSILON13 = 0.0000000000001;
 
     /**
      * 0.00000000000001
+     * @type {Number}
      * @constant
-     * @type Number
      */
     CesiumMath.EPSILON14 = 0.00000000000001;
 
     /**
      * 0.000000000000001
+     * @type {Number}
      * @constant
-     * @type Number
      */
     CesiumMath.EPSILON15 = 0.000000000000001;
 
     /**
      * 0.0000000000000001
+     * @type {Number}
      * @constant
-     * @type Number
      */
     CesiumMath.EPSILON16 = 0.0000000000000001;
 
     /**
      * 0.00000000000000001
+     * @type {Number}
      * @constant
-     * @type Number
      */
     CesiumMath.EPSILON17 = 0.00000000000000001;
 
     /**
      * 0.000000000000000001
+     * @type {Number}
      * @constant
-     * @type Number
      */
     CesiumMath.EPSILON18 = 0.000000000000000001;
 
     /**
      * 0.0000000000000000001
+     * @type {Number}
      * @constant
-     * @type Number
      */
     CesiumMath.EPSILON19 = 0.0000000000000000001;
 
     /**
      * 0.00000000000000000001
+     * @type {Number}
      * @constant
-     * @type Number
      */
     CesiumMath.EPSILON20 = 0.00000000000000000001;
 
     /**
      * 3.986004418e14
+     * @type {Number}
      * @constant
-     * @type Number
      */
     CesiumMath.GRAVITATIONALPARAMETER = 3.986004418e14;
+
+    /**
+     * Radius of the sun in meters: 6.955e8
+     * @type {Number}
+     * @constant
+     */
+    CesiumMath.SOLAR_RADIUS = 6.955e8;
+
+    /**
+     * The mean radius of the moon, according to the "Report of the IAU/IAG Working Group on
+     * Cartographic Coordinates and Rotational Elements of the Planets and satellites: 2000",
+     * Celestial Mechanics 82: 83-110, 2002.
+     * @type {Number}
+     * @constant
+     */
+    CesiumMath.LUNAR_RADIUS = 1737400.0;
+
+    /**
+     * 64 * 1024
+     * @type {Number}
+     * @constant
+     */
+    CesiumMath.SIXTY_FOUR_KILOBYTES = 64 * 1024;
 
     /**
      * Returns the sign of the value; 1 if the value is positive, -1 if the value is
@@ -166,7 +193,7 @@ define([
      *
      * @param {Number} value The value to return the sign of.
      *
-     * @return {Number} The sign of value.
+     * @returns {Number} The sign of value.
      */
     CesiumMath.sign = function(value) {
         if (value > 0) {
@@ -199,7 +226,7 @@ define([
      *
      * @param value The number whose hyperbolic sine is to be returned.
      *
-     * @return The hyperbolic sine of {@code value}.
+     * @returns The hyperbolic sine of {@code value}.
      *
      */
     CesiumMath.sinh = function(value) {
@@ -227,7 +254,7 @@ define([
      *
      * @param value The number whose hyperbolic cosine is to be returned.
      *
-     * @return The hyperbolic cosine of {@code value}.
+     * @returns The hyperbolic cosine of {@code value}.
      */
     CesiumMath.cosh = function(value) {
         var part1 = Math.pow(Math.E, value);
@@ -244,10 +271,10 @@ define([
     };
 
     /**
-     * 1/pi
+     * pi
      *
-     * @constant
      * @type {Number}
+     * @constant
      * @see czm_pi
      */
     CesiumMath.PI = Math.PI;
@@ -255,8 +282,8 @@ define([
     /**
      * 1/pi
      *
-     * @constant
      * @type {Number}
+     * @constant
      * @see czm_oneOverPi
      */
     CesiumMath.ONE_OVER_PI = 1.0 / Math.PI;
@@ -264,18 +291,17 @@ define([
     /**
      * pi/2
      *
-     * @constant
      * @type {Number}
+     * @constant
      * @see czm_piOverTwo
      */
     CesiumMath.PI_OVER_TWO = Math.PI * 0.5;
 
     /**
      * pi/3
-     * <br /><br />
      *
-     * @constant
      * @type {Number}
+     * @constant
      * @see czm_piOverThree
      */
     CesiumMath.PI_OVER_THREE = Math.PI / 3.0;
@@ -283,8 +309,8 @@ define([
     /**
      * pi/4
      *
-     * @constant
      * @type {Number}
+     * @constant
      * @see czm_piOverFour
      */
     CesiumMath.PI_OVER_FOUR = Math.PI / 4.0;
@@ -292,8 +318,8 @@ define([
     /**
      * pi/6
      *
-     * @constant
      * @type {Number}
+     * @constant
      * @see czm_piOverSix
      */
     CesiumMath.PI_OVER_SIX = Math.PI / 6.0;
@@ -301,8 +327,8 @@ define([
     /**
      * 3pi/2
      *
-     * @constant
      * @type {Number}
+     * @constant
      * @see czm_threePiOver2
      */
     CesiumMath.THREE_PI_OVER_TWO = (3.0 * Math.PI) * 0.5;
@@ -310,8 +336,8 @@ define([
     /**
      * 2pi
      *
-     * @constant
      * @type {Number}
+     * @constant
      * @see czm_twoPi
      */
     CesiumMath.TWO_PI = 2.0 * Math.PI;
@@ -319,8 +345,8 @@ define([
     /**
      * 1/2pi
      *
-     * @constant
      * @type {Number}
+     * @constant
      * @see czm_oneOverTwoPi
      */
     CesiumMath.ONE_OVER_TWO_PI = 1.0 / (2.0 * Math.PI);
@@ -328,8 +354,9 @@ define([
     /**
      * The number of radians in a degree.
      *
-     * @constant
      * @type {Number}
+     * @constant
+     * @default Math.PI / 180.0
      * @see czm_radiansPerDegree
      */
     CesiumMath.RADIANS_PER_DEGREE = Math.PI / 180.0;
@@ -337,8 +364,9 @@ define([
     /**
      * The number of degrees in a radian.
      *
-     * @constant
      * @type {Number}
+     * @constant
+     * @default 180.0 / Math.PI
      * @see czm_degreesPerRadian
      */
     CesiumMath.DEGREES_PER_RADIAN = 180.0 / Math.PI;
@@ -346,8 +374,9 @@ define([
     /**
      * The number of radians in an arc second.
      *
-     * @constant
      * @type {Number}
+     * @constant
+     * @default {@link CesiumMath.RADIANS_PER_DEGREE} / 3600.0
      * @see czm_radiansPerArcSecond
      */
     CesiumMath.RADIANS_PER_ARCSECOND = CesiumMath.RADIANS_PER_DEGREE / 3600.0;
@@ -355,7 +384,7 @@ define([
     /**
      * Converts degrees to radians.
      * @param {Number} degrees The angle to convert in degrees.
-     * @return {Number} The corresponding angle in radians.
+     * @returns {Number} The corresponding angle in radians.
      */
     CesiumMath.toRadians = function(degrees) {
         return degrees * CesiumMath.RADIANS_PER_DEGREE;
@@ -364,7 +393,7 @@ define([
     /**
      * Converts radians to degrees.
      * @param {Number} radians The angle to convert in radians.
-     * @return {Number} The corresponding angle in degrees.
+     * @returns {Number} The corresponding angle in degrees.
      */
     CesiumMath.toDegrees = function(radians) {
         return radians * CesiumMath.DEGREES_PER_RADIAN;
@@ -375,7 +404,7 @@ define([
      *
      * @param {Number} angle The longitude value, in radians, to convert to the range [<code>-Math.PI</code>, <code>Math.PI</code>).
      *
-     * @return {Number} The equivalent longitude value in the range [<code>-Math.PI</code>, <code>Math.PI</code>).
+     * @returns {Number} The equivalent longitude value in the range [<code>-Math.PI</code>, <code>Math.PI</code>).
      *
      * @example
      * // Convert 270 degrees to -90 degrees longitude
@@ -397,9 +426,9 @@ define([
     };
 
     /**
-     * Alters the value of input x such that <code>-CesiumMath.PI</code> <= x <= <code>CesiumMath.PI</code>
+     * Produces an angle in the range 0 <= angle <= 2Pi which is equivalent to the provided angle.
      * @param {Number} angle in radians
-     * @return {Number} The angle in the range ()<code>-CesiumMath.PI</code>, <code>CesiumMath.PI</code>).
+     * @returns {Number} The angle in the range ()<code>-CesiumMath.PI</code>, <code>CesiumMath.PI</code>).
      */
     CesiumMath.negativePiToPi = function(x) {
         var epsilon10 = CesiumMath.EPSILON10;
@@ -418,10 +447,22 @@ define([
     };
 
     /**
+     * Produces an angle in the range -Pi <= angle <= Pi which is equivalent to the provided angle.
+     * @param {Number} angle in radians
+     * @returns {Number} The angle in the range (0 , <code>CesiumMath.TWO_PI</code>).
+     */
+    CesiumMath.zeroToTwoPi = function(x) {
+        var value = x % CesiumMath.TWO_PI;
+        // We do a second modules here if we add 2Pi to ensure that we don't have any numerical issues with very
+        // small negative values.
+        return (value < 0.0) ? (value + CesiumMath.TWO_PI) % CesiumMath.TWO_PI : value;
+    };
+
+    /**
      * DOC_TBA
      */
     CesiumMath.equalsEpsilon = function(left, right, epsilon) {
-        epsilon = epsilon || 0.0;
+        epsilon = defaultValue(epsilon, 0.0);
         return Math.abs(left - right) <= epsilon;
     };
 
@@ -434,7 +475,7 @@ define([
      *
      * @param {Number} n The number whose factorial is to be computed.
      *
-     * @return {Number} The factorial of the provided number or undefined if the number is less than 0.
+     * @returns {Number} The factorial of the provided number or undefined if the number is less than 0.
      *
      * @see <a href='http://en.wikipedia.org/wiki/Factorial'>Factorial on Wikipedia</a>.
      *
@@ -468,7 +509,7 @@ define([
      * @param {Number} [maximumValue] The maximum incremented value before rolling over to the minimum value.
      * @param {Number} [minimumValue=0.0] The number reset to after the maximum value has been exceeded.
      *
-     * @return {Number} The incremented number.
+     * @returns {Number} The incremented number.
      *
      * @example
      * var n = CesiumMath.incrementWrap(5, 10, 0); // returns 6
@@ -497,21 +538,52 @@ define([
      *
      * @param {Number} n The positive integer to test.
      *
-     * @return {Boolean} <code>true</code> if the number if a power of two; otherwise, <code>false</code>.
+     * @returns {Boolean} <code>true</code> if the number if a power of two; otherwise, <code>false</code>.
+     *
+     * @exception {DeveloperError} A number greater than or equal to 0 is required.
      *
      * @example
      * var t = CesiumMath.isPowerOfTwo(16); // true
      * var f = CesiumMath.isPowerOfTwo(20); // false
-     *
-     * @exception {DeveloperError} A number greater than or equal to 0 is required.
      */
     CesiumMath.isPowerOfTwo = function(n) {
         if (typeof n !== 'number' || n < 0) {
             throw new DeveloperError('A number greater than or equal to 0 is required.');
         }
 
-        var m = n | 0;
-        return (m !== 0) && ((m & (m - 1)) === 0);
+        return (n !== 0) && ((n & (n - 1)) === 0);
+    };
+
+    /**
+     * Computes the next power-of-two integer greater than or equal to the provided positive integer.
+     *
+     * @memberof CesiumMath
+     *
+     * @param {Number} n The positive integer to test.
+     *
+     * @returns {Number} The next power-of-two integer.
+     *
+     * @exception {DeveloperError} A number greater than or equal to 0 is required.
+     *
+     * @example
+     * var n = CesiumMath.nextPowerOfTwo(29); // 32
+     * var m = CesiumMath.nextPowerOfTwo(32); // 32
+     */
+    CesiumMath.nextPowerOfTwo = function(n) {
+        if (typeof n !== 'number' || n < 0) {
+            throw new DeveloperError('A number greater than or equal to 0 is required.');
+        }
+
+        // From http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
+        --n;
+        n |= n >> 1;
+        n |= n >> 2;
+        n |= n >> 4;
+        n |= n >> 8;
+        n |= n >> 16;
+        ++n;
+
+        return n;
     };
 
     /**
@@ -526,6 +598,40 @@ define([
      */
     CesiumMath.clamp = function(value, min, max) {
         return value < min ? min : value > max ? max : value;
+    };
+
+    var randomNumberGenerator = new MersenneTwister();
+
+    /**
+     * Sets the seed used by the random number generator
+     * in {@link CesiumMath#nextRandomNumber}.
+     *
+     * @memberof CesiumMath
+     *
+     * @param {Number} seed An integer used as the seed.
+     *
+     * @exception {DeveloperError} seed is required.
+     */
+    CesiumMath.setRandomNumberSeed = function(seed) {
+        if (!defined(seed)) {
+            throw new DeveloperError('seed is required.');
+        }
+        randomNumberGenerator = new MersenneTwister(seed);
+    };
+
+    /**
+     * Generates a random number in the range of [0.0, 1.0)
+     * using a Mersenne twister.
+     *
+     * @memberof CesiumMath
+     *
+     * @returns A random number in the range of [0.0, 1.0).
+     *
+     * @see CesiumMath#setRandomNumberSeed
+     * @see http://en.wikipedia.org/wiki/Mersenne_twister
+     */
+    CesiumMath.nextRandomNumber = function() {
+        return randomNumberGenerator.random();
     };
 
     return CesiumMath;

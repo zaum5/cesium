@@ -1,31 +1,33 @@
 /*global define*/
 define([
         '../Core/defaultValue',
+        '../Core/defined',
         '../Core/jsonp',
         '../Core/writeTextToCanvas',
         '../Core/Cartesian2',
         '../Core/DeveloperError',
         '../Core/Event',
-        '../Core/RuntimeError',
         './DiscardMissingTileImagePolicy',
         './GeographicTilingScheme',
         './ImageryProvider',
         './TileProviderError',
         './WebMercatorTilingScheme',
+        './Credit',
         '../ThirdParty/when'
     ], function(
         defaultValue,
+        defined,
         jsonp,
         writeTextToCanvas,
         Cartesian2,
         DeveloperError,
         Event,
-        RuntimeError,
         DiscardMissingTileImagePolicy,
         GeographicTilingScheme,
         ImageryProvider,
         TileProviderError,
         WebMercatorTilingScheme,
+        Credit,
         when) {
     "use strict";
 
@@ -57,6 +59,7 @@ define([
      * @exception {DeveloperError} <code>description.url</code> is required.
      *
      * @see BingMapsImageryProvider
+     * @see GoogleEarthImageryProvider
      * @see OpenStreetMapImageryProvider
      * @see SingleTileImageryProvider
      * @see TileMapServiceImageryProvider
@@ -73,7 +76,7 @@ define([
     var ArcGisMapServerImageryProvider = function ArcGisMapServerImageryProvider(description) {
         description = defaultValue(description, {});
 
-        if (typeof description.url === 'undefined') {
+        if (!defined(description.url)) {
             throw new DeveloperError('description.url is required.');
         }
 
@@ -85,7 +88,7 @@ define([
         this._tileHeight = undefined;
         this._maximumLevel = undefined;
         this._tilingScheme = undefined;
-        this._logo = undefined;
+        this._credit = undefined;
         this._useTiles = defaultValue(description.usePreCachedTilesIfAvailable, true);
 
         this._errorEvent = new Event();
@@ -98,7 +101,7 @@ define([
 
         function metadataSuccess(data) {
             var tileInfo = data.tileInfo;
-            if (!that._useTiles || typeof tileInfo === 'undefined') {
+            if (!that._useTiles || !defined(tileInfo)) {
                 that._tileWidth = 256;
                 that._tileHeight = 256;
                 that._tilingScheme = new GeographicTilingScheme();
@@ -119,7 +122,7 @@ define([
                 that._maximumLevel = data.tileInfo.lods.length - 1;
 
                 // Install the default tile discard policy if none has been supplied.
-                if (typeof that._tileDiscardPolicy === 'undefined') {
+                if (!defined(that._tileDiscardPolicy)) {
                     that._tileDiscardPolicy = new DiscardMissingTileImagePolicy({
                         missingImageUrl : buildImageUrl(that, 0, 0, that._maximumLevel),
                         pixelsToCheck : [new Cartesian2(0, 0), new Cartesian2(200, 20), new Cartesian2(20, 200), new Cartesian2(80, 110), new Cartesian2(160, 130)],
@@ -130,10 +133,8 @@ define([
                 that._useTiles = true;
             }
 
-            if (typeof data.copyrightText !== 'undefined' && data.copyrightText.length > 0) {
-                that._logo = writeTextToCanvas(data.copyrightText, {
-                    font : '12px sans-serif'
-                });
+            if (defined(data.copyrightText) && data.copyrightText.length > 0) {
+                that._credit = new Credit(data.copyrightText);
             }
 
             that._ready = true;
@@ -172,7 +173,7 @@ define([
         }
 
         var proxy = imageryProvider._proxy;
-        if (typeof proxy !== 'undefined') {
+        if (defined(proxy)) {
             url = proxy.getURL(url);
         }
 
@@ -267,6 +268,23 @@ define([
             throw new DeveloperError('getMaximumLevel must not be called before the imagery provider is ready.');
         }
         return this._maximumLevel;
+    };
+
+    /**
+     * Gets the minimum level-of-detail that can be requested.  This function should
+     * not be called before {@link ArcGisMapServerImageryProvider#isReady} returns true.
+     *
+     * @memberof ArcGisMapServerImageryProvider
+     *
+     * @returns {Number} The minimum level, or undefined if there is no minimum level.
+     *
+     * @exception {DeveloperError} <code>getMinimumLevel</code> must not be called before the imagery provider is ready.
+     */
+    ArcGisMapServerImageryProvider.prototype.getMinimumLevel = function() {
+        if (!this._ready) {
+            throw new DeveloperError('getMinimumLevel must not be called before the imagery provider is ready.');
+        }
+        return 0;
     };
 
     /**
@@ -373,24 +391,19 @@ define([
             throw new DeveloperError('requestImage must not be called before the imagery provider is ready.');
         }
         var url = buildImageUrl(this, x, y, level);
-        return ImageryProvider.loadImage(url);
+        return ImageryProvider.loadImage(this, url);
     };
 
     /**
-     * Gets the logo to display when this imagery provider is active.  Typically this is used to credit
+     * Gets the credit to display when this imagery provider is active.  Typically this is used to credit
      * the source of the imagery.  This function should not be called before {@link ArcGisMapServerImageryProvider#isReady} returns true.
      *
      * @memberof ArcGisMapServerImageryProvider
      *
-     * @returns {Image|Canvas} A canvas or image containing the log to display, or undefined if there is no logo.
-     *
-     * @exception {DeveloperError} <code>getLogo</code> must not be called before the imagery provider is ready.
+     * @returns {Credit} The credit, or undefined if no credit exists
      */
-    ArcGisMapServerImageryProvider.prototype.getLogo = function() {
-        if (!this._ready) {
-            throw new DeveloperError('getLogo must not be called before the imagery provider is ready.');
-        }
-        return this._logo;
+    ArcGisMapServerImageryProvider.prototype.getCredit = function() {
+        return this._credit;
     };
 
     return ArcGisMapServerImageryProvider;

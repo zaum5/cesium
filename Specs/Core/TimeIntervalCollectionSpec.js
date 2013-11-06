@@ -251,6 +251,23 @@ defineSuite([
         expect(intervals.findIntervalContainingDate(interval3.stop).data).toEqual(3);
     });
 
+    it('findDataForIntervalContainingDate works', function() {
+        var interval1 = new TimeInterval(JulianDate.fromTotalDays(1), JulianDate.fromTotalDays(2.5), true, true, 1);
+        var interval2 = new TimeInterval(JulianDate.fromTotalDays(2), JulianDate.fromTotalDays(3), false, true, 2);
+
+        var intervals = new TimeIntervalCollection();
+        intervals.addInterval(interval1);
+        expect(intervals.findDataForIntervalContainingDate(interval1.start)).toEqual(1);
+        expect(intervals.findDataForIntervalContainingDate(interval1.stop)).toEqual(1);
+
+        intervals.addInterval(interval2);
+        expect(intervals.findDataForIntervalContainingDate(interval1.start)).toEqual(1);
+        expect(intervals.findDataForIntervalContainingDate(interval1.stop)).toEqual(2);
+        expect(intervals.findDataForIntervalContainingDate(interval2.stop)).toEqual(2);
+
+        expect(intervals.findDataForIntervalContainingDate(JulianDate.fromTotalDays(5))).toBeUndefined();
+    });
+
     it('addInterval correctly intervals that have the same data when using equalsCallback', function() {
         var intervals = new TimeIntervalCollection();
 
@@ -435,6 +452,45 @@ defineSuite([
         expect(intersectedIntervals.get(0).data.value).toEqual(3);
     });
 
+    it('equals works without data', function() {
+        var interval1 = new TimeInterval(JulianDate.fromTotalDays(1), JulianDate.fromTotalDays(2), true, true);
+        var interval2 = new TimeInterval(JulianDate.fromTotalDays(2), JulianDate.fromTotalDays(3), false, true);
+        var interval3 = new TimeInterval(JulianDate.fromTotalDays(4), JulianDate.fromTotalDays(5), true, true);
+
+        var left = new TimeIntervalCollection();
+        left.addInterval(interval1);
+        left.addInterval(interval2);
+        left.addInterval(interval3);
+
+        var right = new TimeIntervalCollection();
+        right.addInterval(interval1);
+        right.addInterval(interval2);
+        right.addInterval(interval3);
+        expect(left.equals(right)).toEqual(true);
+    });
+
+    it('equals works with data', function() {
+        var left = new TimeIntervalCollection();
+        left.addInterval(new TimeInterval(JulianDate.fromTotalDays(1), JulianDate.fromTotalDays(2), true, true, {}));
+        left.addInterval(new TimeInterval(JulianDate.fromTotalDays(2), JulianDate.fromTotalDays(3), false, true, {}));
+        left.addInterval(new TimeInterval(JulianDate.fromTotalDays(4), JulianDate.fromTotalDays(5), true, true, {}));
+
+        var right = new TimeIntervalCollection();
+        right.addInterval(new TimeInterval(JulianDate.fromTotalDays(1), JulianDate.fromTotalDays(2), true, true, {}));
+        right.addInterval(new TimeInterval(JulianDate.fromTotalDays(2), JulianDate.fromTotalDays(3), false, true, {}));
+        right.addInterval(new TimeInterval(JulianDate.fromTotalDays(4), JulianDate.fromTotalDays(5), true, true, {}));
+
+        expect(left.equals(right)).toEqual(false);
+
+        expect(left.equals(right, function() {
+            return true;
+        })).toEqual(true);
+
+        expect(left.equals(right, function() {
+            return false;
+        })).toEqual(false);
+    });
+
     it('get throws with undefined', function() {
         var intervals = new TimeIntervalCollection();
         expect(function() {
@@ -460,6 +516,13 @@ defineSuite([
         var intervals = new TimeIntervalCollection();
         expect(function() {
             intervals.findIntervalContainingDate(undefined);
+        }).toThrow();
+    });
+
+    it('findDataForIntervalContainingDate throws with undefined date', function() {
+        var intervals = new TimeIntervalCollection();
+        expect(function() {
+            intervals.findDataForIntervalContainingDate(undefined);
         }).toThrow();
     });
 

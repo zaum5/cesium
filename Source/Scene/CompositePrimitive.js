@@ -1,10 +1,12 @@
 /*global define*/
 define([
         '../Core/createGuid',
+        '../Core/defined',
         '../Core/destroyObject',
         '../Core/DeveloperError'
     ], function(
         createGuid,
+        defined,
         destroyObject,
         DeveloperError) {
     "use strict";
@@ -110,11 +112,14 @@ define([
     };
 
     /**
-     * DOC_TBA
+     * Adds a primitive to a composite primitive.  When a composite is rendered
+     * so are all of the primitives in the composite.
      *
      * @memberof CompositePrimitive
      *
-     * @param {Object} primitive DOC_TBA
+     * @param {Object} primitive The primitive to add to the composite.
+     *
+     * @returns {Object} The primitive added to the composite.
      *
      * @exception {DeveloperError} primitive is required.
      * @exception {DeveloperError} This object was destroyed, i.e., destroy() was called.
@@ -126,7 +131,7 @@ define([
      * primitives.add(labels);
      */
     CompositePrimitive.prototype.add = function(primitive) {
-        if (typeof primitive === 'undefined') {
+        if (!defined(primitive)) {
             throw new DeveloperError('primitive is required.');
         }
 
@@ -137,6 +142,8 @@ define([
         };
 
         this._primitives.push(primitive);
+
+        return primitive;
     };
 
     /**
@@ -146,7 +153,7 @@ define([
      *
      * @param {Object} primitive DOC_TBA
      *
-     * @return {Boolean} <code>true</code> if the primitive was removed; <code>false</code> if the primitive was not found in the composite.
+     * @returns {Boolean} <code>true</code> if the primitive was removed; <code>false</code> if the primitive was not found in the composite.
      *
      * @exception {DeveloperError} This object was destroyed, i.e., destroy() was called.
      *
@@ -222,13 +229,13 @@ define([
                   primitive._external._composites[this._guid]);
     };
 
-    CompositePrimitive.prototype._getPrimitiveIndex = function(primitive) {
-        if (!this.contains(primitive)) {
+    function getPrimitiveIndex(compositePrimitive, primitive) {
+        if (!compositePrimitive.contains(primitive)) {
             throw new DeveloperError('primitive is not in this composite.');
         }
 
-        return this._primitives.indexOf(primitive);
-    };
+        return compositePrimitive._primitives.indexOf(primitive);
+    }
 
     /**
      * DOC_TBA
@@ -244,8 +251,8 @@ define([
      * @see CompositePrimitive#addGround
      */
     CompositePrimitive.prototype.raise = function(primitive) {
-        if (typeof primitive !== 'undefined') {
-            var index = this._getPrimitiveIndex(primitive);
+        if (defined(primitive)) {
+            var index = getPrimitiveIndex(this, primitive);
             var primitives = this._primitives;
 
             if (index !== primitives.length - 1) {
@@ -270,8 +277,8 @@ define([
      * @see CompositePrimitive#addGround
      */
     CompositePrimitive.prototype.raiseToTop = function(primitive) {
-        if (typeof primitive !== 'undefined') {
-            var index = this._getPrimitiveIndex(primitive);
+        if (defined(primitive)) {
+            var index = getPrimitiveIndex(this, primitive);
             var primitives = this._primitives;
 
             if (index !== primitives.length - 1) {
@@ -296,8 +303,8 @@ define([
      * @see CompositePrimitive#addGround
      */
     CompositePrimitive.prototype.lower = function(primitive) {
-        if (typeof primitive !== 'undefined') {
-            var index = this._getPrimitiveIndex(primitive);
+        if (defined(primitive)) {
+            var index = getPrimitiveIndex(this, primitive);
             var primitives = this._primitives;
 
             if (index !== 0) {
@@ -322,8 +329,8 @@ define([
      * @see CompositePrimitive#addGround
      */
     CompositePrimitive.prototype.lowerToBottom = function(primitive) {
-        if (typeof primitive !== 'undefined') {
-            var index = this._getPrimitiveIndex(primitive);
+        if (defined(primitive)) {
+            var index = getPrimitiveIndex(this, primitive);
             var primitives = this._primitives;
 
             if (index !== 0) {
@@ -356,7 +363,7 @@ define([
      * }
      */
     CompositePrimitive.prototype.get = function(index) {
-        if (typeof index === 'undefined') {
+        if (!defined(index)) {
             throw new DeveloperError('index is required.');
         }
 
@@ -400,8 +407,7 @@ define([
         var primitives = this._primitives;
         var length = primitives.length;
         for (var i = 0; i < length; ++i) {
-            var primitive = primitives[i];
-            primitive.update(context, frameState, commandList);
+            primitives[i].update(context, frameState, commandList);
         }
     };
 
@@ -413,7 +419,7 @@ define([
      *
      * @memberof CompositePrimitive
      *
-     * @return {Boolean} True if this object was destroyed; otherwise, false.
+     * @returns {Boolean} True if this object was destroyed; otherwise, false.
      *
      * @see CompositePrimitive#destroy
      */
@@ -435,7 +441,7 @@ define([
      *
      * @memberof CompositePrimitive
      *
-     * @return {undefined}
+     * @returns {undefined}
      *
      * @exception {DeveloperError} This object was destroyed, i.e., destroy() was called.
      *

@@ -1,15 +1,16 @@
 /*global defineSuite*/
-defineSuite(['Widgets/SceneModePicker/SceneModePicker',
-             'Scene/SceneTransitioner',
-             'Specs/createScene',
-             'Specs/destroyScene',
-             'Specs/EventHelper'
-            ], function(
-              SceneModePicker,
-              SceneTransitioner,
-              createScene,
-              destroyScene,
-              EventHelper) {
+defineSuite([
+         'Widgets/SceneModePicker/SceneModePicker',
+         'Scene/SceneTransitioner',
+         'Specs/createScene',
+         'Specs/destroyScene',
+         'Specs/EventHelper'
+     ], function(
+         SceneModePicker,
+         SceneTransitioner,
+         createScene,
+         destroyScene,
+         EventHelper) {
     "use strict";
     /*global jasmine,describe,xdescribe,it,xit,expect,beforeEach,afterEach,beforeAll,afterAll,spyOn,runs,waits,waitsFor*/
 
@@ -21,13 +22,17 @@ defineSuite(['Widgets/SceneModePicker/SceneModePicker',
         document.body.appendChild(container);
 
         var widget = new SceneModePicker('testContainer', new SceneTransitioner(scene));
+        expect(widget.container).toBe(container);
+        expect(widget.isDestroyed()).toEqual(false);
+
         widget.destroy();
+        expect(widget.isDestroyed()).toEqual(true);
 
         document.body.removeChild(container);
         destroyScene(scene);
     });
 
-    it('mousedown event closes dropdown if target is not container', function() {
+    it('mousedown event closes dropdown if target is not inside container', function() {
         var scene = createScene();
 
         var container = document.createElement('span');
@@ -36,20 +41,20 @@ defineSuite(['Widgets/SceneModePicker/SceneModePicker',
 
         var widget = new SceneModePicker('testContainer', new SceneTransitioner(scene));
 
-        widget.viewModel.dropDownVisible(true);
+        widget.viewModel.dropDownVisible = true;
         EventHelper.fireMouseDown(document.body);
-        expect(widget.viewModel.dropDownVisible()).toEqual(false);
+        expect(widget.viewModel.dropDownVisible).toEqual(false);
 
-        widget.viewModel.dropDownVisible(true);
-        EventHelper.fireMouseDown(container);
-        expect(widget.viewModel.dropDownVisible()).toEqual(true);
+        widget.viewModel.dropDownVisible = true;
+        EventHelper.fireMouseDown(container.firstChild);
+        expect(widget.viewModel.dropDownVisible).toEqual(true);
 
         widget.destroy();
         document.body.removeChild(container);
         destroyScene(scene);
     });
 
-    it('touchstart event closes dropdown if target is not container', function() {
+    it('touchstart event closes dropdown if target is not inside container', function() {
         var scene = createScene();
 
         var container = document.createElement('span');
@@ -58,15 +63,13 @@ defineSuite(['Widgets/SceneModePicker/SceneModePicker',
 
         var widget = new SceneModePicker('testContainer', new SceneTransitioner(scene));
 
-        widget.viewModel.dropDownVisible(true);
-
-        widget.viewModel.dropDownVisible(true);
+        widget.viewModel.dropDownVisible = true;
         EventHelper.fireTouchStart(document.body);
-        expect(widget.viewModel.dropDownVisible()).toEqual(false);
+        expect(widget.viewModel.dropDownVisible).toEqual(false);
 
-        widget.viewModel.dropDownVisible(true);
-        EventHelper.fireTouchStart(container);
-        expect(widget.viewModel.dropDownVisible()).toEqual(true);
+        widget.viewModel.dropDownVisible = true;
+        EventHelper.fireTouchStart(container.firstChild);
+        expect(widget.viewModel.dropDownVisible).toEqual(true);
 
         widget.destroy();
         document.body.removeChild(container);
@@ -94,4 +97,4 @@ defineSuite(['Widgets/SceneModePicker/SceneModePicker',
         }).toThrow();
         destroyScene(scene);
     });
-});
+}, 'WebGL');

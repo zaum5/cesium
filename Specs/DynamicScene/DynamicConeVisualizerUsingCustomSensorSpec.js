@@ -5,11 +5,11 @@ defineSuite([
              'Core/Matrix4',
              'Specs/createScene',
              'Specs/destroyScene',
-             'Specs/MockProperty',
+             'DynamicScene/ConstantProperty',
              'DynamicScene/DynamicCone',
              'DynamicScene/DynamicObjectCollection',
              'DynamicScene/DynamicObject',
-             'Scene/Material',
+             'DynamicScene/ColorMaterialProperty',
              'Core/JulianDate',
              'Core/Quaternion',
              'Core/Cartesian3',
@@ -22,11 +22,11 @@ defineSuite([
               Matrix4,
               createScene,
               destroyScene,
-              MockProperty,
+              ConstantProperty,
               DynamicCone,
               DynamicObjectCollection,
               DynamicObject,
-              Material,
+              ColorMaterialProperty,
               JulianDate,
               Quaternion,
               Cartesian3,
@@ -90,8 +90,8 @@ defineSuite([
         visualizer = new DynamicConeVisualizerUsingCustomSensor(scene, dynamicObjectCollection);
 
         var testObject = dynamicObjectCollection.getOrCreateObject('test');
-        testObject.position = new MockProperty(new Cartesian3(1234, 5678, 9101112));
-        testObject.orientation = new MockProperty(new Quaternion(0, 0, 0, 1));
+        testObject.position = new ConstantProperty(new Cartesian3(1234, 5678, 9101112));
+        testObject.orientation = new ConstantProperty(new Quaternion(0, 0, 0, 1));
         visualizer.update(new JulianDate());
         expect(scene.getPrimitives().getLength()).toEqual(0);
     });
@@ -101,10 +101,10 @@ defineSuite([
         visualizer = new DynamicConeVisualizerUsingCustomSensor(scene, dynamicObjectCollection);
 
         var testObject = dynamicObjectCollection.getOrCreateObject('test');
-        testObject.orientation = new MockProperty(new Quaternion(0, 0, 0, 1));
+        testObject.orientation = new ConstantProperty(new Quaternion(0, 0, 0, 1));
         var cone = testObject.cone = new DynamicCone();
-        cone.maximumClockAngle = new MockProperty(1);
-        cone.outerHalfAngle = new MockProperty(1);
+        cone.maximumClockAngle = new ConstantProperty(1);
+        cone.outerHalfAngle = new ConstantProperty(1);
         visualizer.update(new JulianDate());
         expect(scene.getPrimitives().getLength()).toEqual(0);
     });
@@ -114,10 +114,10 @@ defineSuite([
         visualizer = new DynamicConeVisualizerUsingCustomSensor(scene, dynamicObjectCollection);
 
         var testObject = dynamicObjectCollection.getOrCreateObject('test');
-        testObject.position = new MockProperty(new Cartesian3(1234, 5678, 9101112));
+        testObject.position = new ConstantProperty(new Cartesian3(1234, 5678, 9101112));
         var cone = testObject.cone = new DynamicCone();
-        cone.maximumClockAngle = new MockProperty(1);
-        cone.outerHalfAngle = new MockProperty(1);
+        cone.maximumClockAngle = new ConstantProperty(1);
+        cone.outerHalfAngle = new ConstantProperty(1);
         visualizer.update(new JulianDate());
         expect(scene.getPrimitives().getLength()).toEqual(0);
     });
@@ -128,31 +128,21 @@ defineSuite([
         visualizer = new DynamicConeVisualizerUsingCustomSensor(scene, dynamicObjectCollection);
 
         var testObject = dynamicObjectCollection.getOrCreateObject('test');
-        testObject.position = new MockProperty(new Cartesian3(1234, 5678, 9101112));
-        testObject.orientation = new MockProperty(new Quaternion(0, 0, 0, 1));
+        testObject.position = new ConstantProperty(new Cartesian3(1234, 5678, 9101112));
+        testObject.orientation = new ConstantProperty(new Quaternion(0, 0, Math.sin(CesiumMath.PI_OVER_FOUR), Math.cos(CesiumMath.PI_OVER_FOUR)));
 
         var cone = testObject.cone = new DynamicCone();
-        cone.minimumClockAngle = new MockProperty(0.1);
-        cone.maximumClockAngle = new MockProperty(0.2);
-        cone.innerHalfAngle = new MockProperty(0.3);
-        cone.outerHalfAngle = new MockProperty(0.4);
-        cone.intersectionColor = new MockProperty(new Color(0.1, 0.2, 0.3, 0.4));
-        cone.showIntersection = new MockProperty(true);
-        cone.radius = new MockProperty(123.5);
-        cone.show = new MockProperty(true);
+        cone.minimumClockAngle = new ConstantProperty(0.1);
+        cone.maximumClockAngle = new ConstantProperty(0.2);
+        cone.innerHalfAngle = new ConstantProperty(0.3);
+        cone.outerHalfAngle = new ConstantProperty(0.4);
+        cone.intersectionColor = new ConstantProperty(new Color(0.1, 0.2, 0.3, 0.4));
+        cone.intersectionWidth = new ConstantProperty(0.5);
+        cone.showIntersection = new ConstantProperty(true);
+        cone.radius = new ConstantProperty(123.5);
+        cone.show = new ConstantProperty(true);
 
-        var redMaterial = Material.fromType(scene.getContext(), Material.ColorType);
-        redMaterial.uniforms.color = Color.RED;
-        var whiteMaterial = Material.fromType(scene.getContext(), Material.ColorType);
-        whiteMaterial.uniforms.color = Color.WHITE;
-        var blueMaterial = Material.fromType(scene.getContext(), Material.ColorType);
-        blueMaterial.uniforms.color = Color.BLUE;
-        var yellowMaterial = Material.fromType(scene.getContext(), Material.ColorType);
-        yellowMaterial.uniforms.color = Color.YELLOW;
-        cone.capMaterial = new MockProperty(redMaterial);
-        cone.innerMaterial = new MockProperty(whiteMaterial);
-        cone.outerMaterial = new MockProperty(blueMaterial);
-        cone.silhouetteMaterial = new MockProperty(yellowMaterial);
+        cone.outerMaterial = new ColorMaterialProperty();
         visualizer.update(time);
 
         expect(scene.getPrimitives().getLength()).toEqual(1);
@@ -162,15 +152,45 @@ defineSuite([
         expect(c.innerHalfAngle).toEqual(testObject.cone.innerHalfAngle.getValue(time));
         expect(c.outerHalfAngle).toEqual(testObject.cone.outerHalfAngle.getValue(time));
         expect(c.intersectionColor).toEqual(testObject.cone.intersectionColor.getValue(time));
+        expect(c.intersectionWidth).toEqual(testObject.cone.intersectionWidth.getValue(time));
         expect(c.showIntersection).toEqual(testObject.cone.showIntersection.getValue(time));
         expect(c.radius).toEqual(testObject.cone.radius.getValue(time));
         expect(c.show).toEqual(testObject.cone.show.getValue(time));
-        expect(c.material).toEqual(testObject.cone.outerMaterial.getValue(time));
-        expect(c.modelMatrix).toEqual(Matrix4.fromRotationTranslation(Matrix3.fromQuaternion(testObject.orientation.getValue(time).conjugate()), testObject.position.getValueCartesian(time)));
+        expect(c.material.uniforms).toEqual(testObject.cone.outerMaterial.getValue(time));
+        expect(c.modelMatrix).toEqual(Matrix4.fromRotationTranslation(Matrix3.fromQuaternion(testObject.orientation.getValue(time)), testObject.position.getValue(time)));
 
         cone.show.value = false;
         visualizer.update(time);
         expect(c.show).toEqual(testObject.cone.show.getValue(time));
+    });
+
+    it('IntersectionColor is set correctly with multiple cones.', function() {
+        var time = new JulianDate();
+        var dynamicObjectCollection = new DynamicObjectCollection();
+        visualizer = new DynamicConeVisualizerUsingCustomSensor(scene, dynamicObjectCollection);
+
+        var testObject = dynamicObjectCollection.getOrCreateObject('test');
+        testObject.position = new ConstantProperty(new Cartesian3(1234, 5678, 9101112));
+        testObject.orientation = new ConstantProperty(new Quaternion(0, 0, 0, 1));
+
+        var testObject2 = dynamicObjectCollection.getOrCreateObject('test2');
+        testObject2.position = new ConstantProperty(new Cartesian3(1234, 5678, 9101112));
+        testObject2.orientation = new ConstantProperty(new Quaternion(0, 0, 0, 1));
+
+        var cone = testObject.cone = new DynamicCone();
+        cone.intersectionColor = new ConstantProperty(new Color(0.1, 0.2, 0.3, 0.4));
+
+        var cone2 = testObject2.cone = new DynamicCone();
+        cone2.intersectionColor = new ConstantProperty(new Color(0.4, 0.3, 0.2, 0.1));
+
+        visualizer.update(time);
+
+        expect(scene.getPrimitives().getLength()).toEqual(2);
+        var c = scene.getPrimitives().get(0);
+        expect(c.intersectionColor).toEqual(testObject.cone.intersectionColor.getValue(time));
+
+        c = scene.getPrimitives().get(1);
+        expect(c.intersectionColor).toEqual(testObject2.cone.intersectionColor.getValue(time));
     });
 
     it('An empty DynamicCone causes a ComplexConicSensor to be created with CZML defaults.', function() {
@@ -179,8 +199,8 @@ defineSuite([
         visualizer = new DynamicConeVisualizerUsingCustomSensor(scene, dynamicObjectCollection);
 
         var testObject = dynamicObjectCollection.getOrCreateObject('test');
-        testObject.position = new MockProperty(new Cartesian3(1234, 5678, 9101112));
-        testObject.orientation = new MockProperty(new Quaternion(0, 0, 0, 1));
+        testObject.position = new ConstantProperty(new Cartesian3(1234, 5678, 9101112));
+        testObject.orientation = new ConstantProperty(new Quaternion(0, 0, 0, 1));
 
         testObject.cone = new DynamicCone();
         visualizer.update(time);
@@ -200,18 +220,18 @@ defineSuite([
         visualizer = new DynamicConeVisualizerUsingCustomSensor(scene, dynamicObjectCollection);
 
         var testObject = dynamicObjectCollection.getOrCreateObject('test');
-        testObject.position = new MockProperty(new Cartesian3(1234, 5678, 9101112));
-        testObject.orientation = new MockProperty(new Quaternion(0, 0, 0, 1));
+        testObject.position = new ConstantProperty(new Cartesian3(1234, 5678, 9101112));
+        testObject.orientation = new ConstantProperty(new Quaternion(0, 0, 0, 1));
         var cone = testObject.cone = new DynamicCone();
-        cone.maximumClockAngle = new MockProperty(1);
-        cone.outerHalfAngle = new MockProperty(1);
+        cone.maximumClockAngle = new ConstantProperty(1);
+        cone.outerHalfAngle = new ConstantProperty(1);
 
         var time = new JulianDate();
         expect(scene.getPrimitives().getLength()).toEqual(0);
         visualizer.update(time);
         expect(scene.getPrimitives().getLength()).toEqual(1);
         expect(scene.getPrimitives().get(0).show).toEqual(true);
-        dynamicObjectCollection.clear();
+        dynamicObjectCollection.removeAll();
         visualizer.update(time);
         expect(scene.getPrimitives().getLength()).toEqual(1);
         expect(scene.getPrimitives().get(0).show).toEqual(false);
@@ -222,11 +242,11 @@ defineSuite([
         visualizer = new DynamicConeVisualizerUsingCustomSensor(scene, dynamicObjectCollection);
 
         var testObject = dynamicObjectCollection.getOrCreateObject('test');
-        testObject.position = new MockProperty(new Cartesian3(1234, 5678, 9101112));
-        testObject.orientation = new MockProperty(new Quaternion(0, 0, 0, 1));
+        testObject.position = new ConstantProperty(new Cartesian3(1234, 5678, 9101112));
+        testObject.orientation = new ConstantProperty(new Quaternion(0, 0, 0, 1));
         var cone = testObject.cone = new DynamicCone();
-        cone.maximumClockAngle = new MockProperty(1);
-        cone.outerHalfAngle = new MockProperty(1);
+        cone.maximumClockAngle = new ConstantProperty(1);
+        cone.outerHalfAngle = new ConstantProperty(1);
 
         var time = new JulianDate();
         visualizer.update(time);
@@ -236,19 +256,19 @@ defineSuite([
     it('setDynamicObjectCollection removes old objects and add new ones.', function() {
         var dynamicObjectCollection = new DynamicObjectCollection();
         var testObject = dynamicObjectCollection.getOrCreateObject('test');
-        testObject.position = new MockProperty(new Cartesian3(1234, 5678, 9101112));
-        testObject.orientation = new MockProperty(new Quaternion(0, 0, 0, 1));
+        testObject.position = new ConstantProperty(new Cartesian3(1234, 5678, 9101112));
+        testObject.orientation = new ConstantProperty(new Quaternion(0, 0, 0, 1));
         var cone = testObject.cone = new DynamicCone();
-        cone.maximumClockAngle = new MockProperty(1);
-        cone.outerHalfAngle = new MockProperty(1);
+        cone.maximumClockAngle = new ConstantProperty(1);
+        cone.outerHalfAngle = new ConstantProperty(1);
 
         var dynamicObjectCollection2 = new DynamicObjectCollection();
         var testObject2 = dynamicObjectCollection2.getOrCreateObject('test2');
-        testObject2.position = new MockProperty(new Cartesian3(5678, 9101112, 1234));
-        testObject2.orientation = new MockProperty(new Quaternion(1, 0, 0, 0));
+        testObject2.position = new ConstantProperty(new Cartesian3(5678, 9101112, 1234));
+        testObject2.orientation = new ConstantProperty(new Quaternion(1, 0, 0, 0));
         var cone2 = testObject2.cone = new DynamicCone();
-        cone2.maximumClockAngle = new MockProperty(0.12);
-        cone2.outerHalfAngle = new MockProperty(1.1);
+        cone2.maximumClockAngle = new ConstantProperty(0.12);
+        cone2.outerHalfAngle = new ConstantProperty(1.1);
 
         visualizer = new DynamicConeVisualizerUsingCustomSensor(scene, dynamicObjectCollection);
 

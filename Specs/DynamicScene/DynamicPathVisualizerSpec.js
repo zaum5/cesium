@@ -1,30 +1,26 @@
 /*global defineSuite*/
 defineSuite([
-             'DynamicScene/DynamicPathVisualizer',
-             'Specs/createScene',
-             'Specs/destroyScene',
-             'Specs/MockProperty',
-             'DynamicScene/DynamicPath',
-             'DynamicScene/DynamicObjectCollection',
-             'DynamicScene/DynamicObject',
-             'Core/JulianDate',
-             'Core/Cartesian2',
-             'Core/Cartesian3',
-             'Core/Color',
-             'Scene/Scene'
-            ], function(
-              DynamicPathVisualizer,
-              createScene,
-              destroyScene,
-              MockProperty,
-              DynamicPath,
-              DynamicObjectCollection,
-              DynamicObject,
-              JulianDate,
-              Cartesian2,
-              Cartesian3,
-              Color,
-              Scene) {
+         'DynamicScene/DynamicPathVisualizer',
+         'Specs/createScene',
+         'Specs/destroyScene',
+         'DynamicScene/ConstantProperty',
+         'Core/Cartesian3',
+         'Core/Color',
+         'Core/JulianDate',
+         'DynamicScene/DynamicObjectCollection',
+         'DynamicScene/DynamicPath',
+         'DynamicScene/SampledPositionProperty'
+     ], function(
+         DynamicPathVisualizer,
+         createScene,
+         destroyScene,
+         ConstantProperty,
+         Cartesian3,
+         Color,
+         JulianDate,
+         DynamicObjectCollection,
+         DynamicPath,
+         SampledPositionProperty) {
     "use strict";
     /*global jasmine,describe,xdescribe,it,xit,expect,beforeEach,afterEach,beforeAll,afterAll,spyOn,runs,waits,waitsFor*/
 
@@ -54,7 +50,7 @@ defineSuite([
         visualizer = new DynamicPathVisualizer(scene, dynamicObjectCollection);
         expect(visualizer.getScene()).toEqual(scene);
         expect(visualizer.getDynamicObjectCollection()).toEqual(dynamicObjectCollection);
-        expect(scene.getPrimitives().getLength()).toEqual(2);
+        expect(scene.getPrimitives().getLength()).toEqual(0);
     });
 
     it('update throws if no time specified.', function() {
@@ -83,11 +79,9 @@ defineSuite([
         visualizer = new DynamicPathVisualizer(scene, dynamicObjectCollection);
 
         var testObject = dynamicObjectCollection.getOrCreateObject('test');
-        testObject.position = new MockProperty([new Cartesian3(1234, 5678, 9101112), new Cartesian3(5678, 1234, 1101112)]);
+        testObject.position = new ConstantProperty([new Cartesian3(1234, 5678, 9101112), new Cartesian3(5678, 1234, 1101112)]);
         visualizer.update(new JulianDate());
-        expect(scene.getPrimitives().getLength()).toEqual(2);
-        expect(visualizer._updaters.FIXED._polylineCollection.getLength()).toEqual(0);
-        expect(visualizer._updaters.INERTIAL._polylineCollection.getLength()).toEqual(0);
+        expect(scene.getPrimitives().getLength()).toEqual(0);
     });
 
     it('object with no position does not create a polyline.', function() {
@@ -96,144 +90,175 @@ defineSuite([
 
         var testObject = dynamicObjectCollection.getOrCreateObject('test');
         var path = testObject.path = new DynamicPath();
-        path.show = new MockProperty(true);
+        path.show = new ConstantProperty(true);
 
         visualizer.update(new JulianDate());
-        expect(scene.getPrimitives().getLength()).toEqual(2);
-        expect(visualizer._updaters.FIXED._polylineCollection.getLength()).toEqual(0);
-        expect(visualizer._updaters.INERTIAL._polylineCollection.getLength()).toEqual(0);
+        expect(scene.getPrimitives().getLength()).toEqual(0);
     });
 
     it('A DynamicPath causes a primtive to be created and updated.', function() {
-        var time = new JulianDate();
+        var times = [new JulianDate(0, 0), new JulianDate(1, 0)];
+        var updateTime = new JulianDate(0.5, 0);
+        var positions = [new Cartesian3(1234, 5678, 9101112), new Cartesian3(5678, 1234, 1101112)];
 
         var dynamicObjectCollection = new DynamicObjectCollection();
         visualizer = new DynamicPathVisualizer(scene, dynamicObjectCollection);
 
+        expect(scene.getPrimitives().getLength()).toEqual(0);
+
         var testObject = dynamicObjectCollection.getOrCreateObject('test');
-        testObject.position = new MockProperty([new Cartesian3(1234, 5678, 9101112), new Cartesian3(5678, 1234, 1101112)]);
+        var position = new SampledPositionProperty();
+        testObject.position = position;
+        position.addSamples(times, positions);
 
         var path = testObject.path = new DynamicPath();
-        path.show = new MockProperty(true);
-        path.color = new MockProperty(new Color(0.8, 0.7, 0.6, 0.5));
-        path.width = new MockProperty(12.5);
-        path.outlineColor = new MockProperty(new Color(0.1, 0.2, 0.3, 0.4));
-        path.outlineWidth = new MockProperty(2.5);
-        path.leadTime = new MockProperty(25);
-        path.trailTime = new MockProperty(10);
+        path.show = new ConstantProperty(true);
+        path.color = new ConstantProperty(new Color(0.8, 0.7, 0.6, 0.5));
+        path.width = new ConstantProperty(12.5);
+        path.outlineColor = new ConstantProperty(new Color(0.1, 0.2, 0.3, 0.4));
+        path.outlineWidth = new ConstantProperty(2.5);
+        path.leadTime = new ConstantProperty(25);
+        path.trailTime = new ConstantProperty(10);
 
-        visualizer.update(time);
+        visualizer.update(updateTime);
 
-        expect(visualizer._updaters.FIXED._polylineCollection.getLength()).toEqual(1);
-        expect(visualizer._updaters.INERTIAL._polylineCollection.getLength()).toEqual(0);
+        expect(scene.getPrimitives().getLength()).toEqual(1);
 
         var polylineCollection = scene.getPrimitives().get(0);
         var primitive = polylineCollection.get(0);
-        expect(testObject.position.lastStart).toEqual(time.addSeconds(-path.trailTime.getValue()));
-        expect(testObject.position.lastStop).toEqual(time.addSeconds(path.leadTime.getValue()));
-        expect(primitive.getShow()).toEqual(testObject.path.show.getValue(time));
-        expect(primitive.getPositions()).toEqual(testObject.position.getValueRangeCartesian(time));
-        expect(primitive.getWidth()).toEqual(testObject.path.width.getValue(time));
+        expect(primitive.getPositions()[0]).toEqual(testObject.position.getValue(updateTime.addSeconds(-path.trailTime.getValue())));
+        expect(primitive.getPositions()[1]).toEqual(testObject.position.getValue(updateTime));
+        expect(primitive.getPositions()[2]).toEqual(testObject.position.getValue(updateTime.addSeconds(path.leadTime.getValue())));
+        expect(primitive.getShow()).toEqual(testObject.path.show.getValue(updateTime));
+        expect(primitive.getWidth()).toEqual(testObject.path.width.getValue(updateTime));
 
         var material = primitive.getMaterial();
-        expect(material.uniforms.color).toEqual(testObject.path.color.getValue(time));
-        expect(material.uniforms.outlineColor).toEqual(testObject.path.outlineColor.getValue(time));
-        expect(material.uniforms.outlineWidth).toEqual(testObject.path.outlineWidth.getValue(time));
+        expect(material.uniforms.color).toEqual(testObject.path.color.getValue(updateTime));
+        expect(material.uniforms.outlineColor).toEqual(testObject.path.outlineColor.getValue(updateTime));
+        expect(material.uniforms.outlineWidth).toEqual(testObject.path.outlineWidth.getValue(updateTime));
 
-        testObject.position = new MockProperty([new Cartesian3(5678, 1234, 1101112), new Cartesian3(1234, 5678, 9101112)]);
-        path.color = new MockProperty(new Color(0.1, 0.2, 0.3, 0.4));
-        path.width = new MockProperty(2.5);
-        path.outlineColor = new MockProperty(new Color(0.5, 0.6, 0.7, 0.8));
-        path.outlineWidth = new MockProperty(12.5);
-
-        visualizer.update(time);
-        expect(primitive.getShow()).toEqual(testObject.path.show.getValue(time));
-        expect(primitive.getPositions()).toEqual(testObject.position.getValueRangeCartesian(time));
-        expect(primitive.getWidth()).toEqual(testObject.path.width.getValue(time));
-
-        expect(material.uniforms.color).toEqual(testObject.path.color.getValue(time));
-        expect(material.uniforms.outlineColor).toEqual(testObject.path.outlineColor.getValue(time));
-        expect(material.uniforms.outlineWidth).toEqual(testObject.path.outlineWidth.getValue(time));
-
-        path.show = new MockProperty(false);
-        visualizer.update(time);
-        expect(primitive.getShow()).toEqual(testObject.path.show.getValue(time));
+        path.show = new ConstantProperty(false);
+        visualizer.update(updateTime);
+        expect(primitive.getShow()).toEqual(testObject.path.show.getValue(updateTime));
     });
 
     it('clear hides primitives.', function() {
+        var times = [new JulianDate(0, 0), new JulianDate(1, 0)];
+        var updateTime = new JulianDate(0.5, 0);
+        var positions = [new Cartesian3(1234, 5678, 9101112), new Cartesian3(5678, 1234, 1101112)];
+
         var dynamicObjectCollection = new DynamicObjectCollection();
         visualizer = new DynamicPathVisualizer(scene, dynamicObjectCollection);
+
+        expect(scene.getPrimitives().getLength()).toEqual(0);
+
         var testObject = dynamicObjectCollection.getOrCreateObject('test');
-        var time = new JulianDate();
+        var position = new SampledPositionProperty();
+        testObject.position = position;
+        position.addSamples(times, positions);
 
-        testObject.position = new MockProperty([new Cartesian3(5678, 1234, 1101112), new Cartesian3(1234, 5678, 9101112)]);
         var path = testObject.path = new DynamicPath();
-        path.show = new MockProperty(true);
-        path.leadTime = new MockProperty(5);
-        path.trailTime = new MockProperty(5);
-        visualizer.update(time);
+        path.show = new ConstantProperty(true);
+        path.color = new ConstantProperty(new Color(0.8, 0.7, 0.6, 0.5));
+        path.width = new ConstantProperty(12.5);
+        path.outlineColor = new ConstantProperty(new Color(0.1, 0.2, 0.3, 0.4));
+        path.outlineWidth = new ConstantProperty(2.5);
+        path.leadTime = new ConstantProperty(25);
+        path.trailTime = new ConstantProperty(10);
 
-        var polylineCollection = visualizer._updaters.FIXED._polylineCollection;
-        expect(polylineCollection.getLength()).toEqual(1);
+        visualizer.update(updateTime);
+
+        expect(scene.getPrimitives().getLength()).toEqual(1);
+
+        var polylineCollection = scene.getPrimitives().get(0);
         var primitive = polylineCollection.get(0);
 
-        visualizer.update(time);
+        visualizer.update(updateTime);
         //Clearing won't actually remove the primitive because of the
         //internal cache used by the visualizer, instead it just hides it.
-        dynamicObjectCollection.clear();
+        dynamicObjectCollection.removeAll();
         expect(primitive.getShow()).toEqual(false);
     });
 
     it('Visualizer sets dynamicObject property.', function() {
+        var times = [new JulianDate(0, 0), new JulianDate(1, 0)];
+        var updateTime = new JulianDate(0.5, 0);
+        var positions = [new Cartesian3(1234, 5678, 9101112), new Cartesian3(5678, 1234, 1101112)];
+
         var dynamicObjectCollection = new DynamicObjectCollection();
         visualizer = new DynamicPathVisualizer(scene, dynamicObjectCollection);
 
+        expect(scene.getPrimitives().getLength()).toEqual(0);
+
         var testObject = dynamicObjectCollection.getOrCreateObject('test');
+        var position = new SampledPositionProperty();
+        testObject.position = position;
+        position.addSamples(times, positions);
 
-        var time = new JulianDate();
         var path = testObject.path = new DynamicPath();
+        path.show = new ConstantProperty(true);
+        path.color = new ConstantProperty(new Color(0.8, 0.7, 0.6, 0.5));
+        path.width = new ConstantProperty(12.5);
+        path.outlineColor = new ConstantProperty(new Color(0.1, 0.2, 0.3, 0.4));
+        path.outlineWidth = new ConstantProperty(2.5);
+        path.leadTime = new ConstantProperty(25);
+        path.trailTime = new ConstantProperty(10);
 
-        testObject.position = new MockProperty([new Cartesian3(5678, 1234, 1101112), new Cartesian3(1234, 5678, 9101112)]);
-        path.show = new MockProperty(true);
-        path.leadTime = new MockProperty(5);
-        path.trailTime = new MockProperty(5);
-
-        visualizer.update(time);
-        var polylineCollection = visualizer._updaters.FIXED._polylineCollection;
-        expect(polylineCollection.getLength()).toEqual(1);
+        visualizer.update(updateTime);
+        var polylineCollection = scene.getPrimitives().get(0);
         var primitive = polylineCollection.get(0);
         expect(primitive.dynamicObject).toEqual(testObject);
     });
 
     it('setDynamicObjectCollection removes old objects and add new ones.', function() {
+        var times = [new JulianDate(0, 0), new JulianDate(1, 0)];
+        var updateTime = new JulianDate(0.5, 0);
+        var positions = [new Cartesian3(1234, 5678, 9101112), new Cartesian3(5678, 1234, 1101112)];
+
         var dynamicObjectCollection = new DynamicObjectCollection();
+        visualizer = new DynamicPathVisualizer(scene, dynamicObjectCollection);
+
+        expect(scene.getPrimitives().getLength()).toEqual(0);
+
         var testObject = dynamicObjectCollection.getOrCreateObject('test');
-        testObject.position = new MockProperty([new Cartesian3(5678, 1234, 1101112), new Cartesian3(1234, 5678, 9101112)]);
-        testObject.path = new DynamicPath();
-        testObject.path.show = new MockProperty(true);
-        testObject.path.leadTime = new MockProperty(5);
-        testObject.path.trailTime = new MockProperty(5);
+        var position = new SampledPositionProperty();
+        testObject.position = position;
+        position.addSamples(times, positions);
+
+        var path = testObject.path = new DynamicPath();
+        path.show = new ConstantProperty(true);
+        path.color = new ConstantProperty(new Color(0.8, 0.7, 0.6, 0.5));
+        path.width = new ConstantProperty(12.5);
+        path.outlineColor = new ConstantProperty(new Color(0.1, 0.2, 0.3, 0.4));
+        path.outlineWidth = new ConstantProperty(2.5);
+        path.leadTime = new ConstantProperty(25);
+        path.trailTime = new ConstantProperty(10);
+
+        visualizer.update(updateTime);
 
         var dynamicObjectCollection2 = new DynamicObjectCollection();
         var testObject2 = dynamicObjectCollection2.getOrCreateObject('test2');
-        testObject2.position = new MockProperty([new Cartesian3(1234, 5678, 9101112), new Cartesian3(5678, 1234, 1101112)]);
-        testObject2.path = new DynamicPath();
-        testObject2.path.show = new MockProperty(true);
-        testObject2.path.leadTime = new MockProperty(5);
-        testObject2.path.trailTime = new MockProperty(5);
+        var position2 = new SampledPositionProperty();
+        testObject2.position = position;
+        position2.addSamples(times, positions);
 
-        visualizer = new DynamicPathVisualizer(scene, dynamicObjectCollection);
+        var path2 = testObject2.path = new DynamicPath();
+        path2.show = new ConstantProperty(true);
+        path2.color = new ConstantProperty(new Color(0.8, 0.7, 0.6, 0.5));
+        path2.width = new ConstantProperty(12.5);
+        path2.outlineColor = new ConstantProperty(new Color(0.1, 0.2, 0.3, 0.4));
+        path2.outlineWidth = new ConstantProperty(2.5);
+        path2.leadTime = new ConstantProperty(25);
+        path2.trailTime = new ConstantProperty(10);
 
-        var time = new JulianDate();
-
-        visualizer.update(time);
-        var polylineCollection = visualizer._updaters.FIXED._polylineCollection;
+        expect(scene.getPrimitives().getLength()).toEqual(1);
+        var polylineCollection = scene.getPrimitives().get(0);
         expect(polylineCollection.getLength()).toEqual(1);
         var primitive = polylineCollection.get(0);
         expect(primitive.dynamicObject).toEqual(testObject);
 
         visualizer.setDynamicObjectCollection(dynamicObjectCollection2);
-        visualizer.update(time);
+        visualizer.update(updateTime);
         expect(scene.getPrimitives().getLength()).toEqual(1);
         polylineCollection = scene.getPrimitives().get(0);
         primitive = polylineCollection.get(0);

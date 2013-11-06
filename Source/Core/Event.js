@@ -51,6 +51,8 @@ define([
      * @param {Object} [scope] An optional object scope to serve as the <code>this</code>
      * pointer in which the listener function will execute.
      *
+     * @returns {Function} A function that will remove this event listener when invoked.
+     *
      * @see Event#raiseEvent
      * @see Event#removeEventListener
      *
@@ -63,6 +65,11 @@ define([
 
         this._listeners.push(listener);
         this._scopes.push(scope);
+
+        var event = this;
+        return function() {
+            event.removeEventListener(listener, scope);
+        };
     };
 
     /**
@@ -114,7 +121,8 @@ define([
     Event.prototype.raiseEvent = function() {
         var listeners = this._listeners;
         var scopes = this._scopes;
-        for ( var i = listeners.length - 1; i > -1; i--) {
+        var length = listeners.length;
+        for (var i = 0; i < length; i++) {
             listeners[i].apply(scopes[i], arguments);
         }
     };

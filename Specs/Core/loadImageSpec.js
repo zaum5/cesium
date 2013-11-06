@@ -1,9 +1,11 @@
 /*global defineSuite*/
 defineSuite([
              'Core/loadImage',
+             'Core/defined',
              'ThirdParty/when'
             ], function(
              loadImage,
+             defined,
              when) {
     "use strict";
     /*global jasmine,describe,xdescribe,it,xit,expect,beforeEach,afterEach,beforeAll,afterAll,spyOn,runs,waits,waitsFor*/
@@ -17,7 +19,7 @@ defineSuite([
         });
 
         waitsFor(function() {
-            return typeof loadedImage !== 'undefined';
+            return defined(loadedImage);
         }, 'The image should load.', 5000);
 
         runs(function() {
@@ -33,7 +35,7 @@ defineSuite([
         });
 
         waitsFor(function() {
-            return typeof loadedImage !== 'undefined';
+            return defined(loadedImage);
         }, 'The image should load.');
 
         runs(function() {
@@ -48,13 +50,31 @@ defineSuite([
         }).toThrow();
     });
 
-    it('sets the crossOrigin property', function() {
+    it('sets the crossOrigin property for cross-origin images', function() {
         var fakeImage = {};
         var imageConstructorSpy = spyOn(window, 'Image').andReturn(fakeImage);
 
-        loadImage('./Data/Images/Green.png');
+        loadImage('http://example.invalid/someImage.png');
         expect(imageConstructorSpy).toHaveBeenCalled();
         expect(fakeImage.crossOrigin).toEqual('');
+    });
+
+    it('does not set the crossOrigin property for cross-origin images when allowCrossOrigin is false', function() {
+        var fakeImage = {};
+        var imageConstructorSpy = spyOn(window, 'Image').andReturn(fakeImage);
+
+        loadImage('http://example.invalid/someImage.png', false);
+        expect(imageConstructorSpy).toHaveBeenCalled();
+        expect(fakeImage.crossOrigin).toBeUndefined();
+    });
+
+    it('does not set the crossOrigin property for non-cross-origin images', function() {
+        var fakeImage = {};
+        var imageConstructorSpy = spyOn(window, 'Image').andReturn(fakeImage);
+
+        loadImage('./someImage.png', false);
+        expect(imageConstructorSpy).toHaveBeenCalled();
+        expect(fakeImage.crossOrigin).toBeUndefined();
     });
 
     it('does not set the crossOrigin property for data URIs', function() {

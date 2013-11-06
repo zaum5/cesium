@@ -243,14 +243,6 @@ jasmine.HtmlReporter = function(_doc) {
     }
   };
 
-  function wrapWithDebugger(originalFunction) {
-    return function() {
-        var stepIntoThisFunction = originalFunction.bind(this);
-        debugger;
-        stepIntoThisFunction();
-    };
-}
-
   self.specFilter = function(spec) {
 	var paramMap = [];
     var params = jasmine.HtmlReporter.parameters(doc);
@@ -258,11 +250,6 @@ jasmine.HtmlReporter = function(_doc) {
     for (var i = 0; i < params.length; i++) {
       var p = params[i].split('=');
       paramMap[decodeURIComponent(p[0])] = decodeURIComponent(p[1]);
-    }
-
-    if (paramMap.debug && spec.getFullName() === paramMap.debug) {
-      var block = spec.queue.blocks[0];
-      block.func = wrapWithDebugger(block.func);
     }
 
     var focusedSpecName = getFocusedSpecName();
@@ -320,7 +307,19 @@ jasmine.HtmlReporter = function(_doc) {
       return matchedCategory;
     }
 
-    return (spec.getFullName() === focusedSpecName) || (spec.suite.getFullName() === focusedSpecName);
+    if (spec.getFullName() === focusedSpecName) {
+        return true;
+    }
+
+    var suite = spec.suite;
+    while (suite) {
+        if (suite.getFullName() === focusedSpecName) {
+            return true;
+        }
+        suite = suite.parentSuite;
+    }
+
+    return false;
   };
 
   return self;
@@ -378,15 +377,15 @@ jasmine.HtmlReporter = function(_doc) {
         self.createDom('span', { className: 'title' }, "Jasmine "),
         self.createDom('span', { className: 'version' }, version)),
 
-      dom.symbolSummary = self.createDom('ul', {className: 'symbolSummary'}),
+      //dom.symbolSummary = self.createDom('ul', {className: 'symbolSummary'}),
       dom.alert = self.createDom('div', {className: 'alert'},
         self.createDom('div', {className: 'progressContainer'},
         dom.progress = self.createDom('div', {className: 'progressBar', style: 'width: 0%'})),
         dom.exceptions = self.createDom('span', { className: 'exceptions' },
           self.createDom('label', { className: 'label', 'for': 'no_try_catch' }, 'No try/catch'),
           self.createDom('input', { id: 'no_try_catch', type: 'checkbox' }),
-          self.createDom('input', { type: 'button', value: 'run', id: 'runButton'}, 'run'),
-          self.createDom('input',  { type: 'button', value: 'run with coverage', id: 'runCoverageButton' }, 'run with coverage'))),
+          self.createDom('input', { type: 'button', value: 'run', id: 'runButton'}),
+          self.createDom('input',  { type: 'button', value: 'run with coverage', id: 'runCoverageButton' }))),
       dom.results = self.createDom('div', {className: 'results'},
         dom.summary = self.createDom('div', { className: 'summary' }),
         dom.details = self.createDom('div', { id: 'details' }),
@@ -639,6 +638,16 @@ jasmine.HtmlReporter.ReporterView = function(dom) {
                 window.encodeURIComponent('?baseUrl=../Instrumented&spec=' + name), target: '_top' }, "coverage"),
 	runTime), suiteView.element.getElementsByTagName('a')[2].nextSibling);
 
+	if (suite.beforeSpec_ && !suite.beforeSpec_.results().passed()) {
+        var beforeSpecView = new jasmine.HtmlReporter.SpecView(suite.beforeSpec_, dom, this.views);
+        this.failedCount++;
+        beforeSpecView.refresh();
+    }
+    if (suite.afterSpec_ && !suite.afterSpec_.results().passed()) {
+        var afterSpecView = new jasmine.HtmlReporter.SpecView(suite.afterSpec_, dom, this.views);
+        this.failedCount++;
+        afterSpecView.refresh();
+    }
 
     suiteView.refresh();
   };
@@ -760,8 +769,8 @@ jasmine.HtmlReporter.SpecView = function(spec, dom, views) {
   this.dom = dom;
   this.views = views;
 
-  this.symbol = this.createDom('li', { className: 'pending' });
-  // this.dom.symbolSummary.appendChild(this.symbol);
+  //this.symbol = this.createDom('li', { className: 'pending' });
+  //this.dom.symbolSummary.appendChild(this.symbol);
 
   this.summary = this.createDom('div', { className: 'specSummary' },
     this.createDom('a', {
@@ -796,7 +805,7 @@ jasmine.HtmlReporter.SpecView.prototype.status = function() {
 };
 
 jasmine.HtmlReporter.SpecView.prototype.refresh = function() {
-  this.symbol.className = this.status();
+  //this.symbol.className = this.status();
 
   switch (this.status()) {
     case 'skipped':

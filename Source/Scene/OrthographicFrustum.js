@@ -1,5 +1,7 @@
 /*global define*/
 define([
+        '../Core/defined',
+        '../Core/defineProperties',
         '../Core/DeveloperError',
         '../Core/destroyObject',
         '../Core/Cartesian2',
@@ -8,6 +10,8 @@ define([
         '../Core/Matrix4',
         '../Scene/CullingVolume'
     ], function(
+        defined,
+        defineProperties,
         DeveloperError,
         destroyObject,
         Cartesian2,
@@ -41,6 +45,7 @@ define([
         /**
          * The left clipping plane.
          * @type {Number}
+         * @default undefined
          */
         this.left = undefined;
         this._left = undefined;
@@ -48,6 +53,7 @@ define([
         /**
          * The right clipping plane.
          * @type {Number}
+         * @default undefined
          */
         this.right = undefined;
         this._right = undefined;
@@ -55,6 +61,7 @@ define([
         /**
          * The top clipping plane.
          * @type {Number}
+         * @default undefined
          */
         this.top = undefined;
         this._top = undefined;
@@ -62,6 +69,7 @@ define([
         /**
          * The bottom clipping plane.
          * @type {Number}
+         * @default undefined
          */
         this.bottom = undefined;
         this._bottom = undefined;
@@ -69,6 +77,7 @@ define([
         /**
          * The distance of the near plane.
          * @type {Number}
+         * @default 1.0
          */
         this.near = 1.0;
         this._near = this.near;
@@ -76,6 +85,7 @@ define([
         /**
          * The distance of the far plane.
          * @type {Number}
+         * @default 500000000.0;
          */
         this.far = 500000000.0;
         this._far = this.far;
@@ -84,22 +94,10 @@ define([
         this._orthographicMatrix = undefined;
     };
 
-    /**
-     * Returns the orthographic projection matrix computed from the view frustum.
-     *
-     * @memberof OrthographicFrustum
-     *
-     * @return {Matrix4} The orthographic projection matrix.
-     */
-    OrthographicFrustum.prototype.getProjectionMatrix = function() {
-        update(this);
-        return this._orthographicMatrix;
-    };
-
     function update(frustum) {
-        if (typeof frustum.right === 'undefined' || typeof frustum.left === 'undefined' ||
-                typeof frustum.top === 'undefined' || typeof frustum.bottom === 'undefined' ||
-                typeof frustum.near === 'undefined' || typeof frustum.far === 'undefined') {
+        if (!defined(frustum.right) || !defined(frustum.left) ||
+            !defined(frustum.top) || !defined(frustum.bottom) ||
+            !defined(frustum.near) || !defined(frustum.far)) {
             throw new DeveloperError('right, left, top, bottom, near, or far parameters are not set.');
         }
 
@@ -129,6 +127,20 @@ define([
         }
     }
 
+    defineProperties(OrthographicFrustum.prototype, {
+        /**
+         * The orthographic projection matrix computed from the view frustum.
+         * @memberof OrthographicFrustum
+         * @type {Matrix4}
+         */
+        projectionMatrix : {
+            get : function() {
+                update(this);
+                return this._orthographicMatrix;
+            }
+        }
+    });
+
     var getPlanesRight = new Cartesian3();
     var getPlanesNearCenter = new Cartesian3();
     var getPlanesPoint = new Cartesian3();
@@ -145,7 +157,7 @@ define([
      * @exception {DeveloperError} direction is required.
      * @exception {DeveloperError} up is required.
      *
-     * @return {CullingVolume} A culling volume at the given position and orientation.
+     * @returns {CullingVolume} A culling volume at the given position and orientation.
      *
      * @example
      * // Check if a bounding volume intersects the frustum.
@@ -153,15 +165,15 @@ define([
      * var intersect = cullingVolume.getVisibility(boundingVolume);
      */
     OrthographicFrustum.prototype.computeCullingVolume = function(position, direction, up) {
-        if (typeof position === 'undefined') {
+        if (!defined(position)) {
             throw new DeveloperError('position is required.');
         }
 
-        if (typeof direction === 'undefined') {
+        if (!defined(direction)) {
             throw new DeveloperError('direction is required.');
         }
 
-        if (typeof up === 'undefined') {
+        if (!defined(up)) {
             throw new DeveloperError('up is required.');
         }
 
@@ -187,7 +199,7 @@ define([
         Cartesian3.add(nearCenter, point, point);
 
         var plane = planes[0];
-        if (typeof plane === 'undefined') {
+        if (!defined(plane)) {
             plane = planes[0] = new Cartesian4();
         }
         plane.x = right.x;
@@ -200,20 +212,20 @@ define([
         Cartesian3.add(nearCenter, point, point);
 
         plane = planes[1];
-        if (typeof plane === 'undefined') {
+        if (!defined(plane)) {
             plane = planes[1] = new Cartesian4();
         }
         plane.x = -right.x;
         plane.y = -right.y;
         plane.z = -right.z;
-        plane.w = -Cartesian3.dot(right.negate(), point);
+        plane.w = -Cartesian3.dot(Cartesian3.negate(right), point);
 
         // Bottom plane
         Cartesian3.multiplyByScalar(up, b, point);
         Cartesian3.add(nearCenter, point, point);
 
         plane = planes[2];
-        if (typeof plane === 'undefined') {
+        if (!defined(plane)) {
             plane = planes[2] = new Cartesian4();
         }
         plane.x = up.x;
@@ -226,17 +238,17 @@ define([
         Cartesian3.add(nearCenter, point, point);
 
         plane = planes[3];
-        if (typeof plane === 'undefined') {
+        if (!defined(plane)) {
             plane = planes[3] = new Cartesian4();
         }
         plane.x = -up.x;
         plane.y = -up.y;
         plane.z = -up.z;
-        plane.w = -Cartesian3.dot(up.negate(), point);
+        plane.w = -Cartesian3.dot(Cartesian3.negate(up), point);
 
         // Near plane
         plane = planes[4];
-        if (typeof plane === 'undefined') {
+        if (!defined(plane)) {
             plane = planes[4] = new Cartesian4();
         }
         plane.x = direction.x;
@@ -249,13 +261,13 @@ define([
         Cartesian3.add(position, point, point);
 
         plane = planes[5];
-        if (typeof plane === 'undefined') {
+        if (!defined(plane)) {
             plane = planes[5] = new Cartesian4();
         }
         plane.x = -direction.x;
         plane.y = -direction.y;
         plane.z = -direction.z;
-        plane.w = -Cartesian3.dot(direction.negate(), point);
+        plane.w = -Cartesian3.dot(Cartesian3.negate(direction), point);
 
         return this._cullingVolume;
     };
@@ -265,11 +277,11 @@ define([
      *
      * @memberof OrthographicFrustum
      *
-     * @param {Cartesian2} canvasDimensions A {@link Cartesian2} with width and height in the x and y properties, respectively.
+     * @param {Cartesian2} drawingBufferDimensions A {@link Cartesian2} with width and height in the x and y properties, respectively.
      *
-     * @exception {DeveloperError} canvasDimensions is required.
-     * @exception {DeveloperError} canvasDimensions.x must be greater than zero.
-     * @exception {DeveloperError} canvasDimensione.y must be greater than zero.
+     * @exception {DeveloperError} drawingBufferDimensions is required.
+     * @exception {DeveloperError} drawingBufferDimensions.x must be greater than zero.
+     * @exception {DeveloperError} drawingBufferDimensions.y must be greater than zero.
      *
      * @returns {Cartesian2} A {@link Cartesian2} with the pixel's width and height in the x and y properties, respectively.
      *
@@ -278,22 +290,22 @@ define([
      * // Get the width and height of a pixel.
      * var pixelSize = camera.frustum.getPixelSize(new Cartesian2(canvas.clientWidth, canvas.clientHeight));
      */
-    OrthographicFrustum.prototype.getPixelSize = function(canvasDimensions) {
+    OrthographicFrustum.prototype.getPixelSize = function(drawingBufferDimensions) {
         update(this);
 
-        if (typeof canvasDimensions === 'undefined') {
-            throw new DeveloperError('canvasDimensions is required.');
+        if (!defined(drawingBufferDimensions)) {
+            throw new DeveloperError('drawingBufferDimensions is required.');
         }
 
-        var width = canvasDimensions.x;
-        var height = canvasDimensions.y;
+        var width = drawingBufferDimensions.x;
+        var height = drawingBufferDimensions.y;
 
         if (width <= 0) {
-            throw new DeveloperError('canvasDimensions.x must be greater than zero.');
+            throw new DeveloperError('drawingBufferDimensions.x must be greater than zero.');
         }
 
         if (height <= 0) {
-            throw new DeveloperError('canvasDimensions.y must be greater than zero.');
+            throw new DeveloperError('drawingBufferDimensions.y must be greater than zero.');
         }
 
         var frustumWidth = this.right - this.left;
@@ -309,7 +321,7 @@ define([
      *
      * @memberof OrthographicFrustum
      *
-     * @return {OrthographicFrustum} A new copy of the OrthographicFrustum instance.
+     * @returns {OrthographicFrustum} A new copy of the OrthographicFrustum instance.
      */
     OrthographicFrustum.prototype.clone = function() {
         var frustum = new OrthographicFrustum();
@@ -329,10 +341,10 @@ define([
      * @memberof OrthographicFrustum
      *
      * @param {OrthographicFrustum} [other] The right hand side OrthographicFrustum.
-     * @return {Boolean} <code>true</code> if they are equal, <code>false</code> otherwise.
+     * @returns {Boolean} <code>true</code> if they are equal, <code>false</code> otherwise.
      */
     OrthographicFrustum.prototype.equals = function(other) {
-        return (typeof other !== 'undefined' &&
+        return (defined(other) &&
                 this.right === other.right &&
                 this.left === other.left &&
                 this.top === other.top &&

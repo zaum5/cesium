@@ -1,20 +1,18 @@
 /*global define*/
 define([
         '../Core/defaultValue',
+        '../Core/defined',
         '../Core/destroyObject',
         '../Core/Color',
-        '../Core/DeveloperError',
         '../Core/BoundingRectangle',
-        './ClearCommand',
         './PassState',
         './RenderbufferFormat'
     ], function(
         defaultValue,
+        defined,
         destroyObject,
         Color,
-        DeveloperError,
         BoundingRectangle,
-        ClearCommand,
         PassState,
         RenderbufferFormat) {
     "use strict";
@@ -24,7 +22,7 @@ define([
      */
     var PickFramebuffer = function(context) {
         // Override per-command states
-        var passState = new PassState();
+        var passState = new PassState(context);
         passState.blendingEnabled = false;
         passState.scissorTest = {
             enabled : true,
@@ -36,24 +34,17 @@ define([
         this._passState = passState;
         this._width = 0;
         this._height = 0;
-
-        // Clear to black.  Since this is the background color, no objects will be black
-        this._clearCommand = new ClearCommand(context.createClearState({
-            color : new Color(0.0, 0.0, 0.0, 0.0),
-            depth : 1.0,
-            stencil : 0
-        }));
     };
 
     PickFramebuffer.prototype.begin = function(screenSpaceRectangle) {
         var context = this._context;
-        var width = context.getCanvas().clientWidth;
-        var height = context.getCanvas().clientHeight;
+        var width = context.getDrawingBufferWidth();
+        var height = context.getDrawingBufferHeight();
 
         BoundingRectangle.clone(screenSpaceRectangle, this._passState.scissorTest.rectangle);
 
         // Initially create or recreate renderbuffers and framebuffer used for picking
-        if ((typeof this._fb === 'undefined') || (this._width !== width) || (this._height !== height)) {
+        if ((!defined(this._fb)) || (this._width !== width) || (this._height !== height)) {
             this._width = width;
             this._height = height;
 
@@ -69,8 +60,6 @@ define([
             });
             this._passState.framebuffer = this._fb;
         }
-
-        this._clearCommand.execute(context, this._passState);
 
         return this._passState;
     };
@@ -115,7 +104,7 @@ define([
                 colorScratch.alpha = Color.byteToFloat(pixels[index + 3]);
 
                 var object = context.getObjectByPickColor(colorScratch);
-                if (typeof object !== 'undefined') {
+                if (defined(object)) {
                     return object;
                 }
             }

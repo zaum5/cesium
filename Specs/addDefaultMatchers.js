@@ -1,7 +1,9 @@
 /*global define*/
 define([
+        'Core/defined',
         './equals'
     ], function(
+        defined,
         equals) {
     "use strict";
 
@@ -35,12 +37,29 @@ define([
 
         toEqualEpsilon : function(expected, epsilon) {
             function equalityTester(a, b) {
-                if (a !== 'undefined' && typeof a.equalsEpsilon === 'function') {
-                    return a.equalsEpsilon(b, epsilon);
+                var to_run;
+                if (defined(a)) {
+                    if (typeof a.equalsEpsilon === 'function') {
+                        return a.equalsEpsilon(b, epsilon);
+                    } else if(a instanceof Object) {
+                        // Check if the current object has a static function named 'equalsEpsilon'
+                        to_run = Object.getPrototypeOf(a).constructor.equalsEpsilon;
+                        if( typeof to_run === 'function') {
+                            return to_run(a, b, epsilon);
+                        }
+                    }
                 }
-
-                if (typeof b !== 'undefined' && typeof b.equalsEpsilon === 'function') {
-                    return b.equalsEpsilon(a, epsilon);
+                
+                if (defined(b)) {
+                    if (typeof b.equalsEpsilon === 'function') {
+                        return b.equalsEpsilon(a, epsilon);
+                    } else if(b instanceof Object) {
+                        // Check if the current object has a static function named 'equalsEpsilon'
+                        to_run = Object.getPrototypeOf(b).constructor.equalsEpsilon;
+                        if( typeof to_run === 'function') {
+                            return to_run(b, a, epsilon);
+                        }
+                    }
                 }
 
                 if (typeof a === 'number' || typeof b === 'number') {
@@ -65,12 +84,10 @@ define([
             var actualPrototype = this.actual.prototype;
             var expectedInterfacePrototype = expectedInterface.prototype;
 
-            for (var item in expectedInterfacePrototype) {
-                if (expectedInterfacePrototype.hasOwnProperty(item) &&
-                    typeof expectedInterfacePrototype[item] === 'function' &&
-                    !actualPrototype.hasOwnProperty(item)) {
-                        this.message = createMissingFunctionMessageFunction(item, actualPrototype, expectedInterfacePrototype);
-                        return false;
+            for ( var item in expectedInterfacePrototype) {
+                if (expectedInterfacePrototype.hasOwnProperty(item) && typeof expectedInterfacePrototype[item] === 'function' && !actualPrototype.hasOwnProperty(item)) {
+                    this.message = createMissingFunctionMessageFunction(item, actualPrototype, expectedInterfacePrototype);
+                    return false;
                 }
             }
 

@@ -1,22 +1,18 @@
 /*global define*/
 define([
         '../Core/defaultValue',
-        '../Core/DeveloperError',
-        '../Core/Math',
+        '../Core/defined',
         '../Core/Ellipsoid',
         '../Core/Extent',
         '../Core/Cartesian2',
-        '../Core/Cartographic',
         '../Core/WebMercatorProjection',
         './TilingScheme'
     ], function(
         defaultValue,
-        DeveloperError,
-        CesiumMath,
+        defined,
         Ellipsoid,
         Extent,
         Cartesian2,
-        Cartographic,
         WebMercatorProjection,
         TilingScheme) {
     "use strict";
@@ -52,8 +48,8 @@ define([
 
         this._projection = new WebMercatorProjection(this._ellipsoid);
 
-        if (typeof description.extentSouthwestInMeters !== 'undefined' &&
-            typeof description.extentNortheastInMeters !== 'undefined') {
+        if (defined(description.extentSouthwestInMeters) &&
+            defined(description.extentNortheastInMeters)) {
             this._extentSouthwestInMeters = description.extentSouthwestInMeters;
             this._extentNortheastInMeters = description.extentNortheastInMeters;
         } else {
@@ -154,7 +150,7 @@ define([
         var southwest = projection.project(extent.getSouthwest());
         var northeast = projection.project(extent.getNortheast());
 
-        if (typeof result === 'undefined') {
+        if (!defined(result)) {
             return new Extent(southwest.x, southwest.y, northeast.x, northeast.y);
         }
 
@@ -192,7 +188,7 @@ define([
         var north = this._extentNortheastInMeters.y - y * yTileHeight;
         var south = this._extentNortheastInMeters.y - (y + 1) * yTileHeight;
 
-        if (typeof result === 'undefined') {
+        if (!defined(result)) {
             return new Extent(west, south, east, north);
         }
 
@@ -278,7 +274,7 @@ define([
             yTileCoordinate = yTiles - 1;
         }
 
-        if (typeof result === 'undefined') {
+        if (!defined(result)) {
             return new Cartesian2(xTileCoordinate, yTileCoordinate);
         }
 

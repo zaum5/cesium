@@ -2,10 +2,10 @@
 defineSuite([
          'Scene/OpenStreetMapImageryProvider',
          'Core/jsonp',
+         'Core/defined',
          'Core/loadImage',
          'Core/DefaultProxy',
          'Core/Extent',
-         'Core/Math',
          'Scene/Imagery',
          'Scene/ImageryLayer',
          'Scene/ImageryProvider',
@@ -15,10 +15,10 @@ defineSuite([
      ], function(
          OpenStreetMapImageryProvider,
          jsonp,
+         defined,
          loadImage,
          DefaultProxy,
          Extent,
-         CesiumMath,
          Imagery,
          ImageryLayer,
          ImageryProvider,
@@ -115,8 +115,6 @@ defineSuite([
             expect(provider.getExtent()).toEqual(new WebMercatorTilingScheme().getExtent());
 
             loadImage.createImage = function(url, crossOrigin, deferred) {
-                expect(crossOrigin).toEqual(true);
-
                 // Just return any old image.
                 return loadImage.defaultCreateImage('Data/Images/Red16x16.png', crossOrigin, deferred);
             };
@@ -127,7 +125,7 @@ defineSuite([
         });
 
         waitsFor(function() {
-            return typeof tile000Image !== 'undefined';
+            return defined(tile000Image);
         }, 'requested tile to be loaded');
 
         runs(function() {
@@ -139,7 +137,7 @@ defineSuite([
         var provider = new OpenStreetMapImageryProvider({
             url : 'made/up/osm/server'
         });
-        expect(provider.getLogo()).toBeDefined();
+        expect(provider.getCredit()).toBeDefined();
     });
 
     it('turns the supplied credit into a logo', function() {
@@ -147,7 +145,7 @@ defineSuite([
             url : 'made/up/osm/server',
             credit : 'Thanks to our awesome made up source of this imagery!'
         });
-        expect(providerWithCredit.getLogo()).toBeDefined();
+        expect(providerWithCredit.getCredit()).toBeDefined();
     });
 
     it('routes requests through a proxy if one is specified', function() {
@@ -167,7 +165,6 @@ defineSuite([
             loadImage.createImage = function(url, crossOrigin, deferred) {
                 expect(url.indexOf(proxy.getURL('made/up/osm/server'))).toEqual(0);
                 expect(provider.getProxy()).toEqual(proxy);
-                expect(crossOrigin).toEqual(true);
 
                 // Just return any old image.
                 return loadImage.defaultCreateImage('Data/Images/Red16x16.png', crossOrigin, deferred);
@@ -179,7 +176,7 @@ defineSuite([
         });
 
         waitsFor(function() {
-            return typeof tile000Image !== 'undefined';
+            return defined(tile000Image);
         }, 'requested tile to be loaded');
 
         runs(function() {

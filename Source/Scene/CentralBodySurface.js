@@ -1,75 +1,53 @@
 /*global define*/
 define([
         '../Core/defaultValue',
+        '../Core/defined',
         '../Core/destroyObject',
         '../Core/BoundingSphere',
-        '../Core/BoundingRectangle',
         '../Core/Cartesian2',
         '../Core/Cartesian3',
         '../Core/Cartesian4',
-        '../Core/CubeMapEllipsoidTessellator',
+        '../Core/FeatureDetection',
         '../Core/DeveloperError',
         '../Core/Ellipsoid',
         '../Core/EllipsoidalOccluder',
         '../Core/Intersect',
         '../Core/Matrix4',
-        '../Core/MeshFilters',
-        '../Core/Occluder',
         '../Core/PrimitiveType',
         '../Core/Queue',
-        '../Core/TaskProcessor',
         '../Core/WebMercatorProjection',
         '../Renderer/DrawCommand',
-        '../Renderer/PixelDatatype',
-        '../Renderer/PixelFormat',
-        '../Renderer/TextureMagnificationFilter',
-        '../Renderer/TextureMinificationFilter',
-        '../Renderer/TextureWrap',
         './ImageryLayer',
         './ImageryState',
         './SceneMode',
         './TerrainProvider',
-        './TerrainState',
-        './TileLoadQueue',
         './TileReplacementQueue',
         './TileState',
-        './TileTerrain',
         '../ThirdParty/when'
     ], function(
         defaultValue,
+        defined,
         destroyObject,
         BoundingSphere,
-        BoundingRectangle,
         Cartesian2,
         Cartesian3,
         Cartesian4,
-        CubeMapEllipsoidTessellator,
+        FeatureDetection,
         DeveloperError,
         Ellipsoid,
         EllipsoidalOccluder,
         Intersect,
         Matrix4,
-        MeshFilters,
-        Occluder,
         PrimitiveType,
         Queue,
-        TaskProcessor,
         WebMercatorProjection,
         DrawCommand,
-        PixelDatatype,
-        PixelFormat,
-        TextureMagnificationFilter,
-        TextureMinificationFilter,
-        TextureWrap,
         ImageryLayer,
         ImageryState,
         SceneMode,
         TerrainProvider,
-        TerrainState,
-        TileLoadQueue,
         TileReplacementQueue,
         TileState,
-        TileTerrain,
         when) {
     "use strict";
 
@@ -83,10 +61,10 @@ define([
      * @private
      */
     var CentralBodySurface = function(description) {
-        if (typeof description.terrainProvider === 'undefined') {
+        if (!defined(description.terrainProvider)) {
             throw new DeveloperError('description.terrainProvider is required.');
         }
-        if (typeof description.imageryLayerCollection === 'undefined') {
+        if (!defined(description.imageryLayerCollection)) {
             throw new DeveloperError('description.imageryLayerCollection is required.');
         }
 
@@ -108,7 +86,7 @@ define([
         this._tileCommands = [];
         this._tileCommandUniformMaps = [];
         this._tileTraversalQueue = new Queue();
-        this._tileLoadQueue = new TileLoadQueue();
+        this._tileLoadQueue = [];
         this._tileReplacementQueue = new TileReplacementQueue();
         this._tileCacheSize = 100;
 
@@ -122,8 +100,8 @@ define([
 
         this._debug = {
             enableDebugOutput : false,
+            wireframe : false,
             boundingSphereTile : undefined,
-            boundingSphereVA : undefined,
 
             maxDepth : 0,
             tilesVisited : 0,
@@ -143,12 +121,11 @@ define([
         };
     };
 
-    CentralBodySurface.prototype.update = function(context, frameState, colorCommandList, centralBodyUniformMap, shaderSet, renderState, mode, projection) {
+    CentralBodySurface.prototype.update = function(context, frameState, colorCommandList, centralBodyUniformMap, shaderSet, renderState, projection) {
         updateLayers(this);
         selectTilesForRendering(this, context, frameState);
         processTileLoadQueue(this, context, frameState);
-        createRenderCommandsForSelectedTiles(this, context, frameState, shaderSet, mode, projection, centralBodyUniformMap, colorCommandList, renderState);
-        debugCreateRenderCommandsForTileBoundingSphere(this, context, frameState, centralBodyUniformMap, shaderSet, renderState, colorCommandList);
+        createRenderCommandsForSelectedTiles(this, context, frameState, shaderSet, projection, centralBodyUniformMap, colorCommandList, renderState);
     };
 
     CentralBodySurface.prototype.getTerrainProvider = function() {
@@ -160,7 +137,7 @@ define([
             return;
         }
 
-        if (typeof terrainProvider === 'undefined') {
+        if (!defined(terrainProvider)) {
             throw new DeveloperError('terrainProvider is required.');
         }
 
@@ -174,7 +151,7 @@ define([
 
         // Free and recreate the level zero tiles.
         var levelZeroTiles = this._levelZeroTiles;
-        if (typeof levelZeroTiles !== 'undefined') {
+        if (defined(levelZeroTiles)) {
             for (var i = 0; i < levelZeroTiles.length; ++i) {
                 levelZeroTiles[i].freeResources();
             }
@@ -184,14 +161,14 @@ define([
     };
 
     CentralBodySurface.prototype._onLayerAdded = function(layer, index) {
-        if (typeof this._levelZeroTiles === 'undefined') {
+        if (!defined(this._levelZeroTiles)) {
             return;
         }
 
         // create TileImagerys for this layer for all previously loaded tiles
         if (layer.show) {
             var tile = this._tileReplacementQueue.head;
-            while (typeof tile !== 'undefined') {
+            while (defined(tile)) {
                 if (layer._createTileImagerySkeletons(tile, this._terrainProvider)) {
                     tile.state = TileState.LOADING;
                 }
@@ -203,20 +180,23 @@ define([
     };
 
     CentralBodySurface.prototype._onLayerRemoved = function(layer, index) {
-        if (typeof this._levelZeroTiles === 'undefined') {
+        if (!defined(this._levelZeroTiles)) {
             return;
         }
 
         // destroy TileImagerys for this layer for all previously loaded tiles
         var tile = this._tileReplacementQueue.head;
-        while (typeof tile !== 'undefined') {
+        while (defined(tile)) {
             var tileImageryCollection = tile.imagery;
 
             var startIndex = -1;
             var numDestroyed = 0;
             for ( var i = 0, len = tileImageryCollection.length; i < len; ++i) {
                 var tileImagery = tileImageryCollection[i];
-                var imagery = tileImagery.imagery;
+                var imagery = tileImagery.loadingImagery;
+                if (!defined(imagery)) {
+                    imagery = tileImagery.readyImagery;
+                }
                 if (imagery.imageryLayer === layer) {
                     if (startIndex === -1) {
                         startIndex = i;
@@ -243,7 +223,7 @@ define([
     };
 
     CentralBodySurface.prototype._onLayerMoved = function(layer, newIndex, oldIndex) {
-        if (typeof this._levelZeroTiles === 'undefined') {
+        if (!defined(this._levelZeroTiles)) {
             return;
         }
 
@@ -251,7 +231,7 @@ define([
     };
 
     CentralBodySurface.prototype._onLayerShownOrHidden = function(layer, index, show) {
-        if (typeof this._levelZeroTiles === 'undefined') {
+        if (!defined(this._levelZeroTiles)) {
             return;
         }
 
@@ -270,7 +250,7 @@ define([
      *
      * @memberof CentralBodySurface
      *
-     * @return {Boolean} True if this object was destroyed; otherwise, false.
+     * @returns {Boolean} True if this object was destroyed; otherwise, false.
      *
      * @see CentralBodySurface#destroy
      */
@@ -288,7 +268,7 @@ define([
      *
      * @memberof CentralBodySurface
      *
-     * @return {undefined}
+     * @returns {undefined}
      *
      * @exception {DeveloperError} This object was destroyed, i.e., destroy() was called.
      *
@@ -296,7 +276,7 @@ define([
      */
     CentralBodySurface.prototype.destroy = function() {
         var levelZeroTiles = this._levelZeroTiles;
-        if (typeof levelZeroTiles !== 'undefined') {
+        if (defined(levelZeroTiles)) {
             for (var i = 0; i < levelZeroTiles.length; ++i) {
                 levelZeroTiles[i].freeResources();
             }
@@ -304,18 +284,21 @@ define([
 
         this._imageryLayerCollection.destroy();
 
-        var debug = this._debug;
-        if (typeof debug !== 'undefined') {
-            if (typeof debug.boundingSphereVA !== 'undefined') {
-                debug.boundingSphereVA.destroy();
-            }
-        }
-
         return destroyObject(this);
     };
 
     function sortTileImageryByLayerIndex(a, b) {
-        return a.imagery.imageryLayer._layerIndex - b.imagery.imageryLayer._layerIndex;
+        var aImagery = a.loadingImagery;
+        if (!defined(aImagery)) {
+            aImagery = a.readyImagery;
+        }
+
+        var bImagery = b.loadingImagery;
+        if (!defined(bImagery)) {
+            bImagery = b.readyImagery;
+        }
+
+        return aImagery.imageryLayer._layerIndex - bImagery.imageryLayer._layerIndex;
     }
 
     function updateLayers(surface) {
@@ -326,7 +309,7 @@ define([
 
             // Sort the TileImagery instances in each tile by the layer index.
             var tile = surface._tileReplacementQueue.head;
-            while (typeof tile !== 'undefined') {
+            while (defined(tile)) {
                 tile.imagery.sort(sortTileImageryByLayerIndex);
                 tile = tile.replacementNext;
             }
@@ -346,7 +329,7 @@ define([
         var tilesToRenderByTextureCount = surface._tilesToRenderByTextureCount;
         for (i = 0, len = tilesToRenderByTextureCount.length; i < len; ++i) {
             var tiles = tilesToRenderByTextureCount[i];
-            if (typeof tiles !== 'undefined') {
+            if (defined(tiles)) {
                 tiles.length = 0;
             }
         }
@@ -361,12 +344,11 @@ define([
         debug.texturesRendered = 0;
         debug.tilesWaitingForChildren = 0;
 
-        surface._tileLoadQueue.clear();
-        surface._tileLoadQueue.markInsertionPoint();
+        surface._tileLoadQueue.length = 0;
         surface._tileReplacementQueue.markStartOfRenderFrame();
 
         // We can't render anything before the level zero tiles exist.
-        if (typeof surface._levelZeroTiles === 'undefined') {
+        if (!defined(surface._levelZeroTiles)) {
             if (surface._terrainProvider.isReady()) {
                 var terrainTilingScheme = surface._terrainProvider.getTilingScheme();
                 surface._levelZeroTiles = terrainTilingScheme.createLevelZeroTiles();
@@ -376,7 +358,7 @@ define([
             }
         }
 
-        var cameraPosition = frameState.camera.getPositionWC();
+        var cameraPosition = frameState.camera.positionWC;
 
         var ellipsoid = surface._terrainProvider.getTilingScheme().getEllipsoid();
         var cameraPositionCartographic = ellipsoid.cartesianToCartographic(cameraPosition);
@@ -389,6 +371,7 @@ define([
         var levelZeroTiles = surface._levelZeroTiles;
         for (i = 0, len = levelZeroTiles.length; i < len; ++i) {
             tile = levelZeroTiles[i];
+            surface._tileReplacementQueue.markTileRendered(tile);
             if (tile.state !== TileState.READY) {
                 queueTileLoad(surface, tile);
             }
@@ -406,7 +389,7 @@ define([
         // This ordering allows us to load bigger, lower-detail tiles before smaller, higher-detail ones.
         // This maximizes the average detail across the scene and results in fewer sharp transitions
         // between very different LODs.
-        while (typeof (tile = traversalQueue.dequeue()) !== 'undefined') {
+        while (defined((tile = traversalQueue.dequeue()))) {
             ++debug.tilesVisited;
 
             surface._tileReplacementQueue.markTileRendered(tile);
@@ -488,8 +471,7 @@ define([
         var distance = Math.sqrt(distanceSquaredToTile(frameState, cameraPosition, cameraPositionCartographic, tile));
         tile.distance = distance;
 
-        var canvas = context.getCanvas();
-        var height = canvas.clientHeight;
+        var height = context.getDrawingBufferHeight();
 
         var camera = frameState.camera;
         var frustum = camera.frustum;
@@ -502,9 +484,8 @@ define([
     function screenSpaceError2D(surface, context, frameState, cameraPosition, cameraPositionCartographic, tile) {
         var camera = frameState.camera;
         var frustum = camera.frustum;
-        var canvas = context.getCanvas();
-        var width = canvas.clientWidth;
-        var height = canvas.clientHeight;
+        var width = context.getDrawingBufferWidth();
+        var height = context.getDrawingBufferHeight();
 
         var maxGeometricError = surface._terrainProvider.getLevelMaximumGeometricError(tile.level);
         var pixelSize = Math.max(frustum.top - frustum.bottom, frustum.right - frustum.left) / Math.max(width, height);
@@ -516,14 +497,13 @@ define([
         var tileImageryCollection = tile.imagery;
         for ( var i = 0, len = tileImageryCollection.length; i < len; ++i) {
             var tileImagery = tileImageryCollection[i];
-            var imageryLayer = tileImagery.imagery.imageryLayer;
-            if (tileImagery.imagery.state === ImageryState.READY && imageryLayer.alpha !== 0.0) {
+            if (defined(tileImagery.readyImagery) && tileImagery.readyImagery.imageryLayer.alpha !== 0.0) {
                 ++readyTextureCount;
             }
         }
 
         var tileSet = surface._tilesToRenderByTextureCount[readyTextureCount];
-        if (typeof tileSet === 'undefined') {
+        if (!defined(tileSet)) {
             tileSet = [];
             surface._tilesToRenderByTextureCount[readyTextureCount] = tileSet;
         }
@@ -558,7 +538,7 @@ define([
 
         if (frameState.mode === SceneMode.SCENE3D) {
             var occludeePointInScaledSpace = tile.occludeePointInScaledSpace;
-            if (typeof occludeePointInScaledSpace === 'undefined') {
+            if (!defined(occludeePointInScaledSpace)) {
                 return true;
             }
 
@@ -570,8 +550,8 @@ define([
 
     var southwestCornerScratch = new Cartesian3();
     var northeastCornerScratch = new Cartesian3();
-    var negativeUnitY = Cartesian3.UNIT_Y.negate();
-    var negativeUnitZ = Cartesian3.UNIT_Z.negate();
+    var negativeUnitY = Cartesian3.negate(Cartesian3.UNIT_Y);
+    var negativeUnitZ = Cartesian3.negate(Cartesian3.UNIT_Z);
     var vectorScratch = new Cartesian3();
 
     function distanceSquaredToTile(frameState, cameraCartesianPosition, cameraCartographicPosition, tile) {
@@ -599,13 +579,13 @@ define([
             maximumHeight = 0.0;
         }
 
-        var vectorFromSouthwestCorner = cameraCartesianPosition.subtract(southwestCornerCartesian, vectorScratch);
-        var distanceToWestPlane = vectorFromSouthwestCorner.dot(westNormal);
-        var distanceToSouthPlane = vectorFromSouthwestCorner.dot(southNormal);
+        var vectorFromSouthwestCorner = Cartesian3.subtract(cameraCartesianPosition, southwestCornerCartesian, vectorScratch);
+        var distanceToWestPlane = Cartesian3.dot(vectorFromSouthwestCorner, westNormal);
+        var distanceToSouthPlane = Cartesian3.dot(vectorFromSouthwestCorner, southNormal);
 
-        var vectorFromNortheastCorner = cameraCartesianPosition.subtract(northeastCornerCartesian, vectorScratch);
-        var distanceToEastPlane = vectorFromNortheastCorner.dot(eastNormal);
-        var distanceToNorthPlane = vectorFromNortheastCorner.dot(northNormal);
+        var vectorFromNortheastCorner = Cartesian3.subtract(cameraCartesianPosition, northeastCornerCartesian, vectorScratch);
+        var distanceToEastPlane = Cartesian3.dot(vectorFromNortheastCorner, eastNormal);
+        var distanceToNorthPlane = Cartesian3.dot(vectorFromNortheastCorner, northNormal);
 
         var cameraHeight;
         if (frameState.mode === SceneMode.SCENE3D) {
@@ -655,7 +635,7 @@ define([
     }
 
     function queueTileLoad(surface, tile) {
-        surface._tileLoadQueue.insertBeforeInsertionPoint(tile);
+        surface._tileLoadQueue.push(tile);
     }
 
     function processTileLoadQueue(surface, context, frameState) {
@@ -663,8 +643,7 @@ define([
         var terrainProvider = surface._terrainProvider;
         var imageryLayerCollection = surface._imageryLayerCollection;
 
-        var tile = tileLoadQueue.head;
-        if (typeof tile === 'undefined') {
+        if (tileLoadQueue.length === 0) {
             return;
         }
 
@@ -676,19 +655,16 @@ define([
         var timeSlice = surface._loadQueueTimeSlice;
         var endTime = startTime + timeSlice;
 
-        do {
+        for (var len = tileLoadQueue.length - 1, i = len; i >= 0; --i) {
+            var tile = tileLoadQueue[i];
             surface._tileReplacementQueue.markTileRendered(tile);
 
             tile.processStateMachine(context, terrainProvider, imageryLayerCollection);
 
-            var next = tile.loadNext;
-
-            if (tile.state === TileState.READY) {
-                tileLoadQueue.remove(tile);
+            if (Date.now() >= endTime) {
+                break;
             }
-
-            tile = next;
-        } while (Date.now() < endTime && typeof tile !== 'undefined');
+        }
     }
 
     // This is debug code to render the bounding sphere of the tile in
@@ -698,9 +674,9 @@ define([
         var tilesToRenderByTextureCount = this._tilesToRenderByTextureCount;
         var result;
         var tile;
-        for (var i = 0; i < tilesToRenderByTextureCount.length && typeof result === 'undefined'; ++i) {
+        for (var i = 0; i < tilesToRenderByTextureCount.length && !defined(result); ++i) {
             var tileSet = tilesToRenderByTextureCount[i];
-            if (typeof tileSet === 'undefined') {
+            if (!defined(tileSet)) {
                 continue;
             }
             for (var j = 0; j < tileSet.length; ++j) {
@@ -712,60 +688,12 @@ define([
             }
         }
 
-        if (typeof result !== 'undefined') {
-            console.log('x: ' + result.x + ' y: ' + result.y + ' level: ' + result.level + ' radius: ' + result.boundingSphere3D.radius + ' center magnitude: ' + result.boundingSphere3D.center.magnitude());
+        if (defined(result)) {
+            console.log('x: ' + result.x + ' y: ' + result.y + ' level: ' + result.level + ' radius: ' + result.boundingSphere3D.radius + ' center magnitude: ' + Cartesian3.magnitude(result.boundingSphere3D.center));
         }
 
         this._debug.boundingSphereTile = result;
-        this._debug.boundingSphereVA = undefined;
     };
-
-    function debugCreateRenderCommandsForTileBoundingSphere(surface, context, frameState, centralBodyUniformMap, shaderSet, renderState, colorCommandList) {
-        if (typeof surface._debug !== 'undefined' && typeof surface._debug.boundingSphereTile !== 'undefined') {
-            if (!surface._debug.boundingSphereVA) {
-                var radius = surface._debug.boundingSphereTile.boundingSphere3D.radius;
-                var sphere = CubeMapEllipsoidTessellator.compute(new Ellipsoid(radius, radius, radius), 10);
-                MeshFilters.toWireframeInPlace(sphere);
-                surface._debug.boundingSphereVA = context.createVertexArrayFromMesh({
-                    mesh : sphere,
-                    attributeIndices : MeshFilters.createAttributeIndices(sphere)
-                });
-            }
-
-            var tile = surface._debug.boundingSphereTile;
-            if (typeof tile.vertexArray === 'undefined') {
-                return;
-            }
-
-            var rtc2 = tile.center;
-
-            var uniformMap2 = createTileUniformMap();
-            mergeUniformMap(uniformMap2, centralBodyUniformMap);
-
-            uniformMap2.waterMask = tile.waterMaskTexture;
-
-            uniformMap2.center3D = rtc2;
-
-            var viewMatrix = frameState.camera.getViewMatrix();
-
-            var centerEye2 = viewMatrix.multiplyByVector(new Cartesian4(rtc2.x, rtc2.y, rtc2.z, 1.0));
-            uniformMap2.modifiedModelView = viewMatrix.setColumn(3, centerEye2, uniformMap2.modifiedModelView);
-
-            uniformMap2.dayTextures[0] = context.getDefaultTexture();
-            uniformMap2.dayTextureTranslationAndScale[0] = new Cartesian4(0.0, 0.0, 1.0, 1.0);
-            uniformMap2.dayTextureTexCoordsExtent[0] = new Cartesian4(0.0, 0.0, 1.0, 1.0);
-            uniformMap2.dayTextureAlpha[0] = 1.0;
-
-            var boundingSphereCommand = new DrawCommand();
-            boundingSphereCommand.shaderProgram = shaderSet.getShaderProgram(context, 0);
-            boundingSphereCommand.renderState = renderState;
-            boundingSphereCommand.primitiveType = PrimitiveType.LINES;
-            boundingSphereCommand.vertexArray = surface._debug.boundingSphereVA;
-            boundingSphereCommand.uniformMap = uniformMap2;
-
-            colorCommandList.push(boundingSphereCommand);
-        }
-    }
 
     CentralBodySurface.prototype.debugToggleLodUpdate = function(frameState) {
         this._debug.suspendLodUpdate = !this._debug.suspendLodUpdate;
@@ -775,8 +703,16 @@ define([
         return a.distance - b.distance;
     }
 
-    function createTileUniformMap() {
-        return {
+    function mergeUniformMap(target, source) {
+        for (var property in source) {
+            if (source.hasOwnProperty(property)) {
+                target[property] = source[property];
+            }
+        }
+    }
+
+    function createTileUniformMap(centralBodyUniformMap) {
+        var uniformMap = {
             u_center3D : function() {
                 return this.center3D;
             },
@@ -850,24 +786,20 @@ define([
             waterMask : undefined,
             waterMaskTranslationAndScale : new Cartesian4()
         };
+
+        mergeUniformMap(uniformMap, centralBodyUniformMap);
+
+        return uniformMap;
     }
 
-    function mergeUniformMap(target, source) {
-        for (var property in source) {
-            if (source.hasOwnProperty(property)) {
-                target[property] = source[property];
-            }
-        }
-    }
-
-    var float32ArrayScratch = typeof Float32Array !== 'undefined' ? new Float32Array(1) : undefined;
+    var float32ArrayScratch = FeatureDetection.supportsTypedArrays() ? new Float32Array(1) : undefined;
     var modifiedModelViewScratch = new Matrix4();
     var tileExtentScratch = new Cartesian4();
     var rtcScratch = new Cartesian3();
     var centerEyeScratch = new Cartesian4();
 
-    function createRenderCommandsForSelectedTiles(surface, context, frameState, shaderSet, mode, projection, centralBodyUniformMap, colorCommandList, renderState) {
-        var viewMatrix = frameState.camera.getViewMatrix();
+    function createRenderCommandsForSelectedTiles(surface, context, frameState, shaderSet, projection, centralBodyUniformMap, colorCommandList, renderState) {
+        var viewMatrix = frameState.camera.viewMatrix;
 
         var maxTextures = context.getMaximumTextureImageUnits();
 
@@ -878,7 +810,7 @@ define([
         var tilesToRenderByTextureCount = surface._tilesToRenderByTextureCount;
         for (var tileSetIndex = 0, tileSetLength = tilesToRenderByTextureCount.length; tileSetIndex < tileSetLength; ++tileSetIndex) {
             var tileSet = tilesToRenderByTextureCount[tileSetIndex];
-            if (typeof tileSet === 'undefined' || tileSet.length === 0) {
+            if (!defined(tileSet) || tileSet.length === 0) {
                 continue;
             }
 
@@ -899,7 +831,7 @@ define([
                 var southMercatorYLow = 0.0;
                 var oneOverMercatorHeight = 0.0;
 
-                if (mode !== SceneMode.SCENE3D) {
+                if (frameState.mode !== SceneMode.SCENE3D) {
                     var southwest = projection.project(tile.extent.getSouthwest());
                     var northeast = projection.project(tile.extent.getNortheast());
 
@@ -909,7 +841,7 @@ define([
                     tileExtent.w = northeast.y;
 
                     // In 2D and Columbus View, use the center of the tile for RTC rendering.
-                    if (mode !== SceneMode.MORPHING) {
+                    if (frameState.mode !== SceneMode.MORPHING) {
                         rtc = rtcScratch;
                         rtc.x = 0.0;
                         rtc.y = (tileExtent.z + tileExtent.x) * 0.5;
@@ -942,7 +874,7 @@ define([
                 centerEye.w = 1.0;
 
                 Matrix4.multiplyByVector(viewMatrix, centerEye, centerEye);
-                viewMatrix.setColumn(3, centerEye, modifiedModelViewScratch);
+                Matrix4.setColumn(viewMatrix, 3, centerEye, modifiedModelViewScratch);
 
                 var tileImageryCollection = tile.imagery;
                 var imageryIndex = 0;
@@ -953,14 +885,18 @@ define([
 
                     ++tileCommandIndex;
                     var command = tileCommands[tileCommandIndex];
-                    if (typeof command === 'undefined') {
+                    if (!defined(command)) {
                         command = new DrawCommand();
+                        command.owner = tile;
+                        command.cull = false;
                         tileCommands[tileCommandIndex] = command;
-                        tileCommandUniformMaps[tileCommandIndex] = createTileUniformMap();
+                        tileCommandUniformMaps[tileCommandIndex] = createTileUniformMap(centralBodyUniformMap);
                     }
-                    var uniformMap = tileCommandUniformMaps[tileCommandIndex];
+                    command.owner = tile;
 
-                    mergeUniformMap(uniformMap, centralBodyUniformMap);
+                    command.debugShowBoundingVolume = (tile === surface._debug.boundingSphereTile);
+
+                    var uniformMap = tileCommandUniformMaps[tileCommandIndex];
 
                     uniformMap.center3D = tile.center;
 
@@ -977,18 +913,20 @@ define([
                     var applyHue = false;
                     var applySaturation = false;
                     var applyGamma = false;
+                    var applyAlpha = false;
 
                     while (numberOfDayTextures < maxTextures && imageryIndex < imageryLen) {
                         var tileImagery = tileImageryCollection[imageryIndex];
-                        var imagery = tileImagery.imagery;
-                        var imageryLayer = imagery.imageryLayer;
+                        var imagery = tileImagery.readyImagery;
                         ++imageryIndex;
 
-                        if (imagery.state !== ImageryState.READY || imageryLayer.alpha === 0.0) {
+                        if (!defined(imagery) || imagery.state !== ImageryState.READY || imagery.imageryLayer.alpha === 0.0) {
                             continue;
                         }
 
-                        if (typeof tileImagery.textureTranslationAndScale === 'undefined') {
+                        var imageryLayer = imagery.imageryLayer;
+
+                        if (!defined(tileImagery.textureTranslationAndScale)) {
                             tileImagery.textureTranslationAndScale = imageryLayer._calculateTextureTranslationAndScale(tile, tileImagery);
                         }
 
@@ -1001,6 +939,7 @@ define([
                         } else {
                             uniformMap.dayTextureAlpha[numberOfDayTextures] = imageryLayer.alpha;
                         }
+                        applyAlpha = applyAlpha || uniformMap.dayTextureAlpha[numberOfDayTextures] !== 1.0;
 
                         if (typeof imageryLayer.brightness === 'function') {
                             uniformMap.dayTextureBrightness[numberOfDayTextures] = imageryLayer.brightness(frameState, imageryLayer, imagery.x, imagery.y, imagery.level);
@@ -1048,11 +987,19 @@ define([
 
                     colorCommandList.push(command);
 
-                    command.shaderProgram = shaderSet.getShaderProgram(context, tileSetIndex, applyBrightness, applyContrast, applyHue, applySaturation, applyGamma);
+                    command.shaderProgram = shaderSet.getShaderProgram(context, tileSetIndex, applyBrightness, applyContrast, applyHue, applySaturation, applyGamma, applyAlpha);
                     command.renderState = renderState;
-                    command.primitiveType = TerrainProvider.wireframe ? PrimitiveType.LINES : PrimitiveType.TRIANGLES;
+                    command.primitiveType = PrimitiveType.TRIANGLES;
                     command.vertexArray = tile.vertexArray;
                     command.uniformMap = uniformMap;
+
+                    if (surface._debug.wireframe) {
+                        createWireframeVertexArrayIfNecessary(context, surface, tile);
+                        if (defined(tile.wireframeVertexArray)) {
+                            command.vertexArray = tile.wireframeVertexArray;
+                            command.primitiveType = PrimitiveType.LINES;
+                        }
+                    }
 
                     var boundingVolume = tile.boundingSphere3D;
 
@@ -1073,6 +1020,31 @@ define([
 
         // trim command list to the number actually needed
         tileCommands.length = Math.max(0, tileCommandIndex + 1);
+    }
+
+    function createWireframeVertexArrayIfNecessary(context, surface, tile) {
+        if (defined(tile.wireframeVertexArray)) {
+            return;
+        }
+
+        if (defined(tile.meshForWireframePromise)) {
+            return;
+        }
+
+        tile.meshForWireframePromise = tile.terrainData.createMesh(surface._terrainProvider.getTilingScheme(), tile.x, tile.y, tile.level);
+        if (!defined(tile.meshForWireframePromise)) {
+            // deferrred
+            return;
+        }
+
+        var vertexArray = tile.vertexArray;
+
+        when(tile.meshForWireframePromise, function(mesh) {
+            if (tile.vertexArray === vertexArray) {
+                tile.wireframeVertexArray = TerrainProvider.createWireframeVertexArray(context, tile.vertexArray, mesh);
+            }
+            tile.meshForWireframePromise = undefined;
+        });
     }
 
     return CentralBodySurface;

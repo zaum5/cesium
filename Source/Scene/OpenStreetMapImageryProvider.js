@@ -1,21 +1,26 @@
 /*global define*/
 define([
         '../Core/defaultValue',
+        '../Core/defined',
         '../Core/DeveloperError',
         '../Core/Event',
         '../Core/writeTextToCanvas',
         './ImageryProvider',
-        './WebMercatorTilingScheme'
+        './WebMercatorTilingScheme',
+        './Credit'
     ], function(
         defaultValue,
+        defined,
         DeveloperError,
         Event,
         writeTextToCanvas,
         ImageryProvider,
-        WebMercatorTilingScheme) {
+        WebMercatorTilingScheme,
+        Credit) {
     "use strict";
 
     var trailingSlashRegex = /\/$/;
+    var defaultCredit = new Credit('MapQuest, Open Street Map and contributors, CC-BY-SA');
 
     /**
      * Provides tiled imagery hosted by OpenStreetMap or another provider of Slippy tiles.  Please be aware
@@ -31,7 +36,7 @@ define([
      * @param {Object} [description.proxy] A proxy to use for requests. This object is expected to have a getURL function which returns the proxied URL.
      * @param {Extent} [description.extent=Extent.MAX_VALUE] The extent of the layer.
      * @param {Number} [description.maximumLevel=18] The maximum level-of-detail supported by the imagery provider.
-     * @param {String} [description.credit='MapQuest, Open Street Map and contributors, CC-BY-SA'] A string crediting the data source, which is displayed on the canvas.
+     * @param {Credit|String} [description.credit='MapQuest, Open Street Map and contributors, CC-BY-SA'] A credit for the data source, which is displayed on the canvas.
      *
      * @see ArcGisMapServerImageryProvider
      * @see BingMapsImageryProvider
@@ -75,17 +80,18 @@ define([
 
         this._ready = true;
 
-        var credit = defaultValue(description.credit, 'MapQuest, Open Street Map and contributors, CC-BY-SA');
-        this._logo = writeTextToCanvas(credit, {
-            font : '12px sans-serif'
-        });
+        var credit = defaultValue(description.credit, defaultCredit);
+        if (typeof credit === 'string') {
+            credit = new Credit(credit);
+        }
+        this._credit = credit;
     };
 
     function buildImageUrl(imageryProvider, x, y, level) {
         var url = imageryProvider._url + level + '/' + x + '/' + y + '.' + imageryProvider._fileExtension;
 
         var proxy = imageryProvider._proxy;
-        if (typeof proxy !== 'undefined') {
+        if (defined(proxy)) {
             url = proxy.getURL(url);
         }
 
@@ -165,6 +171,23 @@ define([
             throw new DeveloperError('getMaximumLevel must not be called before the imagery provider is ready.');
         }
         return this._maximumLevel;
+    };
+
+    /**
+     * Gets the minimum level-of-detail that can be requested.  This function should
+     * not be called before {@link OpenStreetMapImageryProvider#isReady} returns true.
+     *
+     * @memberof OpenStreetMapImageryProvider
+     *
+     * @returns {Number} The minimum level.
+     *
+     * @exception {DeveloperError} <code>getMinimumLevel</code> must not be called before the imagery provider is ready.
+     */
+    OpenStreetMapImageryProvider.prototype.getMinimumLevel = function() {
+        if (!this._ready) {
+            throw new DeveloperError('getMinimumLevel must not be called before the imagery provider is ready.');
+        }
+        return 0;
     };
 
     /**
@@ -271,24 +294,19 @@ define([
             throw new DeveloperError('requestImage must not be called before the imagery provider is ready.');
         }
         var url = buildImageUrl(this, x, y, level);
-        return ImageryProvider.loadImage(url);
+        return ImageryProvider.loadImage(this, url);
     };
 
     /**
-     * Gets the logo to display when this imagery provider is active.  Typically this is used to credit
+     * Gets the credit to display when this imagery provider is active.  Typically this is used to credit
      * the source of the imagery.  This function should not be called before {@link OpenStreetMapImageryProvider#isReady} returns true.
      *
      * @memberof OpenStreetMapImageryProvider
      *
-     * @returns {Image|Canvas} A canvas or image containing the log to display, or undefined if there is no logo.
-     *
-     * @exception {DeveloperError} <code>getLogo</code> must not be called before the imagery provider is ready.
+     * @returns {Credit} The credit, or undefined if no credit exists
      */
-    OpenStreetMapImageryProvider.prototype.getLogo = function() {
-        if (!this._ready) {
-            throw new DeveloperError('getLogo must not be called before the imagery provider is ready.');
-        }
-        return this._logo;
+    OpenStreetMapImageryProvider.prototype.getCredit = function() {
+        return this._credit;
     };
 
     return OpenStreetMapImageryProvider;

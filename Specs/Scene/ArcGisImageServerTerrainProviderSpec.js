@@ -1,6 +1,7 @@
 /*global defineSuite*/
 defineSuite([
          'Scene/ArcGisImageServerTerrainProvider',
+         'Core/defined',
          'Core/loadImage',
          'Core/DefaultProxy',
          'Core/Ellipsoid',
@@ -11,6 +12,7 @@ defineSuite([
          'ThirdParty/when'
      ], function(
          ArcGisImageServerTerrainProvider,
+         defined,
          loadImage,
          DefaultProxy,
          Ellipsoid,
@@ -86,7 +88,7 @@ defineSuite([
         var provider = new ArcGisImageServerTerrainProvider({
             url : 'made/up/url'
         });
-        expect(provider.getLogo()).toBeUndefined();
+        expect(provider.getCredit()).toBeUndefined();
     });
 
     it('logo is defined if credit is provided', function() {
@@ -94,7 +96,7 @@ defineSuite([
             url : 'made/up/url',
             credit : 'thanks to our awesome made up contributors!'
         });
-        expect(provider.getLogo()).toBeDefined();
+        expect(provider.getCredit()).toBeDefined();
     });
 
     it('does not have a water mask', function() {
@@ -118,7 +120,6 @@ defineSuite([
             loadImage.createImage = function(url, crossOrigin, deferred) {
                 expect(url.indexOf('exportImage?')).toBeGreaterThanOrEqualTo(0);
                 expect(url.indexOf('bbox=-181.40625%2C-91.40625%2C1.40625%2C91.40625')).toBeGreaterThanOrEqualTo(0);
-                expect(crossOrigin).toEqual(true);
 
                 // Just return any old image.
                 return loadImage.defaultCreateImage('Data/Images/Red16x16.png', crossOrigin, deferred);
@@ -146,7 +147,6 @@ defineSuite([
             loadImage.createImage = function(url, crossOrigin, deferred) {
                 expect(url.indexOf('exportImage?')).toBeGreaterThanOrEqualTo(0);
                 expect(url.indexOf('token=foofoofoo')).toBeGreaterThanOrEqualTo(0);
-                expect(crossOrigin).toEqual(true);
 
                 // Just return any old image.
                 return loadImage.defaultCreateImage('Data/Images/Red16x16.png', crossOrigin, deferred);
@@ -175,7 +175,6 @@ defineSuite([
             loadImage.createImage = function(url, crossOrigin, deferred) {
                 expect(url.indexOf('/proxy/?')).toBe(0);
                 expect(url.indexOf('exportImage%3F')).toBeGreaterThanOrEqualTo(0);
-                expect(crossOrigin).toEqual(true);
 
                 // Just return any old image.
                 return loadImage.defaultCreateImage('Data/Images/Red16x16.png', crossOrigin, deferred);
@@ -203,7 +202,6 @@ defineSuite([
 
             loadImage.createImage = function(url, crossOrigin, deferred) {
                 expect(url.indexOf('exportImage?')).toBeGreaterThanOrEqualTo(0);
-                expect(crossOrigin).toEqual(true);
 
                 // Just return any old image.
                 return loadImage.defaultCreateImage('Data/Images/Red16x16.png', crossOrigin, deferred);
@@ -221,7 +219,7 @@ defineSuite([
             });
 
             waitsFor(function() {
-                return typeof loadedData !== 'undefined';
+                return defined(loadedData);
             }, 'request to complete');
 
             runs(function() {

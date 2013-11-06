@@ -1,12 +1,16 @@
 /*global define*/
 define([
+        '../Core/defined',
         '../Core/DeveloperError',
         '../Core/clone',
-        '../ThirdParty/Tween'
+        '../ThirdParty/Tween',
+        '../Core/defaultValue'
     ], function(
+        defined,
         DeveloperError,
         clone,
-        Tween) {
+        Tween,
+        defaultValue) {
     "use strict";
 
     /**
@@ -26,32 +30,39 @@ define([
      *
      * @exception {DeveloperError} duration is required.
      */
-    AnimationCollection.prototype.add = function(template) {
-        var t = template || {};
+    AnimationCollection.prototype.add = function(options) {
+        options = defaultValue(options, defaultValue.EMPTY_OBJECT);
 
-        if (typeof t.duration === 'undefined') {
+        if (!defined(options.duration)) {
             throw new DeveloperError('duration is required.');
         }
 
-        t.delayDuration = (typeof t.delayDuration === 'undefined') ? 0 : t.delayDuration;
-        t.easingFunction = (typeof t.easingFunction === 'undefined') ? Tween.Easing.Linear.None : t.easingFunction;
+        if (options.duration > 0) {
+            var delayDuration = defaultValue(options.delayDuration, 0);
+            var easingFunction = defaultValue(options.easingFunction, Tween.Easing.Linear.None);
 
-        var value = clone(t.startValue);
-        var tween = new Tween.Tween(value);
-        tween.to(t.stopValue, t.duration);
-        tween.delay(t.delayDuration);
-        tween.easing(t.easingFunction);
-        if (t.onUpdate) {
-            tween.onUpdate(function() {
-                t.onUpdate(value);
-            });
+            var value = clone(options.startValue);
+            var tween = new Tween.Tween(value);
+            // set the callback on the instance to avoid extra bookkeeping
+            // or patching Tween.js
+            tween.onCancel = options.onCancel;
+            tween.to(options.stopValue, options.duration);
+            tween.delay(delayDuration);
+            tween.easing(easingFunction);
+            if (typeof options.onUpdate === 'function') {
+                tween.onUpdate(function() {
+                    options.onUpdate(value);
+                });
+            }
+            tween.onComplete(defaultValue(options.onComplete, null));
+            tween.start();
+
+            return {
+                _tween : tween
+            };
+        } else if (typeof options.onComplete === 'function') {
+            options.onComplete();
         }
-        tween.onComplete(t.onComplete || null);
-        tween.start();
-
-        return {
-            _tween : tween
-        };
     };
 
     /**
@@ -61,8 +72,8 @@ define([
      * @exception {DeveloperError} material is required.
      * @exception {DeveloperError} material has no properties with alpha components.
      */
-    AnimationCollection.prototype.addAlpha = function(material, start, stop, template) {
-        if (typeof material === 'undefined') {
+    AnimationCollection.prototype.addAlpha = function(material, start, stop, options) {
+        if (!defined(material)) {
             throw new DeveloperError('material is required.');
         }
 
@@ -70,8 +81,8 @@ define([
 
         for ( var property in material.uniforms) {
             if (material.uniforms.hasOwnProperty(property) &&
-                typeof material.uniforms[property] !== 'undefined' &&
-                typeof material.uniforms[property].alpha !== 'undefined') {
+                defined(material.uniforms[property]) &&
+                defined(material.uniforms[property].alpha)) {
                 properties.push(property);
             }
         }
@@ -81,13 +92,13 @@ define([
         }
 
         // Default to fade in
-        start = (typeof start === 'undefined') ? 0.0 : start;
-        stop = (typeof stop === 'undefined') ? 1.0 : stop;
+        start = defaultValue(start, 0.0);
+        stop = defaultValue(stop, 1.0);
 
-        var t = template || {};
-        t.duration = (typeof t.duration === 'undefined') ? 3000 : t.duration;
-        t.delayDuration = (typeof t.delayDuration === 'undefined') ? 0 : t.delayDuration;
-        t.easingFunction = (typeof t.easingFunction === 'undefined') ? Tween.Easing.Linear.None : t.easingFunction;
+        options = defaultValue(options, defaultValue.EMPTY_OBJECT);
+        var duration = defaultValue(options.duration, 3000);
+        var delayDuration = defaultValue(options.delayDuration, 0);
+        var easingFunction = defaultValue(options.easingFunction, Tween.Easing.Linear.None);
 
         var value = {
             alpha : start
@@ -95,16 +106,16 @@ define([
         var tween = new Tween.Tween(value);
         tween.to({
             alpha : stop
-        }, t.duration);
-        tween.delay(t.delayDuration);
-        tween.easing(t.easingFunction);
+        }, duration);
+        tween.delay(delayDuration);
+        tween.easing(easingFunction);
         tween.onUpdate(function() {
             var length = properties.length;
             for ( var i = 0; i < length; ++i) {
                 material.uniforms[properties[i]].alpha = value.alpha;
             }
         });
-        tween.onComplete(t.onComplete || null);
+        tween.onComplete(defaultValue(options.onComplete, null));
         tween.start();
 
         return {
@@ -120,23 +131,23 @@ define([
      * @exception {DeveloperError} property is required.
      * @exception {DeveloperError} pbject must have the specified property.
      */
-    AnimationCollection.prototype.addProperty = function(object, property, start, stop, template) {
-        if (typeof object === 'undefined') {
+    AnimationCollection.prototype.addProperty = function(object, property, start, stop, options) {
+        if (!defined(object)) {
             throw new DeveloperError('object is required.');
         }
 
-        if (typeof property === 'undefined') {
+        if (!defined(property)) {
             throw new DeveloperError('property is required.');
         }
 
-        if (typeof object[property] === 'undefined') {
+        if (!defined(object[property])) {
             throw new DeveloperError('object must have the specified property.');
         }
 
-        var t = template || {};
-        t.duration = (typeof t.duration === 'undefined') ? 3000 : t.duration;
-        t.delayDuration = (typeof t.delayDuration === 'undefined') ? 0 : t.delayDuration;
-        t.easingFunction = (typeof t.easingFunction === 'undefined') ? Tween.Easing.Linear.None : t.easingFunction;
+        options = defaultValue(options, defaultValue.EMPTY_OBJECT);
+        var duration = defaultValue(options.duration, 3000);
+        var delayDuration = defaultValue(options.delayDuration, 0);
+        var easingFunction = defaultValue(options.easingFunction, Tween.Easing.Linear.None);
 
         var value = {
             value : start
@@ -144,13 +155,13 @@ define([
         var tween = new Tween.Tween(value);
         tween.to({
             value : stop
-        }, t.duration);
-        tween.delay(t.delayDuration);
-        tween.easing(t.easingFunction);
+        }, duration);
+        tween.delay(delayDuration);
+        tween.easing(easingFunction);
         tween.onUpdate(function() {
             object[property] = value.value;
         });
-        tween.onComplete(t.onComplete || null);
+        tween.onComplete(defaultValue(options.onComplete, null));
         tween.start();
 
         return {
@@ -165,19 +176,19 @@ define([
      * @exception {DeveloperError} material is required.
      * @exception {DeveloperError} material must have an offset property.
      */
-    AnimationCollection.prototype.addOffsetIncrement = function(material, template) {
-        if (typeof material === 'undefined') {
+    AnimationCollection.prototype.addOffsetIncrement = function(material, options) {
+        if (!defined(material)) {
             throw new DeveloperError('material is required.');
         }
 
-        if (typeof material.uniforms.offset === 'undefined') {
+        if (!defined(material.uniforms.offset)) {
             throw new DeveloperError('material must have an offset property.');
         }
 
-        var t = template || {};
-        t.duration = (typeof t.duration === 'undefined') ? 3000 : t.duration;
-        t.delayDuration = (typeof t.delayDuration === 'undefined') ? 0 : t.delayDuration;
-        t.easingFunction = (typeof t.easingFunction === 'undefined') ? Tween.Easing.Linear.None : t.easingFunction;
+        options = defaultValue(options, defaultValue.EMPTY_OBJECT);
+        var duration = defaultValue(options.duration, 3000);
+        var delayDuration = defaultValue(options.delayDuration, 0);
+        var easingFunction = defaultValue(options.easingFunction, Tween.Easing.Linear.None);
 
         var value = {
             offset : material.uniforms.offset
@@ -185,17 +196,17 @@ define([
         var tween = new Tween.Tween(value);
         tween.to({
             offset : material.uniforms.offset + 1.0
-        }, t.duration);
-        tween.delay(t.delayDuration);
-        tween.easing(t.easingFunction);
+        }, duration);
+        tween.delay(delayDuration);
+        tween.easing(easingFunction);
         tween.onUpdate(function() {
             material.uniforms.offset = value.offset;
         });
-        // t.onComplete is ignored.
+        // options.onComplete is ignored.
         tween.onComplete(function() {
             tween.to({
                 offset : material.uniforms.offset + 1.0
-            }, t.duration);
+            }, duration);
             tween.start();
         });
         tween.start();
@@ -210,7 +221,7 @@ define([
      * @memberof AnimationCollection
      */
     AnimationCollection.prototype.remove = function(animation) {
-        if (typeof animation !== 'undefined') {
+        if (defined(animation)) {
             var count = Tween.getAll().length;
             Tween.remove(animation._tween);
 
@@ -225,6 +236,15 @@ define([
      * @memberof AnimationCollection
      */
     AnimationCollection.prototype.removeAll = function() {
+        var tweens = Tween.getAll();
+        var n = tweens.length;
+        var i = -1;
+        while (++i < n) {
+            var t = tweens[i];
+            if (typeof t.onCancel === 'function') {
+                t.onCancel();
+            }
+        }
         Tween.removeAll();
     };
 
@@ -233,7 +253,7 @@ define([
      * @memberof Animationcollection
      */
     AnimationCollection.prototype.contains = function(animation) {
-        if (typeof animation !== 'undefined') {
+        if (defined(animation)) {
             return Tween.getAll().indexOf(animation._tween) !== -1;
         }
         return false;

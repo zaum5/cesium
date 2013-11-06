@@ -19,13 +19,14 @@ define([
      */
     var Ray = function(origin, direction) {
         direction = Cartesian3.clone(defaultValue(direction, Cartesian3.ZERO));
-        if (!direction.equals(Cartesian3.ZERO)) {
+        if (!Cartesian3.equals(direction, Cartesian3.ZERO)) {
             Cartesian3.normalize(direction, direction);
         }
 
         /**
          * The origin of the ray.
          * @type {Cartesian3}
+         * @default {@link Cartesian3.ZERO}
          */
         this.origin = Cartesian3.clone(defaultValue(origin, Cartesian3.ZERO));
 
@@ -56,6 +57,7 @@ define([
         if (typeof t !== 'number') {
             throw new DeveloperError('t is a required number');
         }
+
         result = Cartesian3.multiplyByScalar(this.direction, t, result);
         return Cartesian3.add(this.origin, result, result);
     };
