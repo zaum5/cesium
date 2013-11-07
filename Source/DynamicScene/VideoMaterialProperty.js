@@ -11,7 +11,7 @@ define([
         Property) {
     "use strict";
 
-    function createSeekFunction(that, context, video, existingMaterial, result) {
+    function createSeekFunction(that, context, video, result) {
         return function() {
             //            console.log("seek called");
             //            if (video.seekable.length === 0) {
@@ -29,6 +29,7 @@ define([
                 });
                 result.image = that._cached_texture;
             }
+
             that._cached_texture.copyFrom(video);
             var duration = video.duration;
             //TODO: We should probably be checking the video.seekable segments
@@ -143,7 +144,7 @@ define([
                 var that = this;
                 video.addEventListener("loadeddata", function() {
                     //console.log("load event fired");
-                    that._seekFunction = createSeekFunction(context, video, result);
+                    that._seekFunction = createSeekFunction(that, context, video, result);
                     video.addEventListener("seeked", that._seekFunction, false);
                     that._seekFunction();
                 }, false);

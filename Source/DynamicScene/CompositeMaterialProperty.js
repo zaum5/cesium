@@ -66,14 +66,14 @@ define([
      *
      * @exception {DeveloperError} time is required.
      */
-    CompositeMaterialProperty.prototype.getValue = function(time, result) {
+    CompositeMaterialProperty.prototype.getValue = function(time, result, context) {
         if (!defined(time)) {
             throw new DeveloperError('time is required');
         }
 
         var innerProperty = this._intervals.findDataForIntervalContainingDate(time);
         if (defined(innerProperty)) {
-            return innerProperty.getValue(time, result);
+            return innerProperty.getValue(time, result, context);
         }
         return undefined;
     };
