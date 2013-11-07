@@ -1,10 +1,11 @@
 /*global define*/
-define([
+define(['../Core/Iso8601',
         '../Core/Cartesian2',
         '../Core/defined',
         './ConstantProperty',
         './Property'
     ], function(
+        Iso8601,
         Cartesian2,
         defined,
         ConstantProperty,
@@ -13,32 +14,22 @@ define([
 
     function createSeekFunction(that, context, video, result) {
         return function() {
-            //            console.log("seek called");
-            //            if (video.seekable.length === 0) {
-            //                console.log(video.seekable);
-            //            } else {
-            //                for ( var i = 0; i < video.seekable.length; i++) {
-            //                    console.log(video.seekable.start(i));
-            //                    console.log(video.seekable.end(i));
-            //                }
-            //            }
-
-            if (typeof that._cached_texture === 'undefined') {
-                that._cached_texture = context.createTexture2D({
+            if (typeof that._cachedTexture === 'undefined') {
+                that._cachedTexture = context.createTexture2D({
                     source : video
                 });
-                result.image = that._cached_texture;
+                result.image = that._cachedTexture;
             }
 
-            that._cached_texture.copyFrom(video);
+            that._cachedTexture.copyFrom(video);
             var duration = video.duration;
             //TODO: We should probably be checking the video.seekable segments
             //before setting the currentTime, but if there are no seekable
             //segments, then this code will have no affect, so the net result
             //seems to be the same.
-            var videoTime = that._cached_startTime.getSecondsDifference(that._cached_time);
-            videoTime = videoTime * that._cached_speed;
-            if (that._cached_loop) {
+            var videoTime = that._cachedStartTime.getSecondsDifference(that._cachedTime);
+            videoTime = videoTime * that._cachedSpeed;
+            if (that._cachedLoop) {
                 videoTime = videoTime % duration;
                 if (videoTime < 0.0) {
                     videoTime = duration - videoTime;
@@ -103,44 +94,32 @@ define([
             result = {};
         }
 
-        result.image = defined(this.image) ? this.image.getValue(time) : undefined;
         result.repeat = defined(this.repeat) ? this.repeat.getValue(time, result.repeat) : undefined;
+        var loop = defined(this.loop) ? this.loop.getValue(time) : false;
+        var speed = defined(this.speed) ? this.speed.getValue(time) : 1;
+        var startTime = defined(this.startTime) ? this.startTime.getValue(time) : Iso8601.MININMUM_VALUE;
 
-        var loop = false;
-        var property = this.loop;
-        if (typeof property !== 'undefined') {
-            loop = property.getValue(time);
-        }
+        this._cachedSpeed = speed;
+        this._cachedLoop = loop;
+        this._cachedTime = time;
+        this._cachedStartTime = startTime;
+        this._cachedTime = time;
 
-        var speed = 1;
-        property = this.speed;
-        if (typeof property !== 'undefined') {
-            speed = property.getValue(time);
-        }
-
-        this._cached_speed = speed;
-        this._cached_loop = loop;
-        this._cached_time = time;
-
-        property = this.startTime;
-        if (typeof property !== 'undefined') {
-            this._cached_startTime = property.getValue(time, this._startTime);
-        }
-
-        var video;
-        property = this.video;
-        if (typeof property !== 'undefined') {
-            var url = property.getValue(time);
-            if (typeof url !== 'undefined' && this._cached_currentUrl !== url) {
-                this._cached_currentUrl = url;
-                if (typeof this._cached_video !== 'undefined') {
-                    this._cached_video.removeEventListener("seeked", this._seekFunction, false);
-                    document.body.removeChild(this._cached_video);
+        var videoProperty = this.video;
+        if (defined(videoProperty)) {
+            var url = videoProperty.getValue(time);
+            if (defined(url) && this._cachedUrl !== url) {
+                this._cachedUrl = url;
+                if (defined(this._cachedVideo)) {
+                    this._cachedVideo.removeEventListener("seeked", this._seekFunction, false);
+                    document.body.removeChild(this._cachedVideo);
                 }
-                video = this._cached_video = document.createElement('video');
-                document.body.appendChild(video);
+                var video = document.createElement('video');
                 video.style.display = 'none';
                 video.preload = 'auto';
+                document.body.appendChild(video);
+                this._cachedVideo = video;
+
                 var that = this;
                 video.addEventListener("loadeddata", function() {
                     //console.log("load event fired");
