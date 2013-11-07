@@ -238,7 +238,7 @@ define([
             polygon._visualizerPositions = vertexPositions;
         }
 
-        polygon.material = MaterialProperty.getValue(time, dynamicPolygon._material, polygon.material);
+        polygon.material = MaterialProperty.getValue(time, dynamicPolygon._material, polygon.material, dynamicPolygonVisualizer._scene.getContext());
     }
 
     DynamicPolygonVisualizer.prototype._onObjectsRemoved = function(dynamicObjectCollection, added, dynamicObjects) {
