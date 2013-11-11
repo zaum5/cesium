@@ -53,5 +53,15 @@ define([
      */
     PointAppearance.prototype.getFragmentShaderSource = Appearance.prototype.getFragmentShaderSource;
 
+    /**
+     * DOC_TBA
+     */
+    PointAppearance.prototype.isTranslucent = Appearance.prototype.isTranslucent;
+
+    /**
+     * DOC_TBA
+     */
+    PointAppearance.prototype.getRenderState = Appearance.prototype.getRenderState;
+
     return PointAppearance;
 });
