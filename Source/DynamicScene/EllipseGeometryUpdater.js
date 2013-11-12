@@ -3,17 +3,17 @@ define(['../Core/Color',
         '../Core/ColorGeometryInstanceAttribute',
         '../Core/defineProperties',
         '../Core/DeveloperError',
+        '../Core/Event',
         '../Core/ShowGeometryInstanceAttribute',
         '../Core/defaultValue',
         '../Core/defined',
         '../Core/GeometryInstance',
         '../Core/EllipseGeometry',
         '../Core/Iso8601',
-        '../Core/EllipseOutlineGeometry',
-        './ConstantProperty',
-        './ConstantPositionProperty',
-        './ColorMaterialProperty',
-        './GeometryBatchType',
+        '../DynamicScene/ConstantProperty',
+        '../DynamicScene/ConstantPositionProperty',
+        '../DynamicScene/ColorMaterialProperty',
+        '../DynamicScene/GeometryBatchType',
         '../Scene/Primitive',
         '../Scene/MaterialAppearance',
         '../Scene/PerInstanceColorAppearance',
@@ -24,13 +24,13 @@ define(['../Core/Color',
         ColorGeometryInstanceAttribute,
         defineProperties,
         DeveloperError,
+        Event,
         ShowGeometryInstanceAttribute,
         defaultValue,
         defined,
         GeometryInstance,
         EllipseGeometry,
         Iso8601,
-        EllipseOutlineGeometry,
         ConstantProperty,
         ConstantPositionProperty,
         ColorMaterialProperty,
@@ -67,8 +67,6 @@ define(['../Core/Color',
         this._dynamicObject = dynamicObject;
         this._show = true;
         this._color = Color.clone(Color.WHITE);
-        this._outline = true;
-        this._outlineColor = Color.BLACK.clone();
         this._material = undefined;
         this._geometryType = GeometryBatchType.NONE;
         this._needEvaluation = true;
@@ -108,15 +106,12 @@ define(['../Core/Color',
         this._dynamicColor = false;
         this._colorProperty = undefined;
 
-        this._dynamicOutline = false;
-        this._outlineProperty = undefined;
-
-        this._dynamicOutlineColor = false;
-        this._outlineColorProperty = undefined;
-
-        this._dynamicnumberOfVerticalLines = false;
-        this._numberOfVerticalLinesProperty = undefined;
+        this._propertyChanged = new Event();
     };
+
+    EllipseGeometryUpdater.PerInstanceColorAppearanceType = PerInstanceColorAppearance;
+
+    EllipseGeometryUpdater.MaterialAppearanceType = MaterialAppearance;
 
     defineProperties(EllipseGeometryUpdater.prototype, {
         id : {
@@ -129,19 +124,14 @@ define(['../Core/Color',
                 return this._geometryType;
             }
         },
-        hasOutline : {
-            get : function() {
-                return this._outline;
-            }
-        },
         isTranslucent : {
             get : function() {
                 return this._color.alpha !== 1.0;
             }
         },
-        isOutlineTranslucent : {
-            get : function() {
-                return this._outlineColor.alpha !== 1.0;
+        propertyChanged :{
+            get : function(){
+                return this._propertyChanged;
             }
         }
     });
@@ -171,36 +161,12 @@ define(['../Core/Color',
         });
     };
 
-    EllipseGeometryUpdater.prototype.createOutlineGeometryInstance = function() {
-        var attributes = {
-            show : new ShowGeometryInstanceAttribute(this._outline),
-            color : ColorGeometryInstanceAttribute.fromColor(this._outlineColor)
-        };
-
-        return new GeometryInstance({
-            id : this._dynamicObject,
-            geometry : new EllipseOutlineGeometry(this._geometryOptions),
-            attributes : attributes
-        });
-    };
-
     EllipseGeometryUpdater.prototype.updateAttributes = function(attributes) {
         var color = this._color;
         if (defined(color)) {
             attributes.color = ColorGeometryInstanceAttribute.toValue(color, attributes.color);
         }
         var show = this._show;
-        if (defined(show)) {
-            attributes.show = ShowGeometryInstanceAttribute.toValue(show, attributes.show);
-        }
-    };
-
-    EllipseGeometryUpdater.prototype.updateOutlineAttributes = function(attributes) {
-        var color = this._outlineColor;
-        if (defined(color)) {
-            attributes.color = ColorGeometryInstanceAttribute.toValue(color, attributes.color);
-        }
-        var show = this._outline;
         if (defined(show)) {
             attributes.show = ShowGeometryInstanceAttribute.toValue(show, attributes.show);
         }
@@ -256,14 +222,6 @@ define(['../Core/Color',
 
             if (this._dynamicStRotation) {
                 options.stRotation = this._stRotationProperty.getValue(time);
-            }
-
-            if (this._dynamicOutline) {
-                this._outline = this._outlineProperty.getValue(time);
-            }
-
-            if (this._dynamicOutlineColor) {
-                this._outlineColor = this._outlineColorProperty.getValue(time);
             }
 
             var materialProperty = this._materialProperty;
@@ -333,19 +291,6 @@ define(['../Core/Color',
             this._semiMinorAxisProperty = semiMinorAxisProperty;
         }
 
-        var rotationProperty = ellipse.rotation;
-        if (this._rotationProperty !== rotationProperty) {
-            isConstant = rotationProperty instanceof ConstantProperty;
-            if (isConstant) {
-                if (!rotationProperty.getValue()) {
-                    this._geometryType = GeometryBatchType.NONE;
-                    return;
-                }
-            }
-            this._dynamicShow = defined(rotationProperty) && !isConstant;
-            this._rotationProperty = rotationProperty;
-        }
-
         var showProperty = ellipse.show;
         if (this._showProperty !== showProperty) {
             isConstant = showProperty instanceof ConstantProperty;
@@ -357,6 +302,16 @@ define(['../Core/Color',
             }
             this._dynamicShow = defined(showProperty) && !isConstant;
             this._showProperty = showProperty;
+        }
+
+        var rotationProperty = ellipse.rotation;
+        if (this._rotationProperty !== rotationProperty) {
+            isConstant = rotationProperty instanceof ConstantProperty;
+            if (isConstant) {
+                options.rotation = rotationProperty.getValue();
+            }
+            this._dynamicShow = defined(rotationProperty) && !isConstant;
+            this._rotationProperty = rotationProperty;
         }
 
         var heightProperty = ellipse.height;
@@ -387,26 +342,6 @@ define(['../Core/Color',
             }
             this._dynamicStRotation = defined(stRotationProperty) && !isConstant;
             this._stRotationProperty = stRotationProperty;
-        }
-
-        var outlineProperty = ellipse.outline;
-        if (this._outlineProperty !== outlineProperty) {
-            isConstant = outlineProperty instanceof ConstantProperty;
-            if (isConstant) {
-                this._outline = outlineProperty.getValue();
-            }
-            this._dynamicOutline = defined(outlineProperty) && !isConstant;
-            this._outlineProperty = outlineProperty;
-        }
-
-        var outlineColorProperty = ellipse.outlineColor;
-        if (this._outlineColorProperty !== outlineColorProperty) {
-            isConstant = outlineColorProperty instanceof ConstantProperty;
-            if (isConstant) {
-                this._outlineColor = outlineColorProperty.getValue();
-            }
-            this._dynamicOutlineColor = defined(outlineColorProperty) && !isConstant;
-            this._outlineColorProperty = outlineColorProperty;
         }
 
         var granularityProperty = ellipse.granularity;
@@ -490,10 +425,6 @@ define(['../Core/Color',
         this._show = undefined;
         this._translucent = false;
         this._primitive = undefined;
-
-        this._outline = undefined;
-        this._outlineTranslucent = undefined;
-        this._outlinePrimitive = undefined;
     };
 
     DynamicGeometryBatchItem.prototype.update = function() {
@@ -554,38 +485,12 @@ define(['../Core/Color',
                 });
                 this._primitives.add(this._primitive);
             }
-
-            if (true ||!defined(this._outlinePrimitive) || this._translucent !== translucent) {
-                this._primitives.remove(this._outlinePrimitive);
-                this._outlinePrimitive = undefined;
-
-                appearance = new PerInstanceColorAppearance({
-                    flat : true,
-                    translucent : this.translucent,
-                    renderState : {
-                        depthTest : {
-                            enabled : true
-                        }
-                    //,
-                    //lineWidth : Math.min(3.0, scene.getContext().getMaximumAliasedLineWidth())
-                    }
-                });
-
-                geometryUpdater._geometryOptions.vertexFormat = appearance.vertexFormat;
-                this._outlinePrimitive = new Primitive({
-                    geometryInstances : geometryUpdater.createOutlineGeometryInstance(),
-                    appearance : appearance,
-                    asynchronous : false
-                });
-                this._primitives.add(this._outlinePrimitive);
-            }
         }
         this._primitive.show = true;
     };
 
     DynamicGeometryBatchItem.prototype.destroy = function() {
         this._primitives.remove(this._primitive);
-        this._primitives.remove(this._outlinePrimitive);
     };
 
     return EllipseGeometryUpdater;

@@ -7,17 +7,15 @@ define(['../Core/DeveloperError'], function(DeveloperError) {
         this.dynamicObject = undefined;
         this.show = undefined;
         this.color = undefined;
-        this.outline = undefined;
-        this.outlineColor = undefined;
         this.material = undefined;
         this.geometryType = undefined;
         this._materialProperty = undefined;
     };
 
-    GeometryUpdater.prototype.createGeometryInstance = function() {
-    };
+    GeometryUpdater.PerInstanceColorAppearanceType = undefined;
+    GeometryUpdater.MaterialAppearanceType = undefined;
 
-    GeometryUpdater.prototype.createOutlineGeometryInstance = function() {
+    GeometryUpdater.prototype.createGeometryInstance = function() {
     };
 
     GeometryUpdater.prototype.update = function(time) {

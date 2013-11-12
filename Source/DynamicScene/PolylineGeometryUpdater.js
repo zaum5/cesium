@@ -72,14 +72,17 @@ define(['../Core/Color',
         this._colorProperty = undefined;
     };
 
+    PolylineGeometryUpdater.PerInstanceColorAppearanceType = PolylineColorAppearance;
+    PolylineGeometryUpdater.MaterialAppearanceType = PolylineMaterialAppearance;
+
     PolylineGeometryUpdater.prototype.createGeometryInstance = function() {
         var attributes;
-        if (this.geometryType === GeometryBatchType.POLYLINE_COLOR) {
+        if (this.geometryType === GeometryBatchType.COLOR) {
             attributes = {
                 show : new ShowGeometryInstanceAttribute(this.show),
                 color : ColorGeometryInstanceAttribute.fromColor(this.color)
             };
-        } else if (this.geometryType === GeometryBatchType.POLYLINE_MATERIAL) {
+        } else if (this.geometryType === GeometryBatchType.MATERIAL) {
             attributes = {
                 show : new ShowGeometryInstanceAttribute(this.show)
             };
@@ -90,6 +93,17 @@ define(['../Core/Color',
             geometry : new PolylineGeometry(this._geometryOptions),
             attributes : attributes
         });
+    };
+
+    PolylineGeometryUpdater.prototype.updateAttributes = function(attributes) {
+        var color = this._color;
+        if (defined(color)) {
+            attributes.color = ColorGeometryInstanceAttribute.toValue(color, attributes.color);
+        }
+        var show = this._show;
+        if (defined(show)) {
+            attributes.show = ShowGeometryInstanceAttribute.toValue(show, attributes.show);
+        }
     };
 
     PolylineGeometryUpdater.prototype.update = function(time) {
@@ -108,7 +122,7 @@ define(['../Core/Color',
             return;
         }
 
-        if (type === GeometryBatchType.POLYLINE_COLOR && this._dynamicColor) {
+        if (type === GeometryBatchType.COLOR && this._dynamicColor) {
             this.color = defaultValue(this._colorProperty.getValue(time, this.color), this.color);
         } else if (type === GeometryBatchType.DYNAMIC) {
             var options = this._geometryOptions;
@@ -210,10 +224,10 @@ define(['../Core/Color',
             geometryType = GeometryBatchType.DYNAMIC;
         } else if (!isColorMaterial) {
             options.vertexFormat = PolylineMaterialAppearance.VERTEX_FORMAT;
-            geometryType = GeometryBatchType.POLYLINE_MATERIAL;
+            geometryType = GeometryBatchType.MATERIAL;
         } else {
             options.vertexFormat = PolylineColorAppearance.VERTEX_FORMAT;
-            geometryType = GeometryBatchType.POLYLINE_COLOR;
+            geometryType = GeometryBatchType.COLOR;
         }
 
         this.geometryType = geometryType;

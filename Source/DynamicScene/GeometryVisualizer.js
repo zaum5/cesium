@@ -74,12 +74,9 @@ define(['../Core/defined',
         this._outlineBatch = new StaticOutlineGeometryBatch(primitives);
 
         this._batches = [];
-        this._batches[GeometryBatchType.COLOR.value] = new StaticGeometryColorBatch(primitives, PerInstanceColorAppearance);
-        this._batches[GeometryBatchType.POLYLINE_COLOR.value] = new StaticGeometryColorBatch(primitives, PolylineColorAppearance);
-        this._batches[GeometryBatchType.MATERIAL.value] = new StaticGeometryPerMaterialBatch(primitives, MaterialAppearance);
-        this._batches[GeometryBatchType.POLYLINE_MATERIAL.value] = new StaticGeometryPerMaterialBatch(primitives, PolylineMaterialAppearance);
+        this._batches[GeometryBatchType.COLOR.value] = new StaticGeometryColorBatch(primitives, type.PerInstanceColorAppearanceType);
+        this._batches[GeometryBatchType.MATERIAL.value] = new StaticGeometryPerMaterialBatch(primitives, type.MaterialAppearanceType);
         this._batches[GeometryBatchType.DYNAMIC.value] = new DynamicGeometryBatch(primitives);
-        this._batches[GeometryBatchType.OUTLINE.value] = this._outlineBatch;
 
         this._updaters = new Dictionary();
         this.setDynamicObjectCollection(dynamicObjectCollection);

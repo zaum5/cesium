@@ -71,6 +71,10 @@ define(['../Core/Color',
         this._geometryOptions = new GeometryOptions(dynamicObject);
     };
 
+    EllipsoidGeometryUpdater.PerInstanceColorAppearanceType = PerInstanceColorAppearance;
+
+    EllipsoidGeometryUpdater.MaterialAppearanceType = EllipsoidSurfaceAppearance;
+
     EllipsoidGeometryUpdater.prototype.createGeometryInstance = function() {
         var attributes;
         if (this.geometryType === GeometryBatchType.COLOR) {
@@ -90,6 +94,17 @@ define(['../Core/Color',
             attributes : attributes,
             modelMatrix : Matrix4.fromRotationTranslation(Matrix3.fromQuaternion(this.orientation), this.position)
         });
+    };
+
+    EllipsoidGeometryUpdater.prototype.updateAttributes = function(attributes) {
+        var color = this._color;
+        if (defined(color)) {
+            attributes.color = ColorGeometryInstanceAttribute.toValue(color, attributes.color);
+        }
+        var show = this._show;
+        if (defined(show)) {
+            attributes.show = ShowGeometryInstanceAttribute.toValue(show, attributes.show);
+        }
     };
 
     EllipsoidGeometryUpdater.prototype.update = function(time) {
