@@ -14,22 +14,22 @@ define(['../Core/Iso8601',
 
     function createSeekFunction(that, context, video, result) {
         return function() {
-            if (!defined(that._cachedTexture)) {
-                that._cachedTexture = context.createTexture2D({
+            if (!defined(that._texture)) {
+                that._texture = context.createTexture2D({
                     source : video
                 });
-                result.image = that._cachedTexture;
+                result.image = that._texture;
             }
 
-            that._cachedTexture.copyFrom(video);
+            that._texture.copyFrom(video);
             var duration = video.duration;
             //TODO: We should probably be checking the video.seekable segments
             //before setting the currentTime, but if there are no seekable
             //segments, then this code will have no affect, so the net result
             //seems to be the same.
-            var videoTime = that._cachedStartTime.getSecondsDifference(that._cachedTime);
-            videoTime = videoTime * that._cachedSpeed;
-            if (that._cachedLoop) {
+            var videoTime = that._startTime.getSecondsDifference(that._time);
+            videoTime = videoTime * that._speed;
+            if (that._loop) {
                 videoTime = videoTime % duration;
                 if (videoTime < 0.0) {
                     videoTime = duration - videoTime;
@@ -56,6 +56,7 @@ define(['../Core/Iso8601',
          * @type {Property}
          */
         this.video = undefined;
+
         /**
          * A {@link Cartesian2} {@link Property} which determines the number of times the video repeats in each direction.
          * @type {Property}
@@ -63,9 +64,35 @@ define(['../Core/Iso8601',
          */
         this.repeat = new ConstantProperty(new Cartesian2(1, 1));
 
-        this.startTime = undefined;
-        this.loop = undefined;
-        this.speed = undefined;
+        /**
+         * A {@link JulianDate} {@link Property} which determines the simulation start time of the video.
+         * @type {Property}
+         * @default new ConstantProperty(new Cartesian2(1, 1))
+         */
+        this.startTime = new ConstantProperty(Iso8601.MININMUM_VALUE);
+
+        /**
+         * A Boolean {@link Property} which determines whether or not the video should loop;
+         * @type {Property}
+         * @default new ConstantProperty(true)
+         */
+        this.loop = new ConstantProperty(true);
+
+        /**
+         * A Number {@link Property} which determines the playback speed of the video.
+         * @type {Property}
+         * @default new ConstantProperty(true)
+         */
+        this.speed = new ConstantProperty(1.0);
+
+        this._time = undefined;
+        this._speed = undefined;
+        this._loop = undefined;
+        this._startTime = undefined;
+        this._videoUrl = undefined;
+        this._videoElement = undefined;
+        this._seekFunction = undefined;
+        this._texture = undefined;
     };
 
     /**
@@ -95,36 +122,32 @@ define(['../Core/Iso8601',
         }
 
         result.repeat = defined(this.repeat) ? this.repeat.getValue(time, result.repeat) : undefined;
-        var loop = defined(this.loop) ? this.loop.getValue(time) : false;
-        var speed = defined(this.speed) ? this.speed.getValue(time) : 1;
-        var startTime = defined(this.startTime) ? this.startTime.getValue(time) : Iso8601.MININMUM_VALUE;
-
-        this._cachedSpeed = speed;
-        this._cachedLoop = loop;
-        this._cachedTime = time;
-        this._cachedStartTime = startTime;
-        this._cachedTime = time;
+        this._time = time;
+        this._speed = defined(this.speed) ? this.speed.getValue(time) : 1;
+        this._loop = defined(this.loop) ? this.loop.getValue(time) : true;
+        this._startTime = defined(this.startTime) ? this.startTime.getValue(time) : Iso8601.MININMUM_VALUE;
 
         var videoProperty = this.video;
         if (defined(videoProperty)) {
             var url = videoProperty.getValue(time);
-            if (defined(url) && this._cachedUrl !== url) {
-                this._cachedUrl = url;
-                if (defined(this._cachedVideo)) {
-                    this._cachedVideo.removeEventListener("seeked", this._seekFunction, false);
-                    document.body.removeChild(this._cachedVideo);
+            if (defined(url) && this._videoUrl !== url) {
+                this._videoUrl = url;
+                if (defined(this._videoElement)) {
+                    this._videoElement.removeEventListener("seeked", this._seekFunction, false);
+                    document.body.removeChild(this._videoElement);
                 }
                 var video = document.createElement('video');
                 video.style.display = 'none';
                 video.preload = 'auto';
                 document.body.appendChild(video);
-                this._cachedVideo = video;
+                this._videoElement = video;
 
                 var that = this;
                 video.addEventListener("loadeddata", function() {
-                    that._seekFunction = createSeekFunction(that, context, video, result);
+                    var seekFunction = createSeekFunction(that, context, video, result);
+                    that._seekFunction = seekFunction;
                     video.addEventListener("seeked", that._seekFunction, false);
-                    that._seekFunction();
+                    seekFunction();
                 }, false);
 
                 video.src = url;
@@ -146,7 +169,10 @@ define(['../Core/Iso8601',
     VideoMaterialProperty.prototype.equals = function(other) {
         return this === other || //
                 (other instanceof VideoMaterialProperty && //
-                Property.equals(this.image, other.image) && //
+                Property.equals(this.video, other.video) && //
+                Property.equals(this.startTime, other.startTime) && //
+                Property.equals(this.loop, other.loop) && //
+                Property.equals(this.speed, other.speed) && //
                 Property.equals(this.repeat, other.repeat));
     };
 
