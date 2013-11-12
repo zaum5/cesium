@@ -69,7 +69,7 @@ define(['../Core/Iso8601',
          * @type {Property}
          * @default new ConstantProperty(new Cartesian2(1, 1))
          */
-        this.startTime = new ConstantProperty(Iso8601.MININMUM_VALUE);
+        this.startTime = new ConstantProperty(Iso8601.MINIMUM_VALUE);
 
         /**
          * A Boolean {@link Property} which determines whether or not the video should loop;
@@ -79,7 +79,7 @@ define(['../Core/Iso8601',
         this.loop = new ConstantProperty(true);
 
         /**
-         * A Number {@link Property} which determines the playback speed of the video.
+         * A Number {@link Property} which determines the playback rate of the video.
          * @type {Property}
          * @default new ConstantProperty(true)
          */
@@ -125,7 +125,7 @@ define(['../Core/Iso8601',
         this._time = time;
         this._speed = defined(this.speed) ? this.speed.getValue(time) : 1;
         this._loop = defined(this.loop) ? this.loop.getValue(time) : true;
-        this._startTime = defined(this.startTime) ? this.startTime.getValue(time) : Iso8601.MININMUM_VALUE;
+        this._startTime = defined(this.startTime) ? this.startTime.getValue(time) : Iso8601.MINIMUM_VALUE;
 
         var videoProperty = this.video;
         if (defined(videoProperty)) {
