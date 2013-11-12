@@ -164,8 +164,8 @@ define([
         return result;
     }
 
-    function unwrapUriInterval(czmlInterval, sourceUri) {
-        var result = defaultValue(czmlInterval.uri, czmlInterval);
+    function unwrapVideoInterval(czmlInterval, sourceUri) {
+        var result = defaultValue(czmlInterval.video, czmlInterval);
         if (defined(sourceUri)) {
             var baseUri = new Uri(document.location.href);
             sourceUri = new Uri(sourceUri);
@@ -288,8 +288,8 @@ define([
             return JulianDate.fromIso8601(defaultValue(czmlInterval.date, czmlInterval));
         case LabelStyle:
             return LabelStyle[defaultValue(czmlInterval.labelStyle, czmlInterval)];
-        case Uri:
-            return unwrapUriInterval(czmlInterval, sourceUri);
+        case HTMLVideoElement:
+            return unwrapVideoInterval(czmlInterval, sourceUri);
         case Number:
             return defaultValue(czmlInterval.number, czmlInterval);
         case String:
@@ -703,7 +703,7 @@ define([
                 existingMaterial = new VideoMaterialProperty();
             }
             materialData = packetData.video;
-            processPacketData(Uri, existingMaterial, 'video', materialData.video, undefined, sourceUri);
+            processPacketData(HTMLVideoElement, existingMaterial, 'video', materialData.video, undefined, sourceUri);
             processPacketData(JulianDate, existingMaterial, 'startTime', materialData.startTime, undefined, sourceUri);
             processPacketData(Boolean, existingMaterial, 'loop', materialData.loop, undefined, sourceUri);
             processPacketData(Number, existingMaterial, 'speed', materialData.speed, undefined, sourceUri);

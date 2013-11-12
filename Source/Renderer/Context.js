@@ -1325,11 +1325,11 @@ define([
         var height = description.height;
         var source = description.source;
 
-        if (typeof source !== 'undefined') {
-            if (typeof width === 'undefined') {
+        if (defined(source)) {
+            if (!defined(width)) {
                 width = defaultValue(source.videoWidth, source.width);
             }
-            if (typeof height === 'undefined') {
+            if (!defined(height)) {
                 height = defaultValue(source.videoHeight, source.height);
             }
         }

@@ -14,7 +14,7 @@ define(['../Core/Iso8601',
 
     function createSeekFunction(that, context, video, result) {
         return function() {
-            if (typeof that._cachedTexture === 'undefined') {
+            if (!defined(that._cachedTexture)) {
                 that._cachedTexture = context.createTexture2D({
                     source : video
                 });
@@ -122,7 +122,6 @@ define(['../Core/Iso8601',
 
                 var that = this;
                 video.addEventListener("loadeddata", function() {
-                    //console.log("load event fired");
                     that._seekFunction = createSeekFunction(that, context, video, result);
                     video.addEventListener("seeked", that._seekFunction, false);
                     that._seekFunction();
