@@ -98,11 +98,13 @@ define([
     };
 
     function update(frustum) {
+        //>>includeStart('debug', pragmas.debug);
         if (!defined(frustum.right) || !defined(frustum.left) ||
             !defined(frustum.top) || !defined(frustum.bottom) ||
             !defined(frustum.near) || !defined(frustum.far)) {
             throw new DeveloperError('right, left, top, bottom, near, or far parameters are not set.');
         }
+        //>>includeEnd('debug');
 
         var t = frustum.top;
         var b = frustum.bottom;
@@ -115,9 +117,11 @@ define([
             l !== frustum._left || r !== frustum._right ||
             n !== frustum._near || f !== frustum._far) {
 
+            //>>includeStart('debug', pragmas.debug);
             if (frustum.near <= 0 || frustum.near > frustum.far) {
                 throw new DeveloperError('near must be greater than zero and less than far.');
             }
+            //>>includeEnd('debug');
 
             frustum._left = l;
             frustum._right = r;
@@ -185,6 +189,7 @@ define([
      * var intersect = cullingVolume.getVisibility(boundingVolume);
      */
     PerspectiveOffCenterFrustum.prototype.computeCullingVolume = function(position, direction, up) {
+        //>>includeStart('debug', pragmas.debug);
         if (!defined(position)) {
             throw new DeveloperError('position is required.');
         }
@@ -196,6 +201,7 @@ define([
         if (!defined(up)) {
             throw new DeveloperError('up is required.');
         }
+        //>>includeEnd('debug');
 
         var planes = this._cullingVolume.planes;
 
@@ -339,13 +345,16 @@ define([
     PerspectiveOffCenterFrustum.prototype.getPixelSize = function(drawingBufferDimensions, distance) {
         update(this);
 
+        //>>includeStart('debug', pragmas.debug);
         if (!defined(drawingBufferDimensions)) {
             throw new DeveloperError('drawingBufferDimensions is required.');
         }
+        //>>includeEnd('debug');
 
         var width = drawingBufferDimensions.x;
         var height = drawingBufferDimensions.y;
 
+        //>>includeStart('debug', pragmas.debug);
         if (width <= 0) {
             throw new DeveloperError('drawingBufferDimensions.x must be greater than zero.');
         }
@@ -353,6 +362,7 @@ define([
         if (height <= 0) {
             throw new DeveloperError('drawingBufferDimensions.y must be greater than zero.');
         }
+        //>>includeEnd('debug');
 
         distance = defaultValue(distance, this.near);
 
